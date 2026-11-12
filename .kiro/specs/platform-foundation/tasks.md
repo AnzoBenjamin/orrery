@@ -1,5 +1,18 @@
 # Tasks: Platform foundation
 
+## Build order
+
+Task numbers are stable references (other specs cite them). Work them in this order, which brings the web app, worker, and engine up as soon as each has a real job:
+
+1. 1.x, 2.0, 2.1 (services). The web, worker, and engine Compose services are added by the tasks that create them.
+2. 2.2 env validation.
+3. 3.1–3.3 database.
+4. 4.1 Better Auth. Creates `apps/web` and adds the `web` Compose service.
+5. 7.1 pg-boss core. Creates `apps/worker` and adds the `worker` Compose service. Moved ahead of 4.2 because the `email.send` queue needs it.
+6. 4.2–4.4 email and account screens.
+7. 6.x uploads and probing. 6.3 creates `services/engine` and adds the `engine` Compose service with the production CPU and memory limits.
+8. 5.x, then 7.2–7.6, 8.x, 9.x, 10.x, 11.x in numeric order. Testing infrastructure from 9.1–9.3 is set up by the first task that needs it, not deferred to 9.
+
 - [ ] 1. Repository and toolchain
   - [x] 1.1 Initialize pnpm workspace, Turborepo pipeline, Cargo workspace, uv workspace, and version files (`.nvmrc`, `packageManager`, `.python-version`, `rust-toolchain.toml`).
     - _Requirements: 1.1, 1.5_
@@ -59,7 +72,7 @@
     - _Requirements: 6.1–6.6_
 
 - [ ] 7. Jobs, realtime, and engine contract
-  - [ ] 7.1 Create `apps/worker` with pg-boss, typed queue definitions, and the `enqueue` helper.
+  - [ ] 7.1 Create `apps/worker` with pg-boss, typed queue definitions, and the `enqueue` helper. Runs before 4.2 (see Build order).
     - _Requirements: 7.1, 7.2_
   - [ ] 7.2 Implement failure handling that marks domain records failed and creates notifications. Build the notification tray UI.
     - _Requirements: 7.3_

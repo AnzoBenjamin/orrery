@@ -1,0 +1,27 @@
+{
+  "name": "orrery",
+  "private": true,
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AnzoBenjamin/orrery.git"
+  },
+  "type": "module",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=26.13.1 <27",
+    "pnpm": ">=12.18.0 <13"
+  },
+  "scripts": {
+    "check": "bash scripts/check.sh",
+    "test": "bash scripts/test.sh",
+    "dev": "turbo run dev",
+    "format": "biome format --write . && bash scripts/rust.sh fmt && uv run --frozen ruff format ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.7",
+    "@types/node": "26.6.6",
+    "turbo": "2.11.11",
+    "typescript": "7.0.2"
+  }
+}

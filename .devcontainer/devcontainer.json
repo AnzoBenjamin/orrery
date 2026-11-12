@@ -1,0 +1,22 @@
+{
+  "name": "Orrery toolbox",
+  "dockerComposeFile": ["../infra/compose.yaml"],
+  "service": "toolbox",
+  "runServices": ["toolbox"],
+  "workspaceFolder": "/workspace",
+  "overrideCommand": true,
+  "remoteUser": "dev",
+  "updateRemoteUserUID": true,
+  "postCreateCommand": "pnpm install --frozen-lockfile && uv sync --frozen --all-packages",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "biomejs.biome",
+        "rust-lang.rust-analyzer",
+        "charliermarsh.ruff",
+        "ms-python.python",
+        "ms-playwright.playwright"
+      ]
+    }
+  }
+}

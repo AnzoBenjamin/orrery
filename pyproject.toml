@@ -1,0 +1,34 @@
+# uv workspace root. It is not a package itself; members live in services/ and tools/.
+[tool.uv.workspace]
+members = ["services/*", "tools/*"]
+
+[dependency-groups]
+dev = [
+  "ruff==0.17.5",
+  "pyright==1.1.414",
+  "pytest==9.2.0",
+  "hypothesis==6.170.15",
+]
+
+[tool.uv]
+required-version = "==0.13.8"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+extend-exclude = ["**/generated/**", ".kiro"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "N", "S", "SIM", "RUF", "PL", "PT", "TID", "ANN", "BLE", "C4", "PERF"]
+ignore = ["PLR0913"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "PLR2004", "ANN"]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.13"
+include = ["services", "tools"]
+exclude = ["**/generated/**", "**/.venv/**", "**/node_modules/**"]
+venvPath = "."
+venv = ".venv"

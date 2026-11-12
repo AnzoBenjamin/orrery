@@ -1,0 +1,54 @@
+# Dependencies and build output
+node_modules/
+dist/
+.output/
+.turbo/
+target/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+*.tsbuildinfo
+coverage/
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# Local environment. .env.example is committed.
+.env
+.env.*
+!.env.example
+
+# Editors and OS
+.DS_Store
+.idea/
+*.swp
+
+# AI assistant artifacts and scratch scripts (kept out of the repository for now).
+# .kiro is the exception: the hackathon requires it, and scripts/check-kiro.sh fails if it is ignored.
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.claude/
+.claude-code/
+.claude-flow/
+claude-flow
+claude-flow.*
+.swarm/
+.hive-mind/
+.codex/
+codexconfig.txt
+.gemini/
+.cursor/
+.cursorrules
+.aider*
+.continue/
+.windsurf/
+.kirocrew*
+*.ai-scratch.*
+/scratch/
+
+# The .kiro directory is committed and must never be ignored (Kiroween rule, checked in CI).

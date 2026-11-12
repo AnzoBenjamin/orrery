@@ -1,0 +1,127 @@
+---
+inclusion: always
+---
+
+# Technology decisions
+
+Pinned decisions. Changing one requires updating this file with the reason.
+
+## Runtimes
+
+All runtimes below run inside Docker (the `toolbox` image for tooling, service images for the stack). The host needs only Docker Engine and Docker Compose v2. See the Docker-first rule in `structure.md`.
+
+- Node.js 26 LTS, pnpm 12, Turborepo.
+- Python 3.13 for the engine and lab, managed with `uv` workspaces.
+- Rust stable (1.99+), edition 2024.
+
+## Web application (`apps/web`)
+
+- TanStack Start 1.x (stable since October 2026) with React 19, TanStack Router, TanStack Query.
+- Server functions for application calls. Server routes only for: Better Auth handler, SSE streams, engine webhooks, upload signing, public share endpoints.
+- Tailwind CSS 4 with design tokens from `packages/ui`. React Aria Components for accessible primitives, styled from scratch. No shadcn defaults.
+- Motion (`motion` package) for UI animation. Custom WebGL (via `three` / React Three Fiber) for the engraved simulation renderer.
+- Zustand with Immer for workbench editor state. Edits persist as mechanism revisions.
+
+## Background worker (`apps/worker`)
+
+- pg-boss on the same Postgres. Dispatches engine jobs, consumes engine events, generates notifications.
+
+## Data
+
+- PostgreSQL 18.
+- Drizzle ORM, pinned to the latest 0.x release supported by Better Auth's Drizzle adapter. Drizzle v1 was in RC with known Better Auth incompatibilities as of mid-2026 (better-auth issue #10585). Re-evaluate when Better Auth ships v1 support.
+- drizzle-kit for migrations. Migrations are generated, reviewed, and committed. Never use `push` against shared databases.
+- IDs are UUIDv7.
+- Mechanism graphs are stored as `jsonb` validated by the shared Zod schema on every write.
+
+## Auth
+
+- Better Auth with the Drizzle adapter (version at or above 1.7.7 for the PostgreSQL rate-limit advisory GHSA-44jh-23m7-hpcf).
+- Email and password with verification, GitHub and Google OAuth, passkeys. TanStack Start cookie plugin.
+
+## Storage, email, realtime
+
+- S3 API: Garage (AGPL-3.0) in every environment: local, tests, and production. `@aws-sdk/client-s3` with presigned URLs. Uppy with the AWS S3 multipart plugin on the client. MinIO is not used: its community edition entered maintenance mode in December 2025 and its repository was archived in April 2026.
+- Email: Nodemailer over SMTP everywhere (outbound-only Postfix with OpenDKIM in production, Mailpit locally and in tests), templates in React Email. Postal was dropped because it needs MariaDB and a message queue, which do not fit one small VPS.
+- Realtime: Server-Sent Events from the web app, fed by Postgres `LISTEN/NOTIFY`. Listeners use a dedicated connection outside the pool.
+
+## Engine (`services/engine`)
+
+The engine runs on CPU only. There is no GPU anywhere in the stack. See the vision-pipeline design for how each GPU-class task is replaced.
+
+- FastAPI, Pydantic v2 (models generated from the shared JSON Schema), Uvicorn.
+- One Docker image and one Kamal role, `engine`, limited to `nproc − 1` CPUs and a fixed memory limit so the web app always keeps a core.
+- No PyTorch in the runtime image. Learned models run through ONNX Runtime (CPU execution provider). Models are exported to ONNX in the toolbox image, never at runtime.
+- Video: PyAV, PySceneDetect, FFmpeg.
+- Classical vision: OpenCV (headless, includes `aruco`): Farneback dense flow for motion masks, Shi-Tomasi seeding, pyramidal Lucas–Kanade tracking, USAC/MAGSAC++ homographies, Hough circles, GrabCut.
+- Tracking: tracker adapter. Default `klt` (OpenCV) with model-guided re-tracking. Optional `cotracker3_onnx`, enabled only if the lab benchmark under the reference VPS profile justifies it. Record the result here when measured.
+- Segmentation: none on the server. Interactive part outlining runs in the browser (see Web application).
+- Clustering: scikit-learn (spectral clustering), `alphashape` for concave hulls.
+- Part re-identification between footage: DINOv2 ViT-S/14 on ONNX Runtime.
+- Kinematic chain enumeration: `pynauty` for canonical labeling.
+- Arrays exchanged with the browser: Apache Arrow (`pyarrow` in Python, `apache-arrow` in the browser).
+- Fabrication output: `ezdxf`, SVG, PDF via `reportlab`.
+- Logging: `structlog`. Tracing: OpenTelemetry.
+- Model licenses: SAM 2.1 and DINOv2 are Apache-2.0. CoTracker3 weights are CC-BY-NC 4.0, so the optional backend is non-commercial only. Weights are downloaded at build time, never committed. List them in `THIRD_PARTY_MODELS.md`.
+
+## Browser-side ML (`apps/web`)
+
+- Part outlining: SAM 2.1 (tiny or small) in ONNX format through transformers.js in a dedicated Web Worker. WebGPU when available, WebAssembly with SIMD and threads otherwise, polygon and brush tools when both are too slow.
+- The image encoder runs once per frame. Taps re-run only the prompt decoder.
+- Weights are served from our Garage bucket with immutable cache headers. The page sends `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` headers on the workbench routes so WebAssembly threads work.
+
+## Kinematics core (`crates/`)
+
+- `kinematics`: pure Rust. `faer` for dense and sparse linear algebra, `parry2d` / `parry3d` for collision, `serde` for I/O.
+- `kinematics-wasm`: `wasm-bindgen`, run inside a Web Worker. Typed-array I/O.
+- `kinematics-py`: PyO3 plus maturin, NumPy array I/O.
+- One solver implementation shared by browser and engine. No reimplementation in TypeScript or Python.
+
+## Synthetic lab (`tools/lab`)
+
+- Python with a Typer CLI, `skia-python` for the fast 2D renderer, Blender as a Python module (`bpy`) rendering with Cycles on CPU for the 3D tier, FFmpeg for encoding degradations. Lab suites run on developer machines and GitHub-hosted runners, never on the production VPS. Generated suites are cached by manifest hash.
+
+## Quality tooling
+
+- TypeScript: Biome 2 (lint and format), `tsc --noEmit`, Vitest, Testing Library, fast-check, Playwright, `@axe-core/playwright`, Testcontainers, Storybook with Playwright visual snapshots, Lighthouse CI.
+- Python: ruff, pyright (strict), pytest, hypothesis.
+- Rust: clippy, rustfmt, proptest, criterion for benchmarks.
+- Observability: OpenTelemetry traces, metrics, and logs propagated web → worker → engine via `traceparent`, exported to OpenObserve. Errors go to self-hosted GlitchTip (MIT) through the MIT-licensed Sentry SDKs, which GlitchTip accepts. `pino` logs in Node.
+
+## Deployment (one CPU-only VPS, all free and open-source software)
+
+Everything runs on a single VPS with no GPU. The production VPS is about 4 vCPU and 8 GB RAM (confirmed by the owner), the same as the reference size used for all budgets. If the exact figures turn out lower, cut the observability memory limits first.
+
+| Concern | Choice | License |
+|---|---|---|
+| Deploys, zero-downtime rollout, rollback | Kamal 2 with kamal-proxy (automatic Let's Encrypt TLS) | MIT |
+| Container registry | CNCF Distribution (`registry`) as a Kamal accessory, bound to localhost and reached over the deploy SSH tunnel | Apache-2.0 |
+| Host OS | Ubuntu Server LTS or Debian stable, unattended security upgrades, UFW allowing 22, 80, 443 only | FOSS |
+| App roles | Kamal roles `web`, `worker`, `engine` | — |
+| Postgres | PostgreSQL 18 accessory. No pooler: the app uses a sized `node-postgres` pool, and pg-boss and `LISTEN` use dedicated connections | PostgreSQL |
+| Object storage | Garage accessory, single node, `replication_factor = 1` | AGPL-3.0 |
+| Backups | pgBackRest with two repositories: `repo1` in a Garage bucket on the VPS for fast restores, `repo2` over SFTP to a machine the team controls off the VPS. Garage buckets are mirrored off the VPS nightly with `rclone`. Daily automated restore check | MIT |
+| Email | Postfix plus OpenDKIM, outbound only | IPL-1.0 / BSD |
+| Errors | GlitchTip, using the shared Postgres and a Valkey accessory | MIT / BSD |
+| Metrics, logs, traces | OpenTelemetry Collector → OpenObserve (single binary) | Apache-2.0 / AGPL-3.0 |
+| Uptime checks | Gatus | Apache-2.0 |
+| CI | GitHub Actions on GitHub-hosted runners (the hackathon requires a GitHub repository). No self-hosted runner | — |
+
+Memory budget on the reference VPS (container limits):
+
+| Service | Limit |
+|---|---|
+| engine | 3.0 GB |
+| web | 768 MB |
+| worker | 384 MB |
+| PostgreSQL 18 | 1.5 GB (`shared_buffers` 384 MB) |
+| Garage | 256 MB |
+| GlitchTip + Valkey | 640 MB |
+| OpenObserve + OTel Collector | 512 MB |
+| Postfix, Gatus, registry, kamal-proxy | 256 MB combined |
+
+- The limits total about 7.3 GB, which leaves about 0.7 GB for the OS. To absorb spikes, add a 4 GB swap file with `vm.swappiness=10`, and set `oom_score_adj` high on the engine container and low on Postgres and web. If memory runs out, the kernel then kills an analysis (which is retried from its checkpoint) instead of the database or the site.
+- Alert at 80% disk use. Footage in Garage is the main consumer. With the 5 GB per-user quota, plan for about 15 active users per 100 GB of free disk, and lower the quota if the disk is small.
+- The engine is the only service allowed to use most of the CPU. Its CPU quota is `nproc − 1`, and web, worker, and Postgres get CPU shares that win under contention.
+- Analysis concurrency defaults to 1. Users see queue position, ETA, and their daily allowance.
+- Postfix needs outbound port 25 open, plus SPF, DKIM, DMARC, and reverse DNS records. Many VPS providers block port 25 by default, so request unblocking early.

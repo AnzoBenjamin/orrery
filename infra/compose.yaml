@@ -1,0 +1,28 @@
+# Orrery local stack. Run through the Makefile (`make help`), never with host-installed services.
+name: orrery
+
+services:
+  toolbox:
+    profiles: [tools]
+    build:
+      context: ./toolbox
+      args:
+        UID: ${HOST_UID:-1000}
+        GID: ${HOST_GID:-1000}
+    image: orrery-toolbox:local
+    init: true
+    working_dir: /workspace
+    environment:
+      CI: ${CI:-}
+    volumes:
+      - ..:/workspace
+      - pnpm-store:/home/dev/.local/share/pnpm
+      - uv-cache:/home/dev/.cache/uv
+      - cargo-registry:/opt/cargo/registry
+      - cargo-git:/opt/cargo/git
+
+volumes:
+  pnpm-store:
+  uv-cache:
+  cargo-registry:
+  cargo-git:

@@ -40,8 +40,19 @@ jobs:
           cache-from: type=gha,scope=toolbox
           cache-to: type=gha,scope=toolbox,mode=max
 
+      - name: make up
+        run: make up
+
       - name: make check
         run: make check TOOLBOX_PREBUILT=1
 
       - name: make test
         run: make test TOOLBOX_PREBUILT=1
+
+      - name: Stack logs
+        if: failure()
+        run: make ps && docker compose --env-file .env -f infra/compose.yaml logs --no-color --tail 300
+
+      - name: make down
+        if: always()
+        run: make down

@@ -1,7 +1,110 @@
-# Orrery local stack. Run through the Makefile (`make help`), never with host-installed services.
+# Orrery local stack. Run it through the Makefile (`make help`), never with host-installed services.
+# Values come from the repository's .env, which `make` creates from .env.example.
+#
+# Memory limits follow the production budget in .kiro/steering/tech.md where the service exists in
+# production. The web app, worker, and engine join this file when their code lands.
 name: orrery
 
+x-defaults: &defaults
+  restart: unless-stopped
+  init: true
+
 services:
+  postgres:
+    <<: *defaults
+    image: postgres:18.6-trixie@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?run make to create .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run make to create .env}
+      POSTGRES_DB: ${POSTGRES_DB:?run make to create .env}
+    command: >
+      postgres
+      -c shared_buffers=384MB
+      -c max_connections=100
+      -c log_min_duration_statement=500ms
+    ports:
+      - 127.0.0.1:${POSTGRES_PORT:-55432}:5432
+    volumes:
+      # PostgreSQL 18 images keep data in a versioned directory under /var/lib/postgresql.
+      - pg-data:/var/lib/postgresql
+    shm_size: 256mb
+    mem_limit: 1536m
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  garage:
+    <<: *defaults
+    build: ./garage
+    image: orrery-garage:local
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?run make to create .env}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?run make to create .env}
+      GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN:?run make to create .env}
+    ports:
+      - 127.0.0.1:${GARAGE_S3_PORT:-53900}:3900
+      - 127.0.0.1:${GARAGE_ADMIN_PORT:-53903}:3903
+    volumes:
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    mem_limit: 256m
+    healthcheck:
+      # Node-level liveness. Cluster readiness (layout applied, bucket created) is garage-init's job.
+      test: [CMD, garage, status]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  garage-init:
+    image: orrery-garage:local
+    entrypoint: [garage-bootstrap]
+    restart: "no"
+    environment:
+      GARAGE_ADMIN_URL: http://garage:3903
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN}
+      GARAGE_CAPACITY_BYTES: ${GARAGE_CAPACITY_BYTES:-10000000000}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?run make to create .env}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?run make to create .env}
+      S3_BUCKET: ${S3_BUCKET:?run make to create .env}
+      S3_CORS_ORIGINS: ${S3_CORS_ORIGINS:?run make to create .env}
+    depends_on:
+      garage:
+        condition: service_healthy
+
+  mailpit:
+    <<: *defaults
+    image: axllent/mailpit:v1.33.1@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+      MP_MAX_MESSAGES: "5000"
+    ports:
+      - 127.0.0.1:${MAILPIT_SMTP_PORT:-51025}:1025
+      - 127.0.0.1:${MAILPIT_UI_PORT:-58025}:8025
+    mem_limit: 128m
+    healthcheck:
+      test: [CMD, /mailpit, readyz]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  otel-collector:
+    <<: *defaults
+    build: ./otel
+    image: orrery-otel-collector:local
+    ports:
+      - 127.0.0.1:${OTEL_GRPC_PORT:-54317}:4317
+      - 127.0.0.1:${OTEL_HTTP_PORT:-54318}:4318
+    mem_limit: 192m
+    healthcheck:
+      test: [CMD, curl, -fsS, -o, /dev/null, http://127.0.0.1:13133/]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   toolbox:
     profiles: [tools]
     build:
@@ -22,6 +125,9 @@ services:
       - cargo-git:/opt/cargo/git
 
 volumes:
+  pg-data:
+  garage-meta:
+  garage-data:
   pnpm-store:
   uv-cache:
   cargo-registry:

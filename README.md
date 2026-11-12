@@ -10,9 +10,10 @@ The repository is being built spec by spec, in the order listed in `.kiro/steeri
 
 - The monorepo toolchain: pnpm workspaces with Turborepo, a Cargo workspace, and a uv workspace, with pinned versions.
 - The `toolbox` Docker image that holds every toolchain, and the `Makefile` that runs all commands inside it.
-- CI that runs the same checks and tests in the same image.
+- The local service stack: PostgreSQL 18, Garage (S3 API, bootstrapped with a bucket, an application key, and CORS for browser uploads), Mailpit, and the OpenTelemetry Collector.
+- CI that starts the same stack and runs the same checks and tests in the same image.
 
-The application, worker, engine, and the services they depend on land with the next platform-foundation tasks. This README is updated as each one ships.
+The web app, worker, and engine land with the next platform-foundation tasks and join the stack then. This README is updated as each one ships.
 
 ## Requirements
 
@@ -21,12 +22,30 @@ Docker Engine and Docker Compose v2. Nothing else is installed on the host: Node
 ## Setup
 
 ```sh
+make up        # start the service stack; returns once every service is healthy
 make toolbox   # build the toolbox image with your UID and GID (about 5 GB, once)
 make check     # install dependencies, then format, lint, and type checks for TypeScript, Rust, and Python
 make test      # unit and integration tests for all languages
 make shell     # a shell inside the toolbox, with the repository mounted at /workspace
 make help      # every recipe
 ```
+
+The first `make` run creates `.env` from `.env.example` and fills every secret with a random value generated on your machine. New keys added to `.env.example` later are appended to your `.env` without touching existing values.
+
+### Local services
+
+All ports bind to `127.0.0.1` and use non-default numbers so they do not collide with other projects.
+
+| Service          | Host port     | Notes                                                   |
+| ---------------- | ------------- | ------------------------------------------------------- |
+| PostgreSQL 18    | 55432         | `make db-shell` opens psql                              |
+| Garage S3 API    | 53900         | bucket `orrery`, path-style addressing, region `garage` |
+| Garage admin API | 53903         | bearer token `GARAGE_ADMIN_TOKEN`                       |
+| Mailpit inbox    | 58025         | open `http://localhost:58025` to read sent mail         |
+| Mailpit SMTP     | 51025         | accepts any credentials                                 |
+| OTLP gRPC / HTTP | 54317 / 54318 | traces appear in `make logs s=otel-collector`           |
+
+`make down` stops the stack and keeps data. `make reset` deletes and recreates the Postgres and Garage volumes after a typed confirmation (`CONFIRM=1 make reset` skips it). Dependency caches survive a reset.
 
 Files written inside the toolbox belong to your host user, because the image is built with your UID and GID. Rebuild with `make toolbox` after changing `infra/toolbox/Dockerfile`.
 

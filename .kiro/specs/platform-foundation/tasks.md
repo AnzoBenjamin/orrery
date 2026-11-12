@@ -29,6 +29,7 @@ Task numbers are stable references (other specs cite them). Work them in this or
   - [ ] 2.1 Write `infra/compose.yaml` with Postgres 18, Garage (single node, with bucket, key, and CORS bootstrap), Mailpit, OTel collector, web, worker, and engine. The engine image is CPU-only and runs with the same CPU and memory limits as production.
     - _Requirements: 1.4, 13.2_
   - [ ] 2.2 Add typed env schemas for web, worker, and engine with redacted error output. Add `.env.example`.
+    - Web and worker schemas, `.env.example`, and property 5 are done (`packages/config`). The engine's `pydantic-settings` schema lands with 6.3, when `services/engine` is created.
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
 - [ ] 3. Database

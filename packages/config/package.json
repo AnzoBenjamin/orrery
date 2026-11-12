@@ -1,0 +1,25 @@
+{
+  "name": "@orrery/config",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./web": "./src/web.ts",
+    "./worker": "./src/worker.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@t3-oss/env-core": "0.13.11",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "fast-check": "4.10.2",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}

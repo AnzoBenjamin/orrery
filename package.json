@@ -16,7 +16,8 @@
     "check": "bash scripts/check.sh",
     "test": "bash scripts/test.sh",
     "dev": "turbo run dev",
-    "format": "biome format --write . && bash scripts/rust.sh fmt && uv run --frozen ruff format ."
+    "format": "biome format --write . && bash scripts/rust.sh fmt && uv run --frozen ruff format .",
+    "codegen": "turbo run codegen"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.7",

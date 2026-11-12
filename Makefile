@@ -15,7 +15,7 @@ TOOLBOX := $(COMPOSE) run --rm $(TTY_FLAG) toolbox
 # Volumes holding project data. `reset` recreates these and keeps the dependency caches.
 DATA_VOLUMES := orrery_pg-data orrery_garage-meta orrery_garage-data
 
-.PHONY: help env up down reset logs ps db-shell toolbox shell install check test format
+.PHONY: help env up down reset logs ps db-shell migrate toolbox shell install check test format
 
 help: ## List recipes
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -52,6 +52,9 @@ ps: env ## Show service status and health
 
 db-shell: env ## Open psql on the local database
 	$(COMPOSE) exec $(TTY_FLAG) postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
+
+migrate: install ## Apply database migrations to the local stack
+	$(TOOLBOX) bash -c 'DATABASE_URL="postgres://$$POSTGRES_USER:$$POSTGRES_PASSWORD@postgres:5432/$$POSTGRES_DB" pnpm --filter @orrery/db migrate'
 
 toolbox: env ## Build the toolbox image with your UID and GID
 ifndef TOOLBOX_PREBUILT

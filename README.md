@@ -11,6 +11,8 @@ The repository is being built spec by spec, in the order listed in `.kiro/steeri
 - The monorepo toolchain: pnpm workspaces with Turborepo, a Cargo workspace, and a uv workspace, with pinned versions.
 - The `toolbox` Docker image that holds every toolchain, and the `Makefile` that runs all commands inside it.
 - The local service stack: PostgreSQL 18, Garage (S3 API, bootstrapped with a bucket, an application key, and CORS for browser uploads), Mailpit, and the OpenTelemetry Collector.
+- `packages/config`: validated environment for the web app and worker.
+- `packages/db`: the Drizzle schema, committed migrations, typed query modules, and a Testcontainers harness for integration tests against real Postgres 18.
 - CI that starts the same stack and runs the same checks and tests in the same image.
 
 The web app, worker, and engine land with the next platform-foundation tasks and join the stack then. This README is updated as each one ships.
@@ -23,6 +25,7 @@ Docker Engine and Docker Compose v2. Nothing else is installed on the host: Node
 
 ```sh
 make up        # start the service stack; returns once every service is healthy
+make migrate   # apply database migrations to the local Postgres
 make toolbox   # build the toolbox image with your UID and GID (about 5 GB, once)
 make check     # install dependencies, then format, lint, and type checks for TypeScript, Rust, and Python
 make test      # unit and integration tests for all languages

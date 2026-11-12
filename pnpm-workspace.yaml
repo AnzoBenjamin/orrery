@@ -18,3 +18,22 @@ minimumReleaseAgeExclude:
   - "@biomejs/cli-linux-x64@2.6.7"
   - "@biomejs/cli-win32-arm64@2.6.7"
   - "@biomejs/cli-win32-x64@2.6.7"
+  - "@better-auth/core@1.7.22"
+  - "@better-auth/drizzle-adapter@1.7.22"
+  - "@better-auth/kysely-adapter@1.7.22"
+  - "@better-auth/memory-adapter@1.7.22"
+  - "@better-auth/mongo-adapter@1.7.22"
+  - "@better-auth/passkey@1.7.22"
+  - "@better-auth/prisma-adapter@1.7.22"
+  - "@better-auth/telemetry@1.7.22"
+  - better-auth@1.7.22
+  - auth@1.7.22
+
+# Install scripts are denied unless listed. esbuild (used by drizzle-kit and Vite) verifies its
+# platform binary. The SSH packages are optional native extras of Testcontainers' ssh2 dependency,
+# and protobufjs's script only prints a version notice.
+allowBuilds:
+  esbuild: true
+  cpu-features: false
+  ssh2: false
+  protobufjs: false

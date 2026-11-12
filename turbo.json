@@ -1,10 +1,11 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "stream",
+  "globalPassThroughEnv": ["CI", "DOCKER_HOST", "TESTCONTAINERS_*"],
   "tasks": {
     "codegen": {
       "dependsOn": ["^codegen"],
-      "outputs": ["generated/**", "dist-schema/**"]
+      "cache": false
     },
     "build": {
       "dependsOn": ["^build", "codegen"],

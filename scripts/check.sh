@@ -5,6 +5,7 @@ cd "$(dirname "$0")/.."
 
 echo "== repository rules"
 bash scripts/check-kiro.sh
+bash scripts/check-generated.sh
 
 echo "== typescript"
 pnpm exec biome ci .

@@ -2,7 +2,14 @@
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
-    "includes": ["**", "!**/generated", "!**/routeTree.gen.ts", "!.kiro"]
+    "includes": [
+      "**",
+      "!**/generated",
+      "!**/routeTree.gen.ts",
+      "!.kiro",
+      "!packages/db/migrations",
+      "!packages/db/.migrations-check"
+    ]
   },
   "formatter": {
     "enabled": true,

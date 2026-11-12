@@ -12,6 +12,7 @@ __pycache__/
 .hypothesis/
 *.tsbuildinfo
 coverage/
+.migrations-check/
 
 # Test artifacts
 playwright-report/

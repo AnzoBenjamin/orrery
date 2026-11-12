@@ -140,6 +140,9 @@ services:
     working_dir: /workspace
     environment:
       CI: ${CI:-}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       # Testcontainers reaches Docker through docker-proxy, not a mounted socket. Joining the
       # socket's group would mean adding GID 0 on Docker Desktop, which hangs pnpm in an
       # unkillable state there. Test containers publish ports on the Docker host.

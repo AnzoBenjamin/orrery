@@ -18,7 +18,7 @@ Task numbers are stable references (other specs cite them). Work them in this or
     - _Requirements: 1.1, 1.5_
   - [ ] 1.2 Configure Biome, `tsc` project references, ruff, pyright strict, clippy, and rustfmt. Wire `pnpm check`, `pnpm test`, and `pnpm dev`.
     - _Requirements: 1.2, 1.3, 1.4_
-  - [ ] 1.3 Add codegen pipeline (`pnpm codegen`) and a stale-artifact check in `pnpm check`.
+  - [x] 1.3 Add codegen pipeline (`pnpm codegen`) and a stale-artifact check in `pnpm check`.
     - _Requirements: 1.6_
   - [x] 1.4 Add `LICENSE` (Apache-2.0), `README.md` with setup and architecture, `THIRD_PARTY_MODELS.md`, and a CI step that fails if `.kiro` is missing or ignored.
     - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5_
@@ -33,11 +33,11 @@ Task numbers are stable references (other specs cite them). Work them in this or
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
 - [ ] 3. Database
-  - [ ] 3.1 Create `packages/db` with Drizzle client, UUIDv7 helper, core tables from the design, and the first generated migration.
+  - [x] 3.1 Create `packages/db` with Drizzle client, UUIDv7 helper, core tables from the design, and the first generated migration.
     - _Requirements: 3.1, 3.4_
-  - [ ] 3.2 Implement the migrate command and `assertMigrationsApplied()` boot check.
+  - [x] 3.2 Implement the migrate command and `assertMigrationsApplied()` boot check.
     - _Requirements: 3.2, 3.3_
-  - [ ] 3.3 Implement typed query modules for specimens, footage, upload sessions, share links, domain events, notifications, and object deletions, with Testcontainers integration tests.
+  - [x] 3.3 Implement typed query modules for specimens, footage, upload sessions, share links, domain events, notifications, and object deletions, with Testcontainers integration tests.
     - _Requirements: 3.6_
   - [ ] 3.4 Add the `jsonb` mechanism-graph validation helper using `packages/schema` (lands with mechanism-core task 1).
     - _Requirements: 3.5_
@@ -96,6 +96,7 @@ Task numbers are stable references (other specs cite them). Work them in this or
 
 - [ ] 9. Testing infrastructure
   - [ ] 9.1 Set up Vitest with Testcontainers global setup for Postgres and Garage.
+    - Postgres is done (`@orrery/db/testing`: one container per run, a migrated template database, one clone per test file). Garage lands with 6.1.
     - _Requirements: 13.1_
   - [ ] 9.2 Set up Playwright against the Compose stack with a Mailpit client, axe checks on every visited page, and failure artifacts.
     - _Requirements: 13.2, 13.3, 13.5, 13.6_

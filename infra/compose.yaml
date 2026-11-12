@@ -105,6 +105,29 @@ services:
       timeout: 3s
       retries: 30
 
+  # Docker API for Testcontainers in the toolbox, limited to what it needs (no swarm, secrets,
+  # plugins, or system endpoints). Only on the toolbox's network, never published to the host.
+  docker-proxy:
+    profiles: [tools]
+    image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
+    restart: "no"
+    environment:
+      CONTAINERS: "1"
+      IMAGES: "1"
+      NETWORKS: "1"
+      VOLUMES: "1"
+      EXEC: "1"
+      INFO: "1"
+      POST: "1"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    mem_limit: 64m
+    healthcheck:
+      test: [CMD-SHELL, "wget -qO- http://127.0.0.1:2375/_ping | grep -q OK"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
   toolbox:
     profiles: [tools]
     build:
@@ -117,6 +140,17 @@ services:
     working_dir: /workspace
     environment:
       CI: ${CI:-}
+      # Testcontainers reaches Docker through docker-proxy, not a mounted socket. Joining the
+      # socket's group would mean adding GID 0 on Docker Desktop, which hangs pnpm in an
+      # unkillable state there. Test containers publish ports on the Docker host.
+      DOCKER_HOST: tcp://docker-proxy:2375
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+      TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      docker-proxy:
+        condition: service_healthy
     volumes:
       - ..:/workspace
       - pnpm-store:/home/dev/.local/share/pnpm

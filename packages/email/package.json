@@ -1,0 +1,31 @@
+{
+  "name": "@orrery/email",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@orrery/jobs": "workspace:*",
+    "@orrery/ui": "workspace:*",
+    "@react-email/components": "1.0.12",
+    "@react-email/render": "2.3.1",
+    "nodemailer": "10.5.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/nodemailer": "8.0.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "testcontainers": "12.2.1",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}

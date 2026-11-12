@@ -15,7 +15,7 @@ TOOLBOX := $(COMPOSE) run --rm $(TTY_FLAG) toolbox
 # Volumes holding project data. `reset` recreates these and keeps the dependency caches.
 DATA_VOLUMES := orrery_pg-data orrery_garage-meta orrery_garage-data
 
-.PHONY: help env up down reset logs ps db-shell migrate toolbox shell install check test format
+.PHONY: help env up down reset logs ps db-shell migrate migrate-only toolbox shell install check test format
 
 help: ## List recipes
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -23,14 +23,16 @@ help: ## List recipes
 env: ## Create or update .env from .env.example, generating local secrets
 	@bash scripts/env.sh
 
-# One-shot setup services. `up --wait` misreports a one-shot that has already exited as a failure,
-# so these run as blocking steps after the long-running services are healthy.
-ONE_SHOT := garage-init
+# Startup order: infrastructure, then one-shot setup (Garage bootstrap, migrations), then the app.
+# The web app and worker refuse to run against an unmigrated database, so migrate comes first.
+INFRA := postgres garage mailpit otel-collector
+APP := web worker
 
-up: env ## Start the stack and wait until every service is healthy
-	$(COMPOSE) up --detach --build --wait --wait-timeout 180 \
-	  $$($(COMPOSE) config --services | grep -vxF $(addprefix -e ,$(ONE_SHOT)))
-	$(foreach s,$(ONE_SHOT),$(COMPOSE) run --rm $(TTY_FLAG) $(s) &&) true
+up: install ## Start the full stack and wait until every service is healthy
+	$(COMPOSE) up --detach --build --wait --wait-timeout 180 $(INFRA)
+	$(COMPOSE) run --rm $(TTY_FLAG) garage-init
+	$(MAKE) --no-print-directory migrate-only
+	$(COMPOSE) up --detach --wait --wait-timeout 300 $(APP)
 
 down: env ## Stop the stack (data is kept)
 	$(COMPOSE) down --remove-orphans
@@ -53,8 +55,10 @@ ps: env ## Show service status and health
 db-shell: env ## Open psql on the local database
 	$(COMPOSE) exec $(TTY_FLAG) postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
 
-migrate: install ## Apply database migrations to the local stack
-	$(TOOLBOX) bash -c 'DATABASE_URL="postgres://$$POSTGRES_USER:$$POSTGRES_PASSWORD@postgres:5432/$$POSTGRES_DB" pnpm --filter @orrery/db migrate'
+migrate: install migrate-only ## Apply database migrations to the local stack
+
+migrate-only:
+	$(TOOLBOX) bash -c 'DATABASE_URL="postgres://$$POSTGRES_USER:$$POSTGRES_PASSWORD@postgres:5432/$$POSTGRES_DB" pnpm --filter @orrery/worker migrate'
 
 toolbox: env ## Build the toolbox image with your UID and GID
 ifndef TOOLBOX_PREBUILT

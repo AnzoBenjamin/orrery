@@ -19,7 +19,6 @@ export const SECRET_KEYS = [
   "BETTER_AUTH_SECRET",
   "GITHUB_CLIENT_SECRET",
   "GOOGLE_CLIENT_SECRET",
-  "ENGINE_SERVICE_TOKEN",
 ] as const;
 
 const storage = fc.record({
@@ -44,9 +43,7 @@ export const validWorkerEnv = fc
       SMTP_PASSWORD: hex(40),
       MAIL_FROM: fc.constant("Orrery <mail@orrery.example>"),
       APP_URL: httpUrl,
-      ENGINE_URL: httpUrl,
-      ENGINE_SERVICE_TOKEN: hex(64),
-      ANALYSIS_CONCURRENCY: fc.integer({ min: 1, max: 8 }).map(String),
+      WORKER_HEALTH_PORT: port.map(String),
     }),
   )
   .map(([a, b]): Record<string, string> => ({ ...a, ...b }));
@@ -90,8 +87,7 @@ export const invalidValue: Record<string, fc.Arbitrary<string>> = {
   SMTP_SECURE: fc.constantFrom("yes please", "maybe"),
   SMTP_PASSWORD: fc.constant(""),
   APP_URL: hex(16).map((h) => `javascript:${h}`),
-  ENGINE_SERVICE_TOKEN: fc.integer({ min: 12, max: 31 }).chain((n) => hex(n)),
-  ANALYSIS_CONCURRENCY: fc.constantFrom("0", "9", "-1", "two"),
+  WORKER_HEALTH_PORT: fc.constantFrom("0", "65536", "http"),
   BETTER_AUTH_URL: hex(16).map((h) => `file:///${h}`),
   BETTER_AUTH_SECRET: fc.integer({ min: 12, max: 31 }).chain((n) => hex(n)),
   NODE_ENV: fc.constantFrom("staging", "prod"),

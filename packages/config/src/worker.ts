@@ -20,16 +20,13 @@ export const workerShape = {
   ...telemetry,
   /** Public origin of the web app, used in email links and as the base of engine callback URLs. */
   APP_URL: httpUrl,
-  /** Base URL of the engine service on the internal network. */
-  ENGINE_URL: httpUrl,
-  ENGINE_SERVICE_TOKEN: z.string().min(32, "must be at least 32 characters"),
-  /** Number of analyses the engine runs at once (tech.md: default 1). */
-  ANALYSIS_CONCURRENCY: z.coerce
-    .number({ error: "must be a whole number from 1 to 8" })
-    .int("must be a whole number from 1 to 8")
-    .min(1, "must be a whole number from 1 to 8")
-    .max(8, "must be a whole number from 1 to 8")
-    .default(1),
+  /** Port of the internal health endpoint (Compose and Kamal health checks). Not published. */
+  WORKER_HEALTH_PORT: z.coerce
+    .number({ error: "must be a port number" })
+    .int("must be a port number")
+    .min(1, "must be a port number")
+    .max(65535, "must be a port number")
+    .default(9090),
 };
 
 function refineWorker(env: Record<string, unknown>, ctx: z.RefinementCtx): void {

@@ -45,8 +45,10 @@ Task numbers are stable references (other specs cite them). Work them in this or
 - [ ] 4. Authentication and account
   - [ ] 4.1 Configure Better Auth with the Drizzle adapter, email and password with verification, GitHub, Google, passkeys, database rate limiting, and the TanStack Start cookie plugin. Generate the auth schema and migration.
     - _Requirements: 4.1, 4.2, 4.4, 4.5_
+    - Done: Better Auth with the Drizzle adapter, email and password with required verification, GitHub and Google (enabled when configured), passkeys, database rate limits, the TanStack Start cookie plugin, the generated schema. Remaining: per-account rate limits (Better Auth limits by IP and path).
   - [ ] 4.2 Build the email package with React Email templates (verification, reset, new sign-in alert, analysis complete) and the `email.send` queue.
     - _Requirements: 4.2, 4.3, 10.1, 10.2_
+    - Done: `packages/email` (four templates, Nodemailer mailer, Mailpit delivery test) and the `email.send` queue with idempotent job ids. Remaining: the new-device sign-in alert hook, which needs a known-device table.
   - [ ] 4.3 Build sign-up, sign-in, verify, reset, and account settings screens (sessions, linked methods, passkeys, email preferences, delete account) to the design language. Coordinate visuals with workbench task 2.
     - _Requirements: 4.6, 4.7, 4.8, 10.3_
   - [ ] 4.4 End-to-end tests: sign-up with Mailpit verification, unverified upload blocked, reset flow, passkey via virtual authenticator, session revocation, account deletion removes objects.
@@ -73,7 +75,7 @@ Task numbers are stable references (other specs cite them). Work them in this or
     - _Requirements: 6.1–6.6_
 
 - [ ] 7. Jobs, realtime, and engine contract
-  - [ ] 7.1 Create `apps/worker` with pg-boss, typed queue definitions, and the `enqueue` helper. Runs before 4.2 (see Build order).
+  - [x] 7.1 Create `apps/worker` with pg-boss, typed queue definitions, and the `enqueue` helper. Runs before 4.2 (see Build order).
     - _Requirements: 7.1, 7.2_
   - [ ] 7.2 Implement failure handling that marks domain records failed and creates notifications. Build the notification tray UI.
     - _Requirements: 7.3_

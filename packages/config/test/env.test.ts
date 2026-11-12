@@ -18,8 +18,6 @@ const worker = {
   SMTP_PORT: "1025",
   MAIL_FROM: "Orrery <mail@orrery.example>",
   APP_URL: "http://localhost:53000",
-  ENGINE_URL: "http://engine:8000",
-  ENGINE_SERVICE_TOKEN: "e".repeat(64),
 };
 
 const web = {
@@ -53,20 +51,18 @@ describe("worker environment", () => {
     expect(env.LOG_LEVEL).toBe("info");
     expect(env.SMTP_PORT).toBe(1025);
     expect(env.SMTP_SECURE).toBe(true);
-    expect(env.ANALYSIS_CONCURRENCY).toBe(1);
+    expect(env.WORKER_HEALTH_PORT).toBe(9090);
     expectTypeOf(env.SMTP_PORT).toEqualTypeOf<number>();
     expectTypeOf(env.OTEL_EXPORTER_OTLP_ENDPOINT).toEqualTypeOf<string | undefined>();
   });
 
   it("treats empty strings as unset", () => {
-    expect(problemsOf(() => parseWorkerEnv({ ...worker, ENGINE_URL: "" }))).toHaveProperty(
-      "ENGINE_URL",
-    );
+    expect(problemsOf(() => parseWorkerEnv({ ...worker, APP_URL: "" }))).toHaveProperty("APP_URL");
   });
 
   it("lists every invalid variable in one error", () => {
     const problems = problemsOf(() => parseWorkerEnv({}));
-    for (const key of ["DATABASE_URL", "S3_BUCKET", "SMTP_HOST", "APP_URL", "ENGINE_URL"]) {
+    for (const key of ["DATABASE_URL", "S3_BUCKET", "SMTP_HOST", "APP_URL", "MAIL_FROM"]) {
       expect(problems).toHaveProperty(key);
     }
   });
@@ -125,14 +121,18 @@ describe("process startup", () => {
     const script = `import(${JSON.stringify(entry)}).then((m) => m.loadWorkerEnv())`;
     const secret = "f".repeat(20);
     const failure = await run(process.execPath, ["--input-type=module", "-e", script], {
-      env: { PATH: process.env.PATH, ...worker, ENGINE_SERVICE_TOKEN: secret },
+      env: {
+        PATH: process.env.PATH,
+        ...worker,
+        DATABASE_URL: `mysql://orrery:${secret}@db/orrery`,
+      },
     }).then(
       () => null,
       (error: { code: number; stderr: string }) => error,
     );
     expect(failure?.code).toBe(1);
     expect(failure?.stderr).toContain("Invalid environment for worker:");
-    expect(failure?.stderr).toContain("ENGINE_SERVICE_TOKEN: must be at least 32 characters");
+    expect(failure?.stderr).toContain("DATABASE_URL: must be a postgres:// URL");
     expect(failure?.stderr).not.toContain(secret);
   });
 });

@@ -9,6 +9,36 @@ x-defaults: &defaults
   restart: unless-stopped
   init: true
 
+x-app-env: &app-env
+  NODE_ENV: development
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  S3_ENDPOINT: http://garage:3900
+  S3_PUBLIC_ENDPOINT: http://localhost:${GARAGE_S3_PORT:-53900}
+  S3_REGION: ${S3_REGION:-garage}
+  S3_BUCKET: ${S3_BUCKET}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+
+x-app: &app
+  <<: *defaults
+  image: orrery-toolbox:local
+  user: ${HOST_UID:-1000}:${HOST_GID:-1000}
+  working_dir: /workspace
+  volumes:
+    - ..:/workspace
+    - pnpm-store:/home/dev/.local/share/pnpm
+  depends_on:
+    postgres:
+      condition: service_healthy
+    garage:
+      condition: service_healthy
+    mailpit:
+      condition: service_healthy
+    otel-collector:
+      condition: service_healthy
+
 services:
   postgres:
     <<: *defaults
@@ -104,6 +134,49 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+
+  # The web app and worker in development mode (hot reload), from the toolbox image with the
+  # repository mounted. `make up` starts them after the database is migrated. Production images
+  # and their tech.md memory limits come with the deploy pipeline (task 10.3); the dev server
+  # needs more memory than the production web limit of 768 MB.
+  web:
+    <<: *app
+    command: [pnpm, --filter, "@orrery/web", dev]
+    environment:
+      <<: *app-env
+      BETTER_AUTH_URL: http://localhost:${WEB_PORT:-53000}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?run make env}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    ports:
+      - 127.0.0.1:${WEB_PORT:-53000}:3000
+    mem_limit: 1536m
+    healthcheck:
+      test: [CMD, curl, -fsS, -o, /dev/null, http://127.0.0.1:3000/api/health]
+      interval: 3s
+      timeout: 5s
+      retries: 60
+      start_period: 20s
+
+  worker:
+    <<: *app
+    command: [pnpm, --filter, "@orrery/worker", dev]
+    environment:
+      <<: *app-env
+      APP_URL: http://localhost:${WEB_PORT:-53000}
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      MAIL_FROM: ${MAIL_FROM:-Orrery <mail@orrery.localhost>}
+      WORKER_HEALTH_PORT: "9090"
+    mem_limit: 768m
+    healthcheck:
+      test: [CMD, curl, -fsS, -o, /dev/null, http://127.0.0.1:9090/health]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+      start_period: 10s
 
   # Docker API for Testcontainers in the toolbox, limited to what it needs (no swarm, secrets,
   # plugins, or system endpoints). Only on the toolbox's network, never published to the host.

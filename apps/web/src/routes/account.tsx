@@ -51,13 +51,13 @@ function Account() {
                 title="Signing out failed. Check your connection and try again."
               />
             ) : null}
-            <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3">
-              <dt className="text-parchment">Name</dt>
-              <dd className="text-bone">{session.user.name}</dd>
-              <dt className="text-parchment">Email</dt>
-              <dd className="font-instrument text-bone">{session.user.email}</dd>
-              <dt className="text-parchment">Status</dt>
-              <dd className="text-bone">
+            <dl className="grid grid-cols-[max-content_1fr] gap-x-8 gap-y-3">
+              <dt className="font-display-sc text-umber tracking-[0.08em]">Name</dt>
+              <dd className="text-lampblack">{session.user.name}</dd>
+              <dt className="font-display-sc text-umber tracking-[0.08em]">Email</dt>
+              <dd className="font-instrument text-lampblack">{session.user.email}</dd>
+              <dt className="font-display-sc text-umber tracking-[0.08em]">Status</dt>
+              <dd className="text-lampblack">
                 {session.user.emailVerified ? "Email confirmed" : "Email not yet confirmed"}
               </dd>
             </dl>

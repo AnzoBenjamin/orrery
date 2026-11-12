@@ -27,11 +27,11 @@ function CheckEmail() {
   return (
     <AuthFrame plate={3} title="Confirm your email" caption="One step before the workshop opens.">
       <div className="flex flex-col gap-5">
-        <p className="text-bone">
+        <p className="text-lampblack">
           We sent a confirmation link to <span className="font-instrument">{email}</span>. Open it
           on this device to activate your account. The link expires in 24 hours.
         </p>
-        <p className="text-parchment text-sm">
+        <p className="text-umber text-sm">
           Nothing arrived after a few minutes? Check your spam folder, then send another link.
         </p>
         {state === "sent" ? <Banner tone="success" title="A new link is on its way." /> : null}
@@ -40,7 +40,7 @@ function CheckEmail() {
           <Button variant="secondary" onPress={resend} isPending={state === "sending"}>
             Send another link
           </Button>
-          <Link to="/sign-in" className="text-brass-bright text-sm underline underline-offset-4">
+          <Link to="/sign-in" className="o-link text-sm">
             Back to sign in
           </Link>
         </div>

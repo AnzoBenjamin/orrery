@@ -60,9 +60,9 @@ function SignUp() {
         />
         <SubmitButton isPending={pending}>Create account</SubmitButton>
       </Form>
-      <p className="mt-6 text-parchment text-sm">
+      <p className="mt-6 text-umber text-sm">
         Already registered?{" "}
-        <Link to="/sign-in" className="text-brass-bright underline underline-offset-4">
+        <Link to="/sign-in" className="o-link">
           Sign in
         </Link>
       </p>

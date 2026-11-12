@@ -109,10 +109,7 @@ function SignIn() {
             >
               Sign in
             </SubmitButton>
-            <Link
-              to="/forgot-password"
-              className="text-brass-bright text-sm underline underline-offset-4"
-            >
+            <Link to="/forgot-password" className="o-link text-sm">
               Forgot your password?
             </Link>
           </div>
@@ -149,9 +146,9 @@ function SignIn() {
           ) : null}
         </div>
       </div>
-      <p className="mt-6 text-parchment text-sm">
+      <p className="mt-6 text-umber text-sm">
         New here?{" "}
-        <Link to="/sign-up" className="text-brass-bright underline underline-offset-4">
+        <Link to="/sign-up" className="o-link">
           Create an account
         </Link>
       </p>

@@ -2,34 +2,37 @@ import type { ReactNode } from "react";
 
 export type BannerTone = "error" | "success" | "info";
 
-const tones: Record<BannerTone, { box: string; mark: string; label: string }> = {
-  // Oxblood and verdigris are too dark for text on the dark surfaces (see tokens.ts), so errors use
-  // an oxblood fill under bone text and success uses a verdigris rule beside bone text.
-  error: { box: "bg-oxblood text-bone", mark: "✕", label: "Error" },
-  success: { box: "border-l-4 border-verdigris bg-umber text-bone", mark: "✓", label: "Done" },
-  info: { box: "border-l-4 border-brass bg-umber text-bone", mark: "§", label: "Note" },
+const marks: Record<BannerTone, { mark: string; label: string }> = {
+  error: { mark: "✕", label: "Error" },
+  success: { mark: "✓", label: "Done" },
+  info: { mark: "§", label: "Note" },
 };
 
 /**
- * A message about the result of an action. Errors are announced immediately (role="alert");
- * other tones politely (role="status").
+ * A message about the result of an action. Errors are an oxblood slip under bone lettering (legible
+ * on paper and on the dark desk); other tones are a ruled note in the surface's own ink. Errors
+ * are announced at once (role="alert"), others politely (role="status").
  */
 export function Banner(props: { tone: BannerTone; title: string; children?: ReactNode }) {
-  const tone = tones[props.tone];
+  const { mark, label } = marks[props.tone];
+  const box =
+    props.tone === "error"
+      ? "bg-oxblood text-bone shadow-[inset_0_0_0_1px_rgb(14_13_11/0.35)]"
+      : "border-l-2 border-[var(--ink)] text-[var(--ink)]";
   return (
     <div
       role={props.tone === "error" ? "alert" : "status"}
-      className={`flex gap-3 px-4 py-3 font-interface ${tone.box}`}
+      className={`flex gap-3 px-4 py-3 ${box}`}
     >
-      <span aria-hidden="true" className="font-instrument">
-        {tone.mark}
+      <span aria-hidden="true" className="font-display text-lg leading-6">
+        {mark}
       </span>
-      <div>
-        <p className="font-semibold">
-          <span className="sr-only">{tone.label}: </span>
+      <div className="leading-6">
+        <p className="font-display text-[1.05rem]">
+          <span className="sr-only">{label}: </span>
           {props.title}
         </p>
-        {props.children ? <div className="mt-1 text-sm">{props.children}</div> : null}
+        {props.children ? <div className="mt-1 text-sm opacity-90">{props.children}</div> : null}
       </div>
     </div>
   );

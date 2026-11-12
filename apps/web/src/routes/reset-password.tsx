@@ -26,7 +26,7 @@ function ResetPassword() {
       <AuthFrame plate={4} title="That link did not work">
         <div className="flex flex-col gap-5">
           <Banner tone="error" title="This reset link is invalid, already used, or expired." />
-          <Link to="/forgot-password" className="text-brass-bright underline underline-offset-4">
+          <Link to="/forgot-password" className="o-link">
             Request a new link
           </Link>
         </div>

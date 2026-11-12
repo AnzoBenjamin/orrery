@@ -40,6 +40,12 @@ export const contrastPairs: ReadonlyArray<{
   { use: "input border against panel", fg: "brass", bg: "soot", min: 3 },
   { use: "error text on oxblood banner", fg: "bone", bg: "oxblood", min: 4.5 },
   { use: "success border against panel", fg: "verdigris", bg: "soot", min: 3 },
+  { use: "ink on paper plate", fg: "lampblack", bg: "bone", min: 4.5 },
+  { use: "soft ink on paper plate", fg: "umber", bg: "bone", min: 4.5 },
+  { use: "correction ink (errors, focus) on paper", fg: "oxblood", bg: "bone", min: 4.5 },
+  { use: "paper button label on hovered oxblood", fg: "bone", bg: "oxblood", min: 4.5 },
+  { use: "specimen tag lettering", fg: "lampblack", bg: "parchment", min: 4.5 },
+  { use: "ghost part against the desk", fg: "ectoplasm", bg: "lampblack", min: 3 },
   { use: "brass-bright link text on raised surface", fg: "brassBright", bg: "umber", min: 4.5 },
 ];
 
@@ -53,6 +59,8 @@ export const forbiddenTextPairs: ReadonlyArray<{ fg: PaletteToken; bg: PaletteTo
   { fg: "oxblood", bg: "lampblack" },
   { fg: "verdigris", bg: "soot" },
   { fg: "brass", bg: "umber" },
+  { fg: "brass", bg: "bone" },
+  { fg: "verdigris", bg: "bone" },
 ];
 
 export const fonts = {

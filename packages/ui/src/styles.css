@@ -66,9 +66,259 @@
     outline-offset: 3px;
   }
 
+  body {
+    background-color: var(--color-lampblack);
+  }
+
   ::selection {
     background-color: var(--color-brass);
     color: var(--color-lampblack);
+  }
+}
+
+/*
+ * Surfaces. The desk is lamp-black; plates are bone paper printed in lamp-black ink. Components
+ * use the o-* classes below and adapt to the surface they sit on, so a form reads as ink on
+ * paper on a plate and as bone on soot in the dense workbench.
+ */
+@layer components {
+  .paper {
+    --ink: var(--color-lampblack);
+    --ink-soft: var(--color-umber);
+    --ink-accent: var(--color-oxblood);
+    --on-ink: var(--color-bone);
+    --on-accent: var(--color-bone);
+    --rule: rgb(14 13 11 / 0.55);
+    --field: transparent;
+    color: var(--ink);
+    background-color: var(--color-bone);
+    background-image:
+      radial-gradient(ellipse at 12% 8%, rgb(122 35 28 / 0.07), transparent 38%),
+      radial-gradient(ellipse at 88% 94%, rgb(42 37 30 / 0.16), transparent 45%),
+      radial-gradient(ellipse at 50% 50%, transparent 55%, rgb(42 37 30 / 0.2) 100%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.16  0 0 0 0 0.13  0 0 0 0 0.09  0 0 0 0.09 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>");
+    box-shadow:
+      0 1px 0 rgb(232 223 201 / 0.15) inset,
+      0 30px 60px -20px rgb(0 0 0 / 0.8),
+      0 0 0 1px rgb(14 13 11 / 0.6);
+  }
+
+  .desk,
+  :root {
+    --ink: var(--color-bone);
+    --ink-soft: var(--color-parchment);
+    --ink-accent: var(--color-brass-bright);
+    --on-ink: var(--color-lampblack);
+    --on-accent: var(--color-lampblack);
+    --rule: rgb(168 133 74 / 0.7);
+    --field: var(--color-lampblack);
+  }
+
+  .paper :focus-visible {
+    outline-color: var(--color-oxblood);
+  }
+
+  .paper ::selection {
+    background-color: var(--color-lampblack);
+    color: var(--color-bone);
+  }
+
+  /* Field: a ledger line to write on, not a box. */
+  .o-label {
+    font-family: var(--font-display-sc);
+    font-size: 0.95rem;
+    letter-spacing: 0.08em;
+    color: var(--ink);
+  }
+
+  .o-input {
+    min-height: 2.75rem;
+    width: 100%;
+    padding: 0.5rem 0.1rem 0.35rem;
+    background: var(--field);
+    border: 0;
+    border-bottom: 1px solid var(--rule);
+    color: var(--ink);
+    font-family: var(--font-instrument);
+    font-size: 1rem;
+    transition: border-color 150ms ease;
+  }
+
+  .o-input:hover {
+    border-bottom-color: var(--ink);
+  }
+
+  .o-input:focus {
+    outline: none;
+    border-bottom: 2px solid var(--ink-accent);
+    padding-bottom: calc(0.35rem - 1px);
+  }
+
+  .o-input[data-invalid] {
+    border-bottom: 1px dashed var(--ink-accent);
+  }
+
+  .o-description {
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    font-style: italic;
+    font-family: var(--font-display);
+  }
+
+  /* Errors read as a correction written in the margin. */
+  .o-error {
+    font-family: var(--font-display);
+    font-style: italic;
+    color: var(--ink-accent);
+  }
+
+  .o-link {
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: var(--ink-accent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.25em;
+  }
+
+  .o-link:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  /* Buttons are printers' blocks: solid ink with a bevel, or a ruled outline. */
+  .o-button {
+    display: inline-flex;
+    min-height: 2.875rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 0 1.4rem;
+    font-family: var(--font-display-sc);
+    font-size: 1.05rem;
+    letter-spacing: 0.1em;
+    transition:
+      background-color 150ms ease,
+      color 150ms ease,
+      box-shadow 150ms ease;
+  }
+
+  .o-button[data-disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .o-button-primary {
+    background: var(--ink);
+    color: var(--on-ink);
+    box-shadow:
+      inset 0 0 0 1px rgb(232 223 201 / 0.12),
+      inset 0 -3px 0 rgb(0 0 0 / 0.35);
+  }
+
+  .o-button-primary[data-hovered] {
+    background: var(--ink-accent);
+    color: var(--on-accent);
+  }
+
+  .o-button-primary[data-pressed] {
+    box-shadow: inset 0 3px 0 rgb(0 0 0 / 0.35);
+  }
+
+  .o-button-secondary {
+    background: transparent;
+    color: var(--ink);
+    box-shadow:
+      inset 0 0 0 1px var(--ink),
+      inset 0 0 0 4px transparent,
+      inset 0 0 0 5px var(--rule);
+  }
+
+  .o-button-secondary[data-hovered] {
+    box-shadow:
+      inset 0 0 0 2px var(--ink),
+      inset 0 0 0 4px transparent,
+      inset 0 0 0 5px var(--ink);
+  }
+
+  .o-button-quiet {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.05rem;
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: var(--ink-accent);
+    text-underline-offset: 0.25em;
+  }
+
+  /* Specimen tag: a tied paper label, as on period engineering plates. */
+  .o-tag {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.8rem 0.3rem 1.3rem;
+    background: var(--color-parchment);
+    color: var(--color-lampblack);
+    font-family: var(--font-display-sc);
+    letter-spacing: 0.12em;
+    clip-path: polygon(0.6rem 0, 100% 0, 100% 100%, 0.6rem 100%, 0 50%);
+  }
+
+  .o-tag::before {
+    content: "";
+    position: absolute;
+    left: 0.55rem;
+    top: 50%;
+    width: 0.4rem;
+    height: 0.4rem;
+    margin-top: -0.2rem;
+    border-radius: 50%;
+    background: var(--color-lampblack);
+  }
+}
+
+/*
+ * The ghost: candidate parts breathe, slowly and slightly, and their motion trail drifts. These
+ * are the only animated decorations, and they stop under prefers-reduced-motion.
+ */
+@layer components {
+  .ghost-part {
+    animation: ghost-breathe 5.5s ease-in-out infinite;
+  }
+
+  .ghost-trail {
+    animation: ghost-drift 14s linear infinite;
+  }
+
+  @keyframes ghost-breathe {
+    0%,
+    100% {
+      opacity: 0.9;
+    }
+    38% {
+      opacity: 0.62;
+    }
+    41% {
+      opacity: 0.8;
+    }
+    44% {
+      opacity: 0.58;
+    }
+    70% {
+      opacity: 0.85;
+    }
+  }
+
+  @keyframes ghost-drift {
+    to {
+      stroke-dashoffset: -140;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ghost-part,
+    .ghost-trail {
+      animation: none;
+    }
   }
 }
 

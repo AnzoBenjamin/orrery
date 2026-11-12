@@ -31,20 +31,20 @@ function ForgotPassword() {
           <Banner tone="success" title="Check your email.">
             If an account uses that address, a reset link is on its way. It expires in 60 minutes.
           </Banner>
-          <Link to="/sign-in" className="text-brass-bright underline underline-offset-4">
+          <Link to="/sign-in" className="o-link">
             Back to sign in
           </Link>
         </div>
       ) : (
         <Form onSubmit={onSubmit} className="flex flex-col gap-5">
           {typeof state === "object" ? <Banner tone="error" title={state.error} /> : null}
-          <p className="text-bone">
+          <p className="text-lampblack">
             Enter your account's email and we will send a link to choose a new password.
           </p>
           <TextField label="Email" name="email" type="email" autoComplete="email" isRequired />
           <div className="flex items-center justify-between gap-4">
             <SubmitButton isPending={state === "sending"}>Send reset link</SubmitButton>
-            <Link to="/sign-in" className="text-brass-bright text-sm underline underline-offset-4">
+            <Link to="/sign-in" className="o-link text-sm">
               Back to sign in
             </Link>
           </div>

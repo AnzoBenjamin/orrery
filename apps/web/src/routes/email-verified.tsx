@@ -21,10 +21,10 @@ function EmailVerified() {
       <AuthFrame plate={3} title="That link did not work">
         <div className="flex flex-col gap-5">
           <Banner tone="error" title="The confirmation link is invalid or has expired." />
-          <p className="text-bone">
+          <p className="text-lampblack">
             Sign in with your email and password and we will send a fresh link automatically.
           </p>
-          <Link to="/sign-in" className="text-brass-bright underline underline-offset-4">
+          <Link to="/sign-in" className="o-link">
             Go to sign in
           </Link>
         </div>
@@ -37,11 +37,11 @@ function EmailVerified() {
       <div className="flex flex-col gap-5">
         <Banner tone="success" title="Your email address is confirmed." />
         {session ? (
-          <Link to="/account" className="text-brass-bright underline underline-offset-4">
+          <Link to="/account" className="o-link">
             Continue to your account
           </Link>
         ) : (
-          <Link to="/sign-in" className="text-brass-bright underline underline-offset-4">
+          <Link to="/sign-in" className="o-link">
             Sign in to continue
           </Link>
         )}

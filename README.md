@@ -15,7 +15,9 @@ The repository is being built spec by spec, in the order listed in `.kiro/steeri
 - `packages/db`: the Drizzle schema, committed migrations, typed query modules, and a Testcontainers harness for integration tests against real Postgres 18.
 - CI that starts the same stack and runs the same checks and tests in the same image.
 
-The web app, worker, and engine land with the next platform-foundation tasks and join the stack then. This README is updated as each one ships.
+- `apps/web` and `apps/worker`: email and password accounts with confirmation and password reset, sent through the pg-boss worker. Open `http://localhost:53000` after `make up`, and read the emails at `http://localhost:58025`.
+
+The engine lands with the upload tasks and joins the stack then. This README is updated as each one ships.
 
 ## Requirements
 
@@ -25,6 +27,7 @@ Docker Engine and Docker Compose v2. Nothing else is installed on the host: Node
 
 ```sh
 make up        # start the service stack; returns once every service is healthy
+make e2e       # Playwright end-to-end tests against the running stack
 make migrate   # apply database migrations to the local Postgres
 make toolbox   # build the toolbox image with your UID and GID (about 5 GB, once)
 make check     # install dependencies, then format, lint, and type checks for TypeScript, Rust, and Python

@@ -150,11 +150,15 @@ services:
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      # Same port inside and outside, so the origin is http://localhost:53000 both from the host
+      # browser and from the e2e container, which shares this container's network namespace.
+      WEB_PORT: ${WEB_PORT:-53000}
+      AUTH_RATE_LIMIT_SCALE: ${AUTH_RATE_LIMIT_SCALE:-50}
     ports:
-      - 127.0.0.1:${WEB_PORT:-53000}:3000
+      - 127.0.0.1:${WEB_PORT:-53000}:${WEB_PORT:-53000}
     mem_limit: 1536m
     healthcheck:
-      test: [CMD, curl, -fsS, -o, /dev/null, http://127.0.0.1:3000/api/health]
+      test: [CMD-SHELL, 'curl -fsS -o /dev/null "http://127.0.0.1:$$WEB_PORT/api/health"']
       interval: 3s
       timeout: 5s
       retries: 60
@@ -177,6 +181,24 @@ services:
       timeout: 5s
       retries: 40
       start_period: 10s
+
+  # Playwright against the running stack (`make e2e`). It shares the web container's network
+  # namespace, so the browser reaches the app at the same origin a developer's browser uses.
+  e2e:
+    profiles: [tools]
+    image: orrery-toolbox:local
+    init: true
+    user: ${HOST_UID:-1000}:${HOST_GID:-1000}
+    network_mode: service:web
+    working_dir: /workspace
+    environment:
+      CI: ${CI:-}
+      E2E_BASE_URL: http://localhost:${WEB_PORT:-53000}
+      E2E_MAILPIT_URL: http://mailpit:8025
+    volumes:
+      - ..:/workspace
+      - pnpm-store:/home/dev/.local/share/pnpm
+    shm_size: 1gb
 
   # Docker API for Testcontainers in the toolbox, limited to what it needs (no swarm, secrets,
   # plugins, or system endpoints). Only on the toolbox's network, never published to the host.

@@ -28,7 +28,7 @@ export function TextField({
       <Label className="font-interface font-medium text-bone text-sm tracking-wide">{label}</Label>
       <Input
         {...(placeholder === undefined ? {} : { placeholder })}
-        className="min-h-11 border border-brass/70 bg-lampblack px-3 font-interface text-base text-bone placeholder:text-parchment/70 hover:border-brass focus:border-brass-bright invalid:border-bone invalid:border-dashed"
+        className="min-h-11 border border-brass/70 bg-lampblack px-3 font-interface text-base text-bone placeholder:text-parchment/70 hover:border-brass focus:border-brass-bright data-invalid:border-bone data-invalid:border-dashed"
       />
       {description ? (
         <Text slot="description" className="font-interface text-parchment text-sm">

@@ -1,7 +1,6 @@
-import { Banner, Button, Rule, TextField } from "@orrery/ui";
+import { Banner, Button, Form, Rule, SubmitButton, TextField } from "@orrery/ui";
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Form } from "react-aria-components";
 import { z } from "zod";
 import { AuthFrame } from "../components/auth-frame.tsx";
 import { authClient, authErrorMessage } from "../lib/auth-client.ts";
@@ -44,7 +43,6 @@ function SignIn() {
     const { error: failure } = await authClient.signIn.email({
       email: String(form.get("email")),
       password: String(form.get("password")),
-      callbackURL: "/email-verified",
     });
     setPending(null);
     if (failure) {
@@ -105,13 +103,12 @@ function SignIn() {
             isRequired
           />
           <div className="flex items-center justify-between gap-4">
-            <Button
-              type="submit"
+            <SubmitButton
               isPending={pending === "password"}
               isDisabled={pending !== null && pending !== "password"}
             >
               Sign in
-            </Button>
+            </SubmitButton>
             <Link
               to="/forgot-password"
               className="text-brass-bright text-sm underline underline-offset-4"

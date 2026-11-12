@@ -72,12 +72,12 @@ function createAuth() {
     rateLimit: {
       ...authSchemaOptions.rateLimit,
       window: 60,
-      max: 100,
+      max: 100 * env.AUTH_RATE_LIMIT_SCALE,
       customRules: {
-        "/sign-in/email": { window: 60, max: 5 },
-        "/sign-up/email": { window: 3600, max: 5 },
-        "/request-password-reset": { window: 3600, max: 3 },
-        "/send-verification-email": { window: 3600, max: 3 },
+        "/sign-in/email": { window: 60, max: 5 * env.AUTH_RATE_LIMIT_SCALE },
+        "/sign-up/email": { window: 3600, max: 5 * env.AUTH_RATE_LIMIT_SCALE },
+        "/request-password-reset": { window: 3600, max: 3 * env.AUTH_RATE_LIMIT_SCALE },
+        "/send-verification-email": { window: 3600, max: 3 * env.AUTH_RATE_LIMIT_SCALE },
       },
     },
 

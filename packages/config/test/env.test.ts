@@ -104,6 +104,16 @@ describe("web environment", () => {
     expect(problems.BETTER_AUTH_URL).toBe("must use https in production");
   });
 
+  it("allows scaled auth rate limits outside production only", () => {
+    expect(parseWebServerEnv({ ...web, AUTH_RATE_LIMIT_SCALE: "20" }).AUTH_RATE_LIMIT_SCALE).toBe(
+      20,
+    );
+    const problems = problemsOf(() =>
+      parseWebServerEnv({ ...web, NODE_ENV: "production", AUTH_RATE_LIMIT_SCALE: "20" }),
+    );
+    expect(problems.AUTH_RATE_LIMIT_SCALE).toBe("must be 1 in production");
+  });
+
   it("exposes only PUBLIC_ variables to the browser schema", () => {
     const env = parseWebPublicEnv({
       ...web,

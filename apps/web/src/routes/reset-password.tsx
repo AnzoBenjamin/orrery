@@ -1,7 +1,6 @@
-import { Banner, Button, TextField } from "@orrery/ui";
+import { Banner, Form, SubmitButton, TextField } from "@orrery/ui";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Form } from "react-aria-components";
 import { z } from "zod";
 import { AuthFrame } from "../components/auth-frame.tsx";
 import { authClient, authErrorMessage } from "../lib/auth-client.ts";
@@ -79,9 +78,7 @@ function ResetPassword() {
           autoComplete="new-password"
           isRequired
         />
-        <Button type="submit" isPending={pending}>
-          Change password
-        </Button>
+        <SubmitButton isPending={pending}>Change password</SubmitButton>
       </Form>
     </AuthFrame>
   );

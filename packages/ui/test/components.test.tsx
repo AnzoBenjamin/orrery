@@ -37,9 +37,16 @@ describe("components", () => {
     expect(screen.getByRole("status").textContent).toContain("Password changed.");
   });
 
-  it("marks a pending button busy", () => {
-    render(<Button isPending>Sign in</Button>);
-    const button = screen.getByRole("button", { name: /Sign in/ });
-    expect(button.getAttribute("aria-disabled")).toBe("true");
+  it("marks a pending button busy, ignores presses, and adds no unlabelled nodes", () => {
+    let presses = 0;
+    render(
+      <Button isPending onPress={() => (presses += 1)}>
+        Sign in
+      </Button>,
+    );
+    const button = screen.getByRole("button", { name: "Sign in, working" });
+    button.click();
+    expect(presses).toBe(0);
+    expect(document.querySelector('[role="img"]')).toBeNull();
   });
 });

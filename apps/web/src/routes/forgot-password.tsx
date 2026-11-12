@@ -1,7 +1,6 @@
-import { Banner, Button, TextField } from "@orrery/ui";
+import { Banner, Form, SubmitButton, TextField } from "@orrery/ui";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Form } from "react-aria-components";
 import { AuthFrame } from "../components/auth-frame.tsx";
 import { authClient, authErrorMessage } from "../lib/auth-client.ts";
 
@@ -44,9 +43,7 @@ function ForgotPassword() {
           </p>
           <TextField label="Email" name="email" type="email" autoComplete="email" isRequired />
           <div className="flex items-center justify-between gap-4">
-            <Button type="submit" isPending={state === "sending"}>
-              Send reset link
-            </Button>
+            <SubmitButton isPending={state === "sending"}>Send reset link</SubmitButton>
             <Link to="/sign-in" className="text-brass-bright text-sm underline underline-offset-4">
               Back to sign in
             </Link>

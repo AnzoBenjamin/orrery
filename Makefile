@@ -15,7 +15,7 @@ TOOLBOX := $(COMPOSE) run --rm $(TTY_FLAG) toolbox
 # Volumes holding project data. `reset` recreates these and keeps the dependency caches.
 DATA_VOLUMES := orrery_pg-data orrery_garage-meta orrery_garage-data
 
-.PHONY: help env up down reset logs ps db-shell migrate migrate-only toolbox shell install check test format
+.PHONY: help env up down reset logs ps db-shell migrate migrate-only toolbox shell install check test e2e format
 
 help: ## List recipes
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -76,6 +76,9 @@ check: install ## Formatting, lint, and type checks for all languages
 
 test: install ## Unit and integration tests for all languages
 	$(TOOLBOX) pnpm test
+
+e2e: up ## Playwright end-to-end tests against the running stack (pass args with a="...")
+	$(COMPOSE) run --rm $(TTY_FLAG) e2e pnpm --filter @orrery/e2e e2e $(a)
 
 format: install ## Apply formatters for all languages
 	$(TOOLBOX) pnpm format

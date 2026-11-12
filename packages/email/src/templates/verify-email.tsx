@@ -12,8 +12,8 @@ export function VerifyEmail({ name, url }: { name: string; url: string }) {
     >
       <Paragraph>{name},</Paragraph>
       <Paragraph>
-        Confirm this address to activate your account. You can sign in and upload footage once it
-        is confirmed.
+        Confirm this address to activate your account. You can sign in and upload footage once it is
+        confirmed.
       </Paragraph>
       <Action href={url} label="Confirm email address" />
       <Paragraph>The link works once and expires in 24 hours.</Paragraph>

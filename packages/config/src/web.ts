@@ -20,6 +20,16 @@ export const webServerShape = {
   /** Public origin of the web app, for example https://orrery.example. */
   BETTER_AUTH_URL: httpUrl,
   BETTER_AUTH_SECRET: z.string().min(32, "must be at least 32 characters"),
+  /**
+   * Multiplies the auth rate limits. The local stack raises it so the end-to-end suite, which
+   * signs up many accounts from one address, is not throttled. Must be 1 in production.
+   */
+  AUTH_RATE_LIMIT_SCALE: z.coerce
+    .number({ error: "must be a whole number from 1 to 1000" })
+    .int("must be a whole number from 1 to 1000")
+    .min(1, "must be a whole number from 1 to 1000")
+    .max(1000, "must be a whole number from 1 to 1000")
+    .default(1),
   GITHUB_CLIENT_ID: z.string().min(1, "must not be empty").optional(),
   GITHUB_CLIENT_SECRET: z.string().min(1, "must not be empty").optional(),
   GOOGLE_CLIENT_ID: z.string().min(1, "must not be empty").optional(),
@@ -37,6 +47,13 @@ function refineWeb(env: Record<string, unknown>, ctx: z.RefinementCtx): void {
     "OTEL_EXPORTER_OTLP_ENDPOINT",
     "SENTRY_DSN",
   ]);
+  if (env.NODE_ENV === "production" && env.AUTH_RATE_LIMIT_SCALE !== 1) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["AUTH_RATE_LIMIT_SCALE"],
+      message: "must be 1 in production",
+    });
+  }
   if (env.NODE_ENV === "production" && typeof env.BETTER_AUTH_URL === "string") {
     if (!env.BETTER_AUTH_URL.startsWith("https://")) {
       ctx.addIssue({

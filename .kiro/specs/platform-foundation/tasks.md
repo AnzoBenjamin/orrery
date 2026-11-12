@@ -53,6 +53,7 @@ Task numbers are stable references (other specs cite them). Work them in this or
     - _Requirements: 4.6, 4.7, 4.8, 10.3_
   - [ ] 4.4 End-to-end tests: sign-up with Mailpit verification, unverified upload blocked, reset flow, passkey via virtual authenticator, session revocation, account deletion removes objects.
     - _Requirements: 4.1–4.8, 13.3_
+    - Done: sign-up with Mailpit verification, unverified sign-in refused, wrong password, sign-out, reset flow, reset privacy, invalid reset link. Remaining with 4.3 and 6.x: passkey via virtual authenticator, session revocation, account deletion, unverified upload.
 
 - [ ] 5. Authorization and sharing
   - [ ] 5.1 Implement `policy.ts` and the `authed()` server-function wrapper with typed domain errors.
@@ -100,7 +101,7 @@ Task numbers are stable references (other specs cite them). Work them in this or
   - [ ] 9.1 Set up Vitest with Testcontainers global setup for Postgres and Garage.
     - Postgres is done (`@orrery/db/testing`: one container per run, a migrated template database, one clone per test file). Garage lands with 6.1.
     - _Requirements: 13.1_
-  - [ ] 9.2 Set up Playwright against the Compose stack with a Mailpit client, axe checks on every visited page, and failure artifacts.
+  - [x] 9.2 Set up Playwright against the Compose stack with a Mailpit client, axe checks on every visited page, and failure artifacts.
     - _Requirements: 13.2, 13.3, 13.5, 13.6_
   - [ ] 9.3 Add test helpers that create users and specimens through the product's server functions only.
     - _Requirements: 13.4_

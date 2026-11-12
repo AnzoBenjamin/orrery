@@ -1,7 +1,6 @@
-import { Banner, Button, TextField } from "@orrery/ui";
+import { Banner, Form, SubmitButton, TextField } from "@orrery/ui";
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Form } from "react-aria-components";
 import { AuthFrame } from "../components/auth-frame.tsx";
 import { authClient, authErrorMessage } from "../lib/auth-client.ts";
 import { getSession } from "../server/session.ts";
@@ -59,9 +58,7 @@ function SignUp() {
           minLength={10}
           maxLength={128}
         />
-        <Button type="submit" isPending={pending}>
-          Create account
-        </Button>
+        <SubmitButton isPending={pending}>Create account</SubmitButton>
       </Form>
       <p className="mt-6 text-parchment text-sm">
         Already registered?{" "}

@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Block commits with placeholder markers",
+      "trigger": "PreToolUse",
+      "description": "Requirement 16.4: before the agent runs a shell command that commits, scan what the commit could include for TODO, FIXME, lorem, or mock outside test directories, and block the command if any are found.",
+      "matcher": "^(execute_bash|execute_pwsh)$",
+      "action": {
+        "type": "command",
+        "command": "bash scripts/kiro-hooks/commit-guard.sh",
+        "timeout": 60
+      }
+    }
+  ]
+}

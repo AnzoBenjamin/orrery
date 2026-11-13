@@ -145,3 +145,4 @@ Task numbers are stable references (other specs cite them). Work them in this or
 - [ ] 11. Kiro hooks
   - [ ] 11.1 Add the vertical-slice reminder hook for schema files, the codegen hook for contract packages, the lab smoke-suite hook for solver and engine changes, and the placeholder-marker commit guard.
     - _Requirements: 16.1, 16.2, 16.3, 16.4_
+    - Done: `.kiro/hooks/vertical-slice-reminder.json` (schema saves), `contract-codegen.json` (runs `make codegen` for `@orrery/schema` and `@orrery/engine-contract`), and `placeholder-commit-guard.json` (PreToolUse on the shell tool, `scripts/kiro-hooks/commit-guard.sh`). The same scanner, `scripts/check-placeholders.sh`, runs over every tracked file in `pnpm check`, so commits made outside Kiro are caught in CI. Remaining: the lab smoke-suite hook (16.2), which needs `make lab-smoke` from synthetic-lab.

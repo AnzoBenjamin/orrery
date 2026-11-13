@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Vertical slice reminder for schema changes",
+      "trigger": "PostFileSave",
+      "description": "Requirement 16.1: when a Drizzle schema file is saved, remind the agent to generate the migration and finish the vertical slice.",
+      "matcher": "packages/db/src/schema/",
+      "action": {
+        "type": "agent",
+        "prompt": "You changed the Drizzle schema in packages/db/src/schema. Per quality.md, a persistence change is done only when every layer ships together:\n1. Generate the migration: `docker compose --env-file .env -f infra/compose.yaml run --rm -T toolbox bash -c 'cd packages/db && pnpm exec drizzle-kit generate --name <change>'`. Review the SQL and commit it. Never use `push`.\n2. Add a query module function in packages/db/src/queries with a Testcontainers test.\n3. Add an operation with strict Zod input and an authorization check, register it in apps/web/src/server/operations/registry.ts, and add its case to the cross-user test.\n4. Show the data in the UI with loading, empty, error, and success states in the design language.\n5. Add an integration test against real Postgres and a Playwright end-to-end test through the UI.\nNo table or column may exist without a user-facing or operator-facing representation. Apply the migration locally with `make migrate`."
+      }
+    }
+  ]
+}

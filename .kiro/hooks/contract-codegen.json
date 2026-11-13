@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Regenerate cross-language types on contract changes",
+      "trigger": "PostFileSave",
+      "description": "Requirement 16.3: when a file in packages/schema or packages/engine-contract changes, regenerate the JSON Schema and the generated Python models inside the toolbox, so committed artifacts never go stale.",
+      "matcher": "packages/(schema|engine-contract)/(src|scripts)/",
+      "action": {
+        "type": "command",
+        "command": "make --no-print-directory codegen pkg=\"@orrery/schema @orrery/engine-contract\"",
+        "timeout": 300
+      }
+    }
+  ]
+}

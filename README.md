@@ -28,6 +28,7 @@ Docker Engine and Docker Compose v2. Nothing else is installed on the host: Node
 
 ```sh
 make up        # start the service stack; returns once every service is healthy
+make dev       # make up, then stay attached with hot reload: web and worker reload in place, the engine image rebuilds on change
 make e2e       # Playwright end-to-end tests against the running stack
 make migrate   # apply database migrations to the local Postgres
 make toolbox   # build the toolbox image with your UID and GID (about 5 GB, once)

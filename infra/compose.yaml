@@ -210,6 +210,16 @@ services:
     depends_on:
       garage:
         condition: service_healthy
+    # `make dev` reloads the engine by rebuilding this image when its source or lockfile changes.
+    # A rebuild reuses the dependency layer, so only the engine package is reinstalled, and the
+    # running engine stays identical to the production image instead of an editable install.
+    develop:
+      watch:
+        - action: rebuild
+          path: ../services/engine
+          ignore: [tests/, "**/__pycache__/", .pytest_cache/]
+        - action: rebuild
+          path: ../uv.lock
 
   # Playwright against the running stack (`make e2e`). It shares the web container's network
   # namespace, so the browser reaches the app at the same origin a developer's browser uses.

@@ -15,7 +15,7 @@ TOOLBOX := $(COMPOSE) run --rm $(TTY_FLAG) toolbox
 # Volumes holding project data. `reset` recreates these and keeps the dependency caches.
 DATA_VOLUMES := orrery_pg-data orrery_garage-meta orrery_garage-data
 
-.PHONY: help env up down reset logs ps db-shell migrate migrate-only admin toolbox shell install check test e2e format
+.PHONY: help env up dev down reset logs ps db-shell migrate migrate-only admin toolbox shell install check test e2e format
 
 help: ## List recipes
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -33,6 +33,9 @@ up: install ## Start the full stack and wait until every service is healthy
 	$(COMPOSE) run --rm $(TTY_FLAG) garage-init
 	$(MAKE) --no-print-directory migrate-only
 	$(COMPOSE) up --detach --wait --wait-timeout 300 $(APP)
+
+dev: up ## Start the full stack with hot reload (web and worker reload in place, the engine rebuilds)
+	$(COMPOSE) watch --no-up engine
 
 down: env ## Stop the stack (data is kept)
 	$(COMPOSE) down --remove-orphans

@@ -24,3 +24,16 @@ export async function signIn(page: Page, email: string, password: string) {
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
+
+// Re-export test data helpers for convenience
+export {
+  createMultipleSpecimens,
+  createTestSpecimenViaUI,
+  createTestUserViaUI,
+  deleteSpecimenViaUI,
+  goToSpecimen,
+  setupTestUser,
+  signInViaUI,
+  type TestSpecimen,
+  type TestUser,
+} from "./test-data.ts";

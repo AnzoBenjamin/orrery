@@ -16,8 +16,9 @@ Task numbers are stable references (other specs cite them). Work them in this or
 - [ ] 1. Repository and toolchain
   - [x] 1.1 Initialize pnpm workspace, Turborepo pipeline, Cargo workspace, uv workspace, and version files (`.nvmrc`, `packageManager`, `.python-version`, `rust-toolchain.toml`).
     - _Requirements: 1.1, 1.5_
-  - [ ] 1.2 Configure Biome, `tsc` project references, ruff, pyright strict, clippy, and rustfmt. Wire `pnpm check`, `pnpm test`, and `pnpm dev`.
+  - [x] 1.2 Configure Biome, `tsc` project references, ruff, pyright strict, clippy, and rustfmt. Wire `pnpm check`, `pnpm test`, and `pnpm dev`.
     - _Requirements: 1.2, 1.3, 1.4_
+    - Docker-first (1A) makes `make dev` the entry point for the full stack: `make up`, then `docker compose watch` on the engine, which rebuilds its production image on source or lockfile changes. The web app and worker already hot-reload from the mounted repository; `pnpm dev` is what their containers run. Rust and pyright steps skip until their first crate or project exists.
   - [x] 1.3 Add codegen pipeline (`pnpm codegen`) and a stale-artifact check in `pnpm check`.
     - _Requirements: 1.6_
   - [x] 1.4 Add `LICENSE` (Apache-2.0), `README.md` with setup and architecture, `THIRD_PARTY_MODELS.md`, and a CI step that fails if `.kiro` is missing or ignored.
@@ -26,7 +27,8 @@ Task numbers are stable references (other specs cite them). Work them in this or
 - [ ] 2. Local full stack (Docker-first)
   - [ ] 2.0 Build the `toolbox` image with pinned toolchains and host-matched UID/GID, the `Makefile` entry points, health-checked Compose services with named volumes and a fixed project name, `.devcontainer/devcontainer.json`, and a CI job that runs `make up check test` on a clean runner.
     - _Requirements: 1A.1–1A.9_
-  - [ ] 2.1 Write `infra/compose.yaml` with Postgres 18, Garage (single node, with bucket, key, and CORS bootstrap), Mailpit, OTel collector, web, worker, and engine. The engine image is CPU-only and runs with the same CPU and memory limits as production.
+    - Done: toolbox image, Makefile, health-checked Compose stack, devcontainer, CI job running `make up`, `check`, `test`, `e2e`. Remaining: the `seed-samples` recipe (needs real processed sample footage from the vision pipeline) and `lab-smoke` (synthetic-lab).
+  - [x] 2.1 Write `infra/compose.yaml` with Postgres 18, Garage (single node, with bucket, key, and CORS bootstrap), Mailpit, OTel collector, web, worker, and engine. The engine image is CPU-only and runs with the same CPU and memory limits as production.
     - _Requirements: 1.4, 13.2_
   - [x] 2.2 Add typed env schemas for web, worker, and engine with redacted error output. Add `.env.example`.
     - Web and worker schemas and property 5 in `packages/config`; the engine's `pydantic-settings` schema in `services/engine` with the same no-values rule.
@@ -39,8 +41,9 @@ Task numbers are stable references (other specs cite them). Work them in this or
     - _Requirements: 3.2, 3.3_
   - [x] 3.3 Implement typed query modules for specimens, footage, upload sessions, share links, domain events, notifications, and object deletions, with Testcontainers integration tests.
     - _Requirements: 3.6_
-  - [ ] 3.4 Add the `jsonb` mechanism-graph validation helper using `packages/schema` (lands with mechanism-core task 1).
+  - [x] 3.4 Add the `jsonb` mechanism-graph validation helper using `packages/schema` (lands with mechanism-core task 1).
     - _Requirements: 3.5_
+    - `packages/db/src/validate-mechanism.ts` (`validateMechanism`, `assertValidMechanism`, `parseMechanismFromJsonb`, `prepareMechanismForJsonb`) over `@orrery/schema`. Query modules for mechanism revisions call it when their tables land (mechanism-core).
 
 - [ ] 4. Authentication and account
   - [ ] 4.1 Configure Better Auth with the Drizzle adapter, email and password with verification, GitHub, Google, passkeys, database rate limiting, and the TanStack Start cookie plugin. Generate the auth schema and migration.
@@ -111,13 +114,14 @@ Task numbers are stable references (other specs cite them). Work them in this or
     - Done: engine service-token auth and the download origin allowlist (6.3), and security headers from a global request middleware (`src/start.ts`) with a per-request CSP nonce handed to the router. Every end-to-end test fails on a CSP violation. Remaining: verifying the production policy (nonce-only styles, HSTS) against the production build, which lands with the deploy pipeline (10.3), and the share-embed exception to `frame-ancestors` (workbench 11.1).
 
 - [ ] 9. Testing infrastructure
-  - [ ] 9.1 Set up Vitest with Testcontainers global setup for Postgres and Garage.
+  - [x] 9.1 Set up Vitest with Testcontainers global setup for Postgres and Garage.
     - Postgres (`@orrery/db/testing`: one container per run, a migrated template database, one clone per test file) and Garage (`@orrery/storage/testing`).
     - _Requirements: 13.1_
   - [x] 9.2 Set up Playwright against the Compose stack with a Mailpit client, axe checks on every visited page, and failure artifacts.
     - _Requirements: 13.2, 13.3, 13.5, 13.6_
-  - [ ] 9.3 Add test helpers that create users and specimens through the product's server functions only.
+  - [x] 9.3 Add test helpers that create users and specimens through the product's server functions only.
     - _Requirements: 13.4_
+    - `e2e/support/test-data.ts`: users and specimens are created by driving the product's own UI, which calls its server functions. There is no back door into the database.
   - [ ] 9.4 Commit short synthetic clips with ground truth to `e2e/fixtures` (produced by synthetic-lab task 6).
     - _Requirements: 13.7_
 

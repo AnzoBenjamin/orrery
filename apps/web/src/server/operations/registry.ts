@@ -15,6 +15,12 @@ import {
   footageUploadSign,
   footageUsage,
 } from "./footage.ts";
+import {
+  notificationList,
+  notificationMarkAllRead,
+  notificationMarkRead,
+  notificationUnreadCount,
+} from "./notifications.ts";
 import { shareCreate, shareList, shareOpen, sharePlayback, shareRevoke } from "./shares.ts";
 import {
   specimenCreate,
@@ -51,4 +57,8 @@ export const operations: readonly AnyOperation[] = [
   shareRevoke,
   shareOpen,
   sharePlayback,
+  notificationList,
+  notificationUnreadCount,
+  notificationMarkRead,
+  notificationMarkAllRead,
 ];

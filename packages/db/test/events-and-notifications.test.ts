@@ -13,6 +13,7 @@ import {
   markAllNotificationsRead,
   markDeletionCompleted,
   markNotificationRead,
+  newId,
   recordDeletionFailure,
   specimenChannel,
   updateUserPreferences,
@@ -67,15 +68,21 @@ describe("notifications", () => {
   it("lists, counts, and marks a user's notifications read", async () => {
     const a = await insertUser(database());
     const b = await insertUser(database());
+    const about = {
+      specimenId: newId(),
+      specimenTitle: "Clock",
+      footageId: newId(),
+      filename: "clip.mp4",
+    };
     const first = await createNotification(database().db, {
       userId: a.id,
-      kind: "analysis.failed",
-      payload: { specimenId: "x", reason: "Footage too dark to track." },
+      kind: "footage.rejected",
+      payload: { ...about, reason: "This file is not a video we can read." },
     });
     await createNotification(database().db, {
       userId: a.id,
-      kind: "analysis.complete",
-      payload: {},
+      kind: "footage.ready",
+      payload: about,
     });
     expect(await countUnreadNotifications(database().db, a.id)).toBe(2);
     expect(await markNotificationRead(database().db, { id: first.id, userId: b.id })).toBe(
@@ -87,6 +94,17 @@ describe("notifications", () => {
     expect(await markAllNotificationsRead(database().db, a.id)).toBe(1);
     expect(await countUnreadNotifications(database().db, a.id)).toBe(0);
     expect((await listNotifications(database().db, a.id, { limit: 1 })).nextCursor).toBeDefined();
+  });
+
+  it("refuses payloads that do not match their kind", async () => {
+    const a = await insertUser(database());
+    await expect(
+      createNotification(database().db, {
+        userId: a.id,
+        kind: "footage.ready",
+        payload: { specimenId: "not-a-uuid" } as never,
+      }),
+    ).rejects.toThrow();
   });
 });
 

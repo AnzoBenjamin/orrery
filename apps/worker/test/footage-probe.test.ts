@@ -16,6 +16,7 @@ import { createTestDatabase, startTestPostgres, type TestPostgres } from "@orrer
 import type { JobContext } from "@orrery/jobs";
 import { footageObjectKey, Storage } from "@orrery/storage";
 import { startTestGarage, type TestGarage } from "@orrery/storage/testing";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createEngineClient } from "../src/engine.ts";
 import { footageProbeHandler } from "../src/handlers/footage-probe.ts";
@@ -96,6 +97,15 @@ async function probingFootage(body: Buffer, filename: string) {
   return id;
 }
 
+/** The kinds of the owner's notifications about one footage item. */
+async function noticesFor(footageId: string) {
+  const rows = await db
+    .select()
+    .from(schema.notification)
+    .where(eq(schema.notification.userId, ownerId));
+  return rows.filter((r) => r.payload.footageId === footageId).map((r) => r.kind);
+}
+
 const job = (retryCount = 0): JobContext => ({
   id: newId(),
   retryCount,
@@ -173,6 +183,7 @@ describe("footage.probe", () => {
     });
     expect(footage?.durationS).toBeCloseTo(2, 1);
     expect(footage?.sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(await noticesFor(id)).toEqual(["footage.ready"]);
   });
 
   it("rejects a renamed non-video file with the engine's guidance", async () => {
@@ -181,6 +192,7 @@ describe("footage.probe", () => {
     const footage = await findFootageById(db, id);
     expect(footage?.status).toBe("rejected");
     expect(footage?.rejectionReason).toMatch(/not a video we can read/);
+    expect(await noticesFor(id)).toEqual(["footage.rejected"]);
   });
 
   it("skips footage that is no longer being probed, so retries are harmless", async () => {
@@ -190,6 +202,7 @@ describe("footage.probe", () => {
     const first = await findFootageById(db, id);
     await handler()({ footageId: id }, job());
     expect(await findFootageById(db, id)).toEqual(first);
+    expect(await noticesFor(id)).toEqual(["footage.ready"]);
     await handler()({ footageId: newId() }, job());
   });
 
@@ -208,6 +221,7 @@ describe("footage.probe", () => {
       status: "rejected",
       rejectionReason: expect.stringMatching(/several attempts/),
     });
+    expect(await noticesFor(id)).toEqual(["footage.rejected"]);
   });
 
   it("refuses a worker without the service token", async () => {

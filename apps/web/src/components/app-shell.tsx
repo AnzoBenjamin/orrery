@@ -2,9 +2,10 @@ import { Button } from "@orrery/ui";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { authClient } from "../lib/auth-client.ts";
+import { NotificationTray } from "./notification-tray.tsx";
 
-/** Signed-in frame: wordmark, the two places a user goes, and sign-out, over the lamp-black desk. */
-export function AppShell(props: { userName: string; children: ReactNode }) {
+/** Signed-in frame: wordmark, the two places a user goes, notices, and sign-out, over the desk. */
+export function AppShell(props: { userName: string; unreadNotices: number; children: ReactNode }) {
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -41,6 +42,7 @@ export function AppShell(props: { userName: string; children: ReactNode }) {
           </Link>
         </nav>
         <div className="ml-auto flex items-center gap-6">
+          <NotificationTray unread={props.unreadNotices} />
           <span className="hidden font-display text-parchment italic sm:inline">
             {props.userName}
           </span>

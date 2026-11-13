@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { schema } from "@orrery/db";
+import { createNotification, schema } from "@orrery/db";
 import { eq } from "drizzle-orm";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
@@ -19,6 +19,8 @@ import { userActor, withTestDatabase } from "./support.ts";
 const database = withTestDatabase();
 
 interface Fixture {
+  /** A notification for A. */
+  notificationId: string;
   /** A's share link for the specimen. */
   shareLinkId: string;
   userId: string;
@@ -40,7 +42,14 @@ type Case =
 /** B's own results never mention any of A's identifiers. */
 const leaksNothingOf = (result: unknown, a: Fixture) => {
   const json = JSON.stringify(result);
-  for (const id of [a.userId, a.sessionId, a.specimenId, a.footageId, a.shareLinkId]) {
+  for (const id of [
+    a.userId,
+    a.sessionId,
+    a.specimenId,
+    a.footageId,
+    a.shareLinkId,
+    a.notificationId,
+  ]) {
     expect(json).not.toContain(id);
   }
 };
@@ -93,6 +102,13 @@ const cases: Record<string, Case> = {
   "share.revoke": { kind: "resource", input: (a) => ({ shareLinkId: a.shareLinkId }) },
   // A share link is the only grant; without A's token B gets nothing.
   "share.open": { kind: "resource", input: () => ({ token: randomToken() }) },
+  "notification.list": { kind: "own", check: leaksNothingOf },
+  "notification.unread-count": { kind: "own", check: leaksNothingOf },
+  "notification.mark-read": {
+    kind: "resource",
+    input: (a) => ({ notificationId: a.notificationId }),
+  },
+  "notification.mark-all-read": { kind: "own", check: leaksNothingOf },
   "share.playback": {
     kind: "resource",
     input: (a) => ({ token: randomToken(), footageId: a.footageId }),
@@ -120,6 +136,10 @@ async function snapshotOf(fixture: Fixture) {
     .from(schema.footage)
     .where(eq(schema.footage.specimenId, fixture.specimenId));
   const uploads = await db.select().from(schema.uploadSession);
+  const notices = await db
+    .select()
+    .from(schema.notification)
+    .where(eq(schema.notification.userId, fixture.userId));
   const shares = (await db.select().from(schema.shareLink)).map(({ lastUsedAt: _, ...l }) => l);
   const parts = (await database().storage.listMultipartUploads(`users/${fixture.userId}/`)).map(
     (u) => u.uploadId,
@@ -129,6 +149,7 @@ async function snapshotOf(fixture: Fixture) {
     footage,
     uploads,
     shares,
+    notices,
     parts,
     deletions,
     sessions,
@@ -162,7 +183,18 @@ describe("cross-user authorization", () => {
       if (!upload.ok) throw new Error(`fixture upload failed: ${upload.error.message}`);
       const share = await invoke(database().deps, shareCreate, a, { specimenId });
       if (!share.ok) throw new Error(`fixture share failed: ${share.error.message}`);
+      const notice = await createNotification(database().db, {
+        userId: a.userId,
+        kind: "footage.ready",
+        payload: {
+          specimenId,
+          specimenTitle: "A's private specimen",
+          footageId: upload.value.footageId,
+          filename: "a.mp4",
+        },
+      });
       const fixture: Fixture = {
+        notificationId: notice.id,
         shareLinkId: share.value.link.id,
         userId: a.userId,
         sessionId: a.sessionId,

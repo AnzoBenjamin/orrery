@@ -84,8 +84,9 @@ Task numbers are stable references (other specs cite them). Work them in this or
 - [ ] 7. Jobs, realtime, and engine contract
   - [x] 7.1 Create `apps/worker` with pg-boss, typed queue definitions, and the `enqueue` helper. Runs before 4.2 (see Build order).
     - _Requirements: 7.1, 7.2_
-  - [ ] 7.2 Implement failure handling that marks domain records failed and creates notifications. Build the notification tray UI.
+  - [x] 7.2 Implement failure handling that marks domain records failed and creates notifications. Build the notification tray UI.
     - _Requirements: 7.3_
+    - Notification kinds are a Zod union in `packages/db` (validated on write and read). The probe handler marks footage and notifies the owner in one transaction, including when retries run out. The tray in the app shell lists notices, marks them read, and links to the specimen. Analysis kinds join with the vision pipeline.
   - [ ] 7.3 Build the admin operator page (queue depth, running, failures, retry, cancel) with an admin role check.
     - _Requirements: 7.4_
   - [ ] 7.4 Implement `domain_event` writes with `NOTIFY`, the SSE route with replay and heartbeats, and the `useSpecimenEvents` client hook. Integration test for property 4.

@@ -73,6 +73,16 @@ test.describe("footage", () => {
     });
     await expect(item).toContainText("Rejected", { timeout: 60_000 });
     await expect(item).toContainText("not a video we can read");
+
+    // The owner is told in the notice tray, which links back to the specimen.
+    const tray = page.getByRole("button", { name: "Notices, 1 unread" });
+    await expect(tray).toBeVisible();
+    await tray.click();
+    const notices = page.getByRole("dialog", { name: "Notices" });
+    const notice = notices.getByRole("link", { name: /notes\.mp4 was rejected/ });
+    await expect(notice).toContainText("not a video we can read");
+    await notice.click();
+    await expect(page.getByRole("button", { name: "Notices", exact: true })).toBeVisible();
   });
 
   test("an upload survives a dropped connection and finishes", async ({ page }) => {

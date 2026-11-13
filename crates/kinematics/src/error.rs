@@ -23,6 +23,9 @@ pub enum SolverError {
     /// The number of driver values does not match the mechanism's drivers.
     #[error("expected {expected} driver values, got {got}")]
     DriverCount { expected: usize, got: usize },
+    /// The fit's cost became unbounded.
+    #[error("the fit diverged at iteration {iteration} (cost {cost})")]
+    FitDiverged { iteration: usize, cost: f64 },
     /// The seed does not have one pose per moving body.
     #[error("the seed has {got} coordinates; the mechanism has {expected}")]
     SeedLength { expected: usize, got: usize },

@@ -8,7 +8,7 @@
 use std::path::Path;
 
 use kinematics::AssemblyOptions;
-use kinematics::fit::{FitProblem, Loss, Observation, ObservationFrame, Parameter, fit};
+use kinematics::fit::{Camera, FitProblem, Loss, Observation, Parameter, fit};
 use kinematics::model::Model;
 use kinematics::schema::{Mechanism, parse_mechanism};
 use serde_json::Value;
@@ -114,7 +114,7 @@ fn problem(observations: Vec<Observation>, angles: &[f64], loss: Loss) -> FitPro
             .map(|a| vec![a + 0.05 * noise.normal()])
             .collect(),
         observations,
-        frame: ObservationFrame::Plane("plane-main".into()),
+        camera: Camera::Plane("plane-main".into()),
         loss,
         max_iterations: 50,
     }
@@ -227,4 +227,179 @@ fn bad_inputs_are_typed_errors() {
     let mut p = problem(obs, &angles, Loss::Squared);
     p.observations[0].point = "nowhere".into();
     assert!(fit(&p).is_err());
+}
+
+/// The plane observations mapped to pixels by `map`.
+fn to_pixels(obs: &[Observation], map: impl Fn([f64; 2]) -> [f64; 2]) -> Vec<Observation> {
+    obs.iter()
+        .map(|o| Observation {
+            position: map(o.position),
+            ..o.clone()
+        })
+        .collect()
+}
+
+#[test]
+fn a_homography_camera_is_recovered_with_the_geometry() {
+    let h = [1800.0, 120.0, 640.0, -90.0, 1750.0, 360.0, 0.3, -0.2];
+    let apply = |p: [f64; 2]| {
+        let z = h[6] * p[0] + h[7] * p[1] + 1.0;
+        [
+            (h[0] * p[0] + h[1] * p[1] + h[2]) / z,
+            (h[3] * p[0] + h[4] * p[1] + h[5]) / z,
+        ]
+    };
+    let (obs, angles) = observe(40, 0.0, 0.0, &mut Noise(31));
+    let mut p = problem(to_pixels(&obs, apply), &angles, Loss::Squared);
+    // The ground length sets the scale the homography would otherwise absorb.
+    p.parameters[0].fixed = true;
+    p.mechanism = {
+        let mut v = serde_json::to_value(&p.mechanism).unwrap();
+        v["bodies"][0]["points"][1]["local"]["x"] = 0.3.into();
+        mechanism(&v)
+    };
+    let mut start = h;
+    for (k, v) in start.iter_mut().enumerate() {
+        *v *= if k % 2 == 0 { 1.02 } else { 0.97 };
+    }
+    p.camera = Camera::Homography {
+        plane: "plane-main".into(),
+        initial: vec![start],
+    };
+    p.max_iterations = 100;
+    let result = fit(&p).unwrap();
+    for ((path, truth), value) in PATHS.iter().zip(&result.values).skip(1) {
+        assert!((value - truth).abs() < 1e-6, "{path}: {value} vs {truth}");
+    }
+    for (got, want) in result.camera_global.iter().zip(&h) {
+        assert!(
+            (got - want).abs() < 1e-4 * (1.0 + want.abs()),
+            "{got} vs {want}"
+        );
+    }
+    assert!(result.rms < 1e-5, "rms {} px", result.rms);
+}
+
+#[test]
+fn a_calibrated_pinhole_camera_pose_is_recovered_with_the_geometry() {
+    let (f, cx, cy) = (1400.0, 640.0, 360.0);
+    // Camera looking down at the mechanism plane from about a meter, slightly tilted.
+    let truth = [0.15, -0.1, 0.05, -0.1, 0.05, 1.1];
+    let project = |pose: &[f64; 6], w: [f64; 3]| {
+        let r = [pose[0], pose[1], pose[2]];
+        let angle = (r[0] * r[0] + r[1] * r[1] + r[2] * r[2]).sqrt();
+        let k = r.map(|c| c / angle);
+        let (s, c) = angle.sin_cos();
+        let d = k[0] * w[0] + k[1] * w[1] + k[2] * w[2];
+        let x = [
+            k[1] * w[2] - k[2] * w[1],
+            k[2] * w[0] - k[0] * w[2],
+            k[0] * w[1] - k[1] * w[0],
+        ];
+        let p: Vec<f64> = (0..3)
+            .map(|i| w[i] * c + x[i] * s + k[i] * d * (1.0 - c) + pose[3 + i])
+            .collect();
+        [f * p[0] / p[2] + cx, f * p[1] / p[2] + cy]
+    };
+    let (obs, angles) = observe(40, 0.0, 0.0, &mut Noise(41));
+    let mut p = problem(
+        to_pixels(&obs, |q| project(&truth, [q[0], q[1], 0.0])),
+        &angles,
+        Loss::Squared,
+    );
+    p.parameters[0].fixed = true;
+    p.mechanism = {
+        let mut v = serde_json::to_value(&p.mechanism).unwrap();
+        v["bodies"][0]["points"][1]["local"]["x"] = 0.3.into();
+        mechanism(&v)
+    };
+    let start = [0.12, -0.08, 0.0, -0.08, 0.03, 1.0];
+    p.camera = Camera::Projection {
+        intrinsics: [f, cx, cy],
+        fixed_intrinsics: true,
+        poses: vec![start],
+    };
+    p.max_iterations = 100;
+    let result = fit(&p).unwrap();
+    for ((path, want), value) in PATHS.iter().zip(&result.values).skip(1) {
+        assert!((value - want).abs() < 1e-6, "{path}: {value} vs {want}");
+    }
+    for (got, want) in result.camera_global.iter().zip(&truth) {
+        assert!((got - want).abs() < 1e-6, "{got} vs {want}");
+    }
+    assert!(result.rms < 1e-5, "rms {} px", result.rms);
+}
+
+#[test]
+fn a_moving_camera_gets_one_homography_per_frame() {
+    let (mut obs, angles) = observe(30, 0.0, 0.0, &mut Noise(53));
+    // The frame's two pivots are visible too, so each frame pins its own homography.
+    for t in 0..angles.len() {
+        for (point, x) in [("o2", 0.0), ("o4", 0.3)] {
+            obs.push(Observation {
+                frame: t,
+                body: "ground".into(),
+                point: point.into(),
+                position: [x, 0.0],
+                weight: 1.0,
+            });
+        }
+    }
+    #[allow(clippy::cast_precision_loss, reason = "frame counts are small")]
+    let homography = |t: usize| {
+        let s = t as f64 / 30.0;
+        [
+            1800.0 + 50.0 * s,
+            120.0 - 30.0 * s,
+            640.0 + 40.0 * s,
+            -90.0,
+            1750.0,
+            360.0 - 25.0 * s,
+            0.3,
+            -0.2 + 0.1 * s,
+        ]
+    };
+    let pixels: Vec<Observation> = obs
+        .iter()
+        .map(|o| {
+            let h = homography(o.frame);
+            let (x, y) = (o.position[0], o.position[1]);
+            let z = h[6] * x + h[7] * y + 1.0;
+            Observation {
+                position: [
+                    (h[0] * x + h[1] * y + h[2]) / z,
+                    (h[3] * x + h[4] * y + h[5]) / z,
+                ],
+                ..o.clone()
+            }
+        })
+        .collect();
+    let mut p = problem(pixels, &angles, Loss::Squared);
+    p.parameters[0].fixed = true;
+    p.mechanism = {
+        let mut v = serde_json::to_value(&p.mechanism).unwrap();
+        v["bodies"][0]["points"][1]["local"]["x"] = 0.3.into();
+        mechanism(&v)
+    };
+    let initial: Vec<[f64; 8]> = (0..angles.len())
+        .map(|t| homography(t).map(|v| v * 1.01))
+        .collect();
+    p.camera = Camera::Homography {
+        plane: "plane-main".into(),
+        initial,
+    };
+    p.max_iterations = 100;
+    let result = fit(&p).unwrap();
+    for ((path, want), value) in PATHS.iter().zip(&result.values).skip(1) {
+        assert!((value - want).abs() < 1e-6, "{path}: {value} vs {want}");
+    }
+    assert_eq!(result.camera_frames.len(), 30);
+    for (t, got) in result.camera_frames.iter().enumerate() {
+        for (g, w) in got.iter().zip(homography(t)) {
+            assert!(
+                (g - w).abs() < 1e-4 * (1.0 + w.abs()),
+                "frame {t}: {g} vs {w}"
+            );
+        }
+    }
 }

@@ -127,7 +127,9 @@ test.describe("footage", () => {
     const tooBig = media.sized(quotaBytes);
     await choose(page, tooBig);
     await expect(page.getByText(/would take you past your [\d.]+ GB of storage/)).toBeVisible();
-    await expect(page.getByText("Delete footage you no longer need, then try again.")).toBeVisible();
+    await expect(
+      page.getByText("Delete footage you no longer need, then try again."),
+    ).toBeVisible();
     await expect(page.getByRole("list", { name: "Uploads" })).toHaveCount(0);
     await expect(footage.getByRole("listitem")).toHaveCount(1);
 

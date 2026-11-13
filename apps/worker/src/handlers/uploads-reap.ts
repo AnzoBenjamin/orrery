@@ -1,4 +1,10 @@
-import { type Db, deleteFootage, listFootageInStatusSince, markFootageProbing } from "@orrery/db";
+import {
+  appendDomainEvent,
+  type Db,
+  deleteFootage,
+  listFootageInStatusSince,
+  markFootageProbing,
+} from "@orrery/db";
 import { footageProbe } from "@orrery/jobs";
 import { type Storage, UPLOAD_TTL_SECONDS } from "@orrery/storage";
 import type { Logger } from "../logger.ts";
@@ -30,13 +36,32 @@ export function uploadsReapHandler(deps: {
     for (const f of await listFootageInStatusSince(deps.db, "uploading", expired, BATCH)) {
       const size = await deps.storage.objectSize(f.objectKey);
       if (size === f.byteSize) {
-        if (await markFootageProbing(deps.db, f.id)) {
+        const promoted = await deps.db.transaction(async (tx) => {
+          const row = await markFootageProbing(tx, f.id);
+          if (row) {
+            await appendDomainEvent(tx, {
+              specimenId: f.specimenId,
+              type: "footage.changed",
+              payload: { footageId: f.id, status: "probing" },
+            });
+          }
+          return row;
+        });
+        if (promoted) {
           await deps.enqueue(f.id);
           finished.add(f.id);
         }
       } else {
         // Queues the object for deletion; that also aborts any upload still open on its key.
-        await deleteFootage(deps.db, { id: f.id, specimenId: f.specimenId });
+        await deps.db.transaction(async (tx) => {
+          if (await deleteFootage(tx, { id: f.id, specimenId: f.specimenId })) {
+            await appendDomainEvent(tx, {
+              specimenId: f.specimenId,
+              type: "footage.changed",
+              payload: { footageId: f.id, status: "deleted" },
+            });
+          }
+        });
         removed += 1;
       }
     }

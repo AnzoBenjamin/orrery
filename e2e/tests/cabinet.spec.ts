@@ -57,6 +57,16 @@ test.describe("cabinet of specimens", () => {
     await otherPage.goto("/cabinet");
     await expect(otherPage.getByRole("heading", { name: "The cabinet is empty" })).toBeVisible();
     await expect(otherPage.getByText("Ada's private orrery")).toHaveCount(0);
+
+    // Neither the specimen page nor its live event stream exists for another user.
+    const href = await page
+      .getByRole("link", { name: "Ada's private orrery" })
+      .getAttribute("href");
+    if (!href) throw new Error("specimen link has no href");
+    await otherPage.goto(href);
+    await expect(otherPage.getByRole("alert")).toContainText("does not exist");
+    const events = await otherPage.request.get(`/api${href}/events`);
+    expect(events.status()).toBe(404);
     await other.close();
   });
 

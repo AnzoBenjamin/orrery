@@ -67,6 +67,7 @@ const cases: Record<string, Case> = {
     input: (a, text) => ({ specimenId: a.specimenId, title: text, description: text }),
   },
   "specimen.delete": { kind: "resource", input: (a) => ({ specimenId: a.specimenId }) },
+  "specimen.events.open": { kind: "resource", input: (a) => ({ specimenId: a.specimenId }) },
   "account.get": { kind: "own", check: leaksNothingOf },
   "account.preferences.update": {
     kind: "own",

@@ -24,6 +24,7 @@ import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as STokenRouteImport } from './routes/s/$token'
 import { Route as AppSpecimensSpecimenIdRouteImport } from './routes/_app/specimens/$specimenId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiSpecimensSpecimenIdEventsRouteImport } from './routes/api/specimens/$specimenId/events'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -99,6 +100,12 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSpecimensSpecimenIdEventsRoute =
+  ApiSpecimensSpecimenIdEventsRouteImport.update({
+    id: '/api/specimens/$specimenId/events',
+    path: '/api/specimens/$specimenId/events',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/s/$token': typeof STokenRoute
   '/specimens/$specimenId': typeof AppSpecimensSpecimenIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/specimens/$specimenId/events': typeof ApiSpecimensSpecimenIdEventsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -131,6 +139,7 @@ export interface FileRoutesByTo {
   '/s/$token': typeof STokenRoute
   '/specimens/$specimenId': typeof AppSpecimensSpecimenIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/specimens/$specimenId/events': typeof ApiSpecimensSpecimenIdEventsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -149,6 +158,7 @@ export interface FileRoutesById {
   '/s/$token': typeof STokenRoute
   '/_app/specimens/$specimenId': typeof AppSpecimensSpecimenIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/specimens/$specimenId/events': typeof ApiSpecimensSpecimenIdEventsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/s/$token'
     | '/specimens/$specimenId'
     | '/api/auth/$'
+    | '/api/specimens/$specimenId/events'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/s/$token'
     | '/specimens/$specimenId'
     | '/api/auth/$'
+    | '/api/specimens/$specimenId/events'
   id:
     | '__root__'
     | '/'
@@ -200,6 +212,7 @@ export interface FileRouteTypes {
     | '/s/$token'
     | '/_app/specimens/$specimenId'
     | '/api/auth/$'
+    | '/api/specimens/$specimenId/events'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -214,6 +227,7 @@ export interface RootRouteChildren {
   ApiHealthRoute: typeof ApiHealthRoute
   STokenRoute: typeof STokenRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiSpecimensSpecimenIdEventsRoute: typeof ApiSpecimensSpecimenIdEventsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -323,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/specimens/$specimenId/events': {
+      id: '/api/specimens/$specimenId/events'
+      path: '/api/specimens/$specimenId/events'
+      fullPath: '/api/specimens/$specimenId/events'
+      preLoaderRoute: typeof ApiSpecimensSpecimenIdEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -354,6 +375,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHealthRoute: ApiHealthRoute,
   STokenRoute: STokenRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiSpecimensSpecimenIdEventsRoute: ApiSpecimensSpecimenIdEventsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,4 +1,5 @@
 import {
+  appendDomainEvent,
   createNotification,
   type Db,
   type Footage,
@@ -40,6 +41,11 @@ export function footageProbeHandler(deps: {
           : await markFootageRejected(tx, footage.id, verdict.reason);
       const specimen = changed ? await findSpecimenById(tx, footage.specimenId) : undefined;
       if (!specimen) return;
+      await appendDomainEvent(tx, {
+        specimenId: specimen.id,
+        type: "footage.changed",
+        payload: { footageId: footage.id, status: "ready" in verdict ? "ready" : "rejected" },
+      });
       const about = {
         specimenId: specimen.id,
         specimenTitle: specimen.title,

@@ -90,8 +90,9 @@ Task numbers are stable references (other specs cite them). Work them in this or
   - [x] 7.3 Build the admin operator page (queue depth, running, failures, retry, cancel) with an admin role check.
     - _Requirements: 7.4_
     - `packages/jobs/src/operator.ts` reads counts and recent jobs from pg-boss's table through its own adapter (its API cannot list by state, and its counts lag). The role is granted only by the operator CLI, `make admin email=…`.
-  - [ ] 7.4 Implement `domain_event` writes with `NOTIFY`, the SSE route with replay and heartbeats, and the `useSpecimenEvents` client hook. Integration test for property 4.
+  - [x] 7.4 Implement `domain_event` writes with `NOTIFY`, the SSE route with replay and heartbeats, and the `useSpecimenEvents` client hook. Integration test for property 4.
     - _Requirements: 8.1, 8.2, 8.3, 8.4_
+    - Event kinds are a Zod union in `packages/db`; footage and specimen changes emit them in the transaction that makes the change (web and worker). One LISTEN connection per web process (`createListener`) only wakes streams; events are always read from the table in id order, which is what makes Last-Event-ID resumption exact. The route is authorized by the `specimen.events.open` operation, so it is in the cross-user test. The specimen page no longer polls.
   - [ ] 7.5 Define `packages/engine-contract`, generate Pydantic models, implement HMAC signing in the engine and verification plus idempotent ingestion in the web app. Property tests 2 and 3.
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.6_
   - [ ] 7.6 Implement dispatch retries with backoff and the "engine waking up" queue state in the UI.

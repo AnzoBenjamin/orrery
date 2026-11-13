@@ -26,6 +26,7 @@ import { shareCreate, shareList, shareOpen, sharePlayback, shareRevoke } from ".
 import {
   specimenCreate,
   specimenDelete,
+  specimenEventsOpen,
   specimenGet,
   specimenList,
   specimenUpdate,
@@ -41,6 +42,7 @@ export const operations: readonly AnyOperation[] = [
   specimenGet,
   specimenUpdate,
   specimenDelete,
+  specimenEventsOpen,
   accountGet,
   accountPreferencesUpdate,
   accountSessionRevoke,

@@ -1,9 +1,9 @@
-import pg from "pg";
 import { describe, expect, it } from "vitest";
 import {
   appendDomainEvent,
   claimPendingDeletions,
   countUnreadNotifications,
+  createListener,
   createNotification,
   createSpecimen,
   enqueueObjectDeletions,
@@ -26,22 +26,34 @@ describe("domain events", () => {
   it("notifies listeners with the event id once the event is committed", async () => {
     const owner = await insertUser(database());
     const s = await createSpecimen(database().db, { ownerId: owner.id, title: "Orrery" });
-    const listener = new pg.Client({ connectionString: database().url });
-    await listener.connect();
+    const listener = createListener({ connectionString: database().url, applicationName: "test" });
     try {
-      const received = new Promise<string>((resolve) => {
-        listener.on("notification", (m) => resolve(m.payload ?? ""));
+      const received = new Promise<string | null>((resolve) => {
+        void listener.subscribe(specimenChannel(s.id), resolve);
       });
-      await listener.query(`listen "${specimenChannel(s.id)}"`);
+      // Let LISTEN reach the server before the event is written.
+      await new Promise((r) => setTimeout(r, 200));
       const event = await appendDomainEvent(database().db, {
         specimenId: s.id,
-        type: "analysis.progress",
-        payload: { stage: "tracking", fraction: 0.4 },
+        type: "footage.changed",
+        payload: { footageId: newId(), status: "ready" },
       });
       expect(await received).toBe(String(event.id));
     } finally {
-      await listener.end();
+      await listener.close();
     }
+  });
+
+  it("refuses events whose payload does not match their type", async () => {
+    const owner = await insertUser(database());
+    const s = await createSpecimen(database().db, { ownerId: owner.id, title: "Loom" });
+    await expect(
+      appendDomainEvent(database().db, {
+        specimenId: s.id,
+        type: "footage.changed",
+        payload: { footageId: "nope", status: "ready" },
+      }),
+    ).rejects.toThrow();
   });
 
   it("replays exactly the events after a given id, in order", async () => {
@@ -50,8 +62,13 @@ describe("domain events", () => {
     const ids: number[] = [];
     for (let i = 0; i < 5; i += 1) {
       ids.push(
-        (await appendDomainEvent(database().db, { specimenId: s.id, type: "t", payload: { i } }))
-          .id,
+        (
+          await appendDomainEvent(database().db, {
+            specimenId: s.id,
+            type: "footage.changed",
+            payload: { footageId: newId(), status: i % 2 ? "ready" : "probing" },
+          })
+        ).id,
       );
     }
     const after = ids[1] as number;

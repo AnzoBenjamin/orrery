@@ -1,4 +1,10 @@
-import { assertMigrationsApplied, createDb, type DbHandle } from "@orrery/db";
+import {
+  assertMigrationsApplied,
+  createDb,
+  createListener,
+  type DbHandle,
+  type Listener,
+} from "@orrery/db";
 import { serverEnv } from "./env.ts";
 
 let handle: DbHandle | undefined;
@@ -29,4 +35,19 @@ export function databaseReady(): Promise<void> {
     throw error;
   });
   return ready;
+}
+
+let listener: Listener | undefined;
+
+/** The process's one LISTEN connection, shared by every open event stream. */
+export function databaseListener(): Listener {
+  listener ??= createListener({
+    connectionString: serverEnv().DATABASE_URL,
+    applicationName: "orrery-web-listen",
+    onError: (error) =>
+      process.stderr.write(
+        `${JSON.stringify({ level: "warn", msg: "listen connection lost", error: String(error) })}\n`,
+      ),
+  });
+  return listener;
 }

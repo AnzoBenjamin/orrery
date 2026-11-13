@@ -1,6 +1,6 @@
 import { Banner, Button, Dialog, DialogTrigger } from "@orrery/ui";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FootageUploader } from "../../../components/footage-uploader.tsx";
 import { ShareButton } from "../../../components/share-dialog.tsx";
 import { deleteFootageFn, listFootageFn, playbackUrlFn } from "../../../functions/footage.ts";
@@ -8,6 +8,7 @@ import { getSpecimenFn } from "../../../functions/specimens.ts";
 import { footageRoles } from "../../../lib/footage-roles.ts";
 import { formatBytes, formatDuration, formatFps } from "../../../lib/format.ts";
 import { failureMessage } from "../../../lib/result.ts";
+import { useSpecimenEvents } from "../../../lib/use-specimen-events.ts";
 import type { FootageView } from "../../../server/operations/footage.ts";
 
 export const Route = createFileRoute("/_app/specimens/$specimenId")({
@@ -31,22 +32,13 @@ export const Route = createFileRoute("/_app/specimens/$specimenId")({
   component: SpecimenPage,
 });
 
-/** While footage is being inspected, its status is refreshed this often. */
-const INSPECTION_REFRESH_MS = 3000;
-
 function SpecimenPage() {
   const { specimen, footage } = Route.useLoaderData();
   const router = useRouter();
   const refresh = () => router.invalidate();
-  const inspecting = footage.ok && footage.value.some((f) => f.status === "probing");
-
-  // Until specimen events stream over SSE (platform-foundation task 7.4), poll while the engine
-  // inspects footage.
-  useEffect(() => {
-    if (!inspecting) return;
-    const timer = setInterval(() => void router.invalidate(), INSPECTION_REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [inspecting, router]);
+  const { specimenId } = Route.useParams();
+  // Footage checked by the engine, uploads finished in another tab, renames: refetch on each.
+  useSpecimenEvents(specimenId, () => void router.invalidate());
 
   if (!specimen.ok) {
     return (

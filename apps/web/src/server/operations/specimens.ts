@@ -1,4 +1,5 @@
 import {
+  appendDomainEvent,
   createSpecimen,
   deleteSpecimen,
   listSpecimensForOwner,
@@ -84,6 +85,7 @@ export const specimenUpdate = defineOperation({
       description: input.description,
     });
     if (!s) throw new Error("specimen vanished inside its own transaction");
+    await appendDomainEvent(tx, { specimenId: s.id, type: "specimen.changed", payload: {} });
     return view(s, actor.kind === "user" ? actor.userId : null);
   },
 });
@@ -95,5 +97,15 @@ export const specimenDelete = defineOperation({
     await requireSpecimen(tx, actor, "write", input.specimenId);
     await deleteSpecimen(tx, input.specimenId);
     return { deleted: true as const };
+  },
+});
+
+/** Authorizes opening a specimen's event stream (the SSE route runs it before streaming). */
+export const specimenEventsOpen = defineOperation({
+  name: "specimen.events.open",
+  input: z.object({ specimenId }),
+  run: async ({ actor, input, tx }) => {
+    const s = await requireSpecimen(tx, actor, "read", input.specimenId);
+    return { specimenId: s.id };
   },
 });

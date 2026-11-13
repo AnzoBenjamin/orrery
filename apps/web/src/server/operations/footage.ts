@@ -1,8 +1,10 @@
 import {
+  appendDomainEvent,
   completeUploadSession,
   createFootage,
   createUploadSession,
   deleteFootage,
+  type Executor,
   type Footage,
   findUploadSession,
   listFootageForSpecimen,
@@ -81,6 +83,20 @@ export function footageView(f: Footage): FootageView {
   };
 }
 
+/** Tells the specimen's live viewers (SSE) that this footage changed. */
+function footageChanged(
+  tx: Executor,
+  specimenId: string,
+  footageId: string,
+  status: Footage["status"] | "deleted",
+) {
+  return appendDomainEvent(tx, {
+    specimenId,
+    type: "footage.changed",
+    payload: { footageId, status },
+  });
+}
+
 const gb = (bytes: number) => `${(bytes / 1e9).toFixed(1)} GB`;
 
 export const footageList = defineOperation({
@@ -149,6 +165,7 @@ export const footageUploadCreate = defineOperation({
       originalFilename: input.filename,
       byteSize: input.byteSize,
     });
+    await footageChanged(tx, specimen.id, id, "uploading");
     return { footageId: id, key: objectKey, partSize: partSizeFor(input.byteSize) };
   },
 });
@@ -281,9 +298,11 @@ export const footageUploadComplete = defineOperation({
         footage.id,
         "The upload arrived incomplete. Remove it and add the file again.",
       );
+      await footageChanged(ctx.tx, footage.specimenId, footage.id, "rejected");
       return footageView(rejected ?? footage);
     }
     const probing = await markFootageProbing(ctx.tx, footage.id);
+    await footageChanged(ctx.tx, footage.specimenId, footage.id, "probing");
     ctx.afterCommit(() => ctx.services.enqueue(footageProbe, { footageId: footage.id }));
     return footageView(probing ?? footage);
   },
@@ -305,6 +324,7 @@ export const footageUploadAbort = defineOperation({
       }
     }
     await deleteFootage(tx, { id: footage.id, specimenId: footage.specimenId });
+    await footageChanged(tx, footage.specimenId, footage.id, "deleted");
     return { removed: true as const };
   },
 });
@@ -315,6 +335,7 @@ export const footageDelete = defineOperation({
   run: async ({ actor, input, tx }) => {
     const { footage } = await requireFootage(tx, actor, "write", input.footageId);
     await deleteFootage(tx, { id: footage.id, specimenId: footage.specimenId });
+    await footageChanged(tx, footage.specimenId, footage.id, "deleted");
     return { removed: true as const };
   },
 });

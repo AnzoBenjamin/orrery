@@ -1,0 +1,12 @@
+{
+  "outcome": "accepted",
+  "sha256": "9f2c0a5b7d1e4f3a6c8b0d2e4f6a8c0b2d4e6f8a0c2b4d6e8f0a2c4b6d8e0f2a",
+  "byteSize": 13144,
+  "durationS": 2.0,
+  "width": 320,
+  "height": 240,
+  "fpsNominal": 30,
+  "isVfr": false,
+  "codec": "h264",
+  "rotationQuarterTurns": 1
+}

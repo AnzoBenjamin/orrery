@@ -1,31 +1,6 @@
-import { z } from "zod";
+import { type ProbeRequest, type ProbeResponse, probeResponse } from "@orrery/engine-contract";
 
-/**
- * The engine's probe response. The engine contract package (platform-foundation task 7.5) will
- * generate this from one schema for both sides; until then this mirrors
- * services/engine/src/orrery_engine/app.py and validates every response.
- */
-const probeResponse = z.discriminatedUnion("outcome", [
-  z.object({
-    outcome: z.literal("accepted"),
-    sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    byteSize: z.number().int().nonnegative(),
-    durationS: z.number().positive(),
-    width: z.number().int().positive(),
-    height: z.number().int().positive(),
-    fpsNominal: z.number().positive(),
-    isVfr: z.boolean(),
-    codec: z.string().min(1).max(40),
-    rotationQuarterTurns: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
-  }),
-  z.object({
-    outcome: z.literal("rejected"),
-    code: z.string().min(1).max(40),
-    reason: z.string().min(1).max(500),
-  }),
-]);
-
-export type ProbeResponse = z.output<typeof probeResponse>;
+export type { ProbeResponse };
 
 /** The engine could not do the work now; the job should be retried. */
 export class EngineUnavailableError extends Error {
@@ -36,10 +11,7 @@ export class EngineUnavailableError extends Error {
 }
 
 export interface EngineClient {
-  probe(
-    input: { sourceUrl: string; maxBytes: number; maxDurationS: number },
-    signal: AbortSignal,
-  ): Promise<ProbeResponse>;
+  probe(input: ProbeRequest, signal: AbortSignal): Promise<ProbeResponse>;
 }
 
 export function createEngineClient(config: { url: string; token: string }): EngineClient {

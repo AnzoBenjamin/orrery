@@ -5,15 +5,14 @@ import tempfile
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated
 from urllib.parse import urlsplit
 
 import httpx
 import structlog
 from fastapi import Depends, FastAPI, Header, HTTPException, status
-from pydantic import BaseModel, ConfigDict, Field
-from pydantic.alias_generators import to_camel
 
+from orrery_engine.generated.contract import ProbeAccepted, ProbeRejected, ProbeRequest
 from orrery_engine.probe import (
     ProbeResult,
     Rejection,
@@ -25,39 +24,6 @@ from orrery_engine.probe import (
 from orrery_engine.settings import Settings
 
 log = structlog.get_logger()
-
-MAX_BYTES_CEILING = 2_000_000_000
-MAX_DURATION_CEILING_S = 3600.0
-
-
-class Model(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, extra="forbid")
-
-
-class ProbeRequest(Model):
-    source_url: str = Field(max_length=8192)
-    """Presigned GET URL of the uploaded object."""
-    max_bytes: int = Field(gt=0, le=MAX_BYTES_CEILING)
-    max_duration_s: float = Field(gt=0, le=MAX_DURATION_CEILING_S)
-
-
-class ProbeAccepted(Model):
-    outcome: Literal["accepted"] = "accepted"
-    sha256: str
-    byte_size: int
-    duration_s: float
-    width: int
-    height: int
-    fps_nominal: float
-    is_vfr: bool
-    codec: str
-    rotation_quarter_turns: int
-
-
-class ProbeRejected(Model):
-    outcome: Literal["rejected"] = "rejected"
-    code: str
-    reason: str
 
 
 def create_app(settings: Settings) -> FastAPI:
@@ -86,7 +52,7 @@ def create_app(settings: Settings) -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.post("/v1/probe", dependencies=[Depends(authorize)])
+    @app.post("/v1/probe", dependencies=[Depends(authorize)], response_model_by_alias=True)
     def probe(request: ProbeRequest) -> ProbeAccepted | ProbeRejected:
         if not allowed_source(request.source_url):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "source origin not allowed")
@@ -98,6 +64,7 @@ def create_app(settings: Settings) -> FastAPI:
             except TooLargeError:
                 limit_gb = request.max_bytes / 1e9
                 return ProbeRejected(
+                    outcome="rejected",
                     code="too_large",
                     reason=f"The file is larger than {limit_gb:.0f} GB. Trim the clip or export "
                     "it at a lower bitrate.",
@@ -110,7 +77,7 @@ def create_app(settings: Settings) -> FastAPI:
             )
         if isinstance(result, Rejection):
             log.info("probe rejected", code=result.code)
-            return ProbeRejected(code=result.code, reason=result.reason)
+            return ProbeRejected(outcome="rejected", code=result.code, reason=result.reason)
         log.info("probe accepted", codec=result.codec, duration_s=round(result.duration_s, 2))
         return _accepted(result)
 
@@ -119,6 +86,7 @@ def create_app(settings: Settings) -> FastAPI:
 
 def _accepted(result: ProbeResult) -> ProbeAccepted:
     return ProbeAccepted(
+        outcome="accepted",
         sha256=result.sha256,
         byte_size=result.byte_size,
         duration_s=result.duration_s,

@@ -16,6 +16,7 @@
     "@orrery/config": "workspace:*",
     "@orrery/db": "workspace:*",
     "@orrery/email": "workspace:*",
+    "@orrery/engine-contract": "workspace:*",
     "@orrery/jobs": "workspace:*",
     "@orrery/storage": "workspace:*",
     "pg-boss": "12.38.2",

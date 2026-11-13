@@ -95,6 +95,7 @@ Task numbers are stable references (other specs cite them). Work them in this or
     - Event kinds are a Zod union in `packages/db`; footage and specimen changes emit them in the transaction that makes the change (web and worker). One LISTEN connection per web process (`createListener`) only wakes streams; events are always read from the table in id order, which is what makes Last-Event-ID resumption exact. The route is authorized by the `specimen.events.open` operation, so it is in the cross-user test. The specimen page no longer polls.
   - [ ] 7.5 Define `packages/engine-contract`, generate Pydantic models, implement HMAC signing in the engine and verification plus idempotent ingestion in the web app. Property tests 2 and 3.
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.6_
+    - Done: `packages/engine-contract` (Zod) emitting `schema/engine-contract.json` and generated Pydantic models in `services/engine/src/orrery_engine/generated/`, both checked for staleness; the probe uses it on both sides, with golden messages in `fixtures/golden/engine-contract` parsed by both. Remaining with the first asynchronous engine job (vision-pipeline reconstruction): the job request and event schemas, HMAC-signed callbacks, idempotent ingestion, and properties 2 and 3. Building the callback endpoint before anything calls it would leave an endpoint with no user-facing use (quality.md).
   - [ ] 7.6 Implement dispatch retries with backoff and the "engine waking up" queue state in the UI.
     - _Requirements: 9.5_
 

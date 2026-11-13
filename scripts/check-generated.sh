@@ -8,6 +8,9 @@ cd "$(dirname "$0")/.."
 # Artifacts produced by `pnpm codegen`. Add new generated paths here as generators land.
 artifacts=(
   packages/db/src/schema/auth.ts
+  packages/engine-contract/schema/engine-contract.json
+  services/engine/src/orrery_engine/generated/contract.py
+  services/engine/src/orrery_engine/generated/__init__.py
 )
 
 declare -A before

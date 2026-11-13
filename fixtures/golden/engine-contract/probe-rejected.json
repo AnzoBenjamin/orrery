@@ -1,0 +1,5 @@
+{
+  "outcome": "rejected",
+  "code": "not_video",
+  "reason": "This file is not a video we can read. Upload an MP4, MOV, MKV, WebM, or AVI file straight from your camera or phone."
+}

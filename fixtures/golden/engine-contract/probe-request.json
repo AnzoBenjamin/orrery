@@ -1,0 +1,5 @@
+{
+  "sourceUrl": "http://garage:3900/orrery/users/u/specimens/s/footage/f.mp4?X-Amz-Signature=abc",
+  "maxBytes": 1000000000,
+  "maxDurationS": 300
+}

@@ -51,7 +51,7 @@ All runtimes below run inside Docker (the `toolbox` image for tooling, service i
 
 The engine runs on CPU only. There is no GPU anywhere in the stack. See the vision-pipeline design for how each GPU-class task is replaced.
 
-- FastAPI, Pydantic v2 (models generated from the shared JSON Schema), Uvicorn.
+- FastAPI, Pydantic v2 (models generated from the shared JSON Schema), Uvicorn. The generator is `datamodel-code-generator` (dev dependency, run by `pnpm codegen`), with snake_case fields aliased to the camelCase wire names.
 - One Docker image and one Kamal role, `engine`, limited to `nproc − 1` CPUs and a fixed memory limit so the web app always keeps a core.
 - No PyTorch in the runtime image. Learned models run through ONNX Runtime (CPU execution provider). Models are exported to ONNX in the toolbox image, never at runtime.
 - Video: PyAV, PySceneDetect, FFmpeg.

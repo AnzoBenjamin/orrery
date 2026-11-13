@@ -8,6 +8,7 @@ dev = [
   "pyright==1.1.414",
   "pytest==9.2.0",
   "hypothesis==6.170.15",
+  "datamodel-code-generator==0.94.0",
 ]
 
 [tool.uv]

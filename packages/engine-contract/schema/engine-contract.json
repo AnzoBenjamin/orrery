@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OrreryEngineContract",
+  "description": "Orrery worker-engine contract, version 1. Generated from packages/engine-contract; do not edit.",
+  "$defs": {
+    "ProbeRequest": {
+      "type": "object",
+      "properties": {
+        "sourceUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "maxBytes": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 2000000000
+        },
+        "maxDurationS": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 3600
+        }
+      },
+      "required": [
+        "sourceUrl",
+        "maxBytes",
+        "maxDurationS"
+      ],
+      "additionalProperties": false,
+      "title": "ProbeRequest"
+    },
+    "ProbeAccepted": {
+      "type": "object",
+      "properties": {
+        "outcome": {
+          "type": "string",
+          "const": "accepted"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "byteSize": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "durationS": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "width": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "height": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "fpsNominal": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "isVfr": {
+          "type": "boolean"
+        },
+        "codec": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "rotationQuarterTurns": {
+          "type": "number",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        }
+      },
+      "required": [
+        "outcome",
+        "sha256",
+        "byteSize",
+        "durationS",
+        "width",
+        "height",
+        "fpsNominal",
+        "isVfr",
+        "codec",
+        "rotationQuarterTurns"
+      ],
+      "additionalProperties": false,
+      "title": "ProbeAccepted"
+    },
+    "ProbeRejected": {
+      "type": "object",
+      "properties": {
+        "outcome": {
+          "type": "string",
+          "const": "rejected"
+        },
+        "code": {
+          "type": "string",
+          "enum": [
+            "too_large",
+            "too_long",
+            "not_video",
+            "unsupported_codec",
+            "unsupported_container",
+            "empty"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "outcome",
+        "code",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "title": "ProbeRejected"
+    },
+    "ProbeResponse": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ProbeAccepted"
+        },
+        {
+          "$ref": "#/$defs/ProbeRejected"
+        }
+      ],
+      "title": "ProbeResponse"
+    }
+  }
+}

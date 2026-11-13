@@ -4,6 +4,7 @@ import {
   CreateMultipartUploadCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   HeadObjectCommand,
   ListMultipartUploadsCommand,
   ListPartsCommand,
@@ -284,6 +285,18 @@ export class Storage {
       await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
     } catch (error) {
       if (!isMissing(error)) throw error;
+    }
+  }
+
+  /** Whether the bucket answers with these credentials, within `timeoutMs`. For health checks. */
+  async reachable(timeoutMs = 2000): Promise<boolean> {
+    try {
+      await this.s3.send(new HeadBucketCommand({ Bucket: this.bucket }), {
+        abortSignal: AbortSignal.timeout(timeoutMs),
+      });
+      return true;
+    } catch {
+      return false;
     }
   }
 

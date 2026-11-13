@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { sql } from "drizzle-orm";
 import { database, databaseReady } from "../../server/db.ts";
+import { storage } from "../../server/storage.ts";
 
 /** Liveness and dependency status for Compose, Kamal, and Gatus (requirement 11.4). */
 export const Route = createFileRoute("/api/health")({
@@ -18,9 +19,12 @@ export const Route = createFileRoute("/api/health")({
               ? "migrations pending"
               : "unreachable";
         }
-        const ok = Object.values(checks).every((v) => v === "ok");
+        checks.storage = (await storage().reachable()) ? "ok" : "unreachable";
+        // The object store being down degrades uploads and playback, not the site: still 200.
+        const ok = checks.database === "ok";
+        const allOk = Object.values(checks).every((v) => v === "ok");
         return Response.json(
-          { status: ok ? "ok" : "degraded", checks },
+          { status: allOk ? "ok" : "degraded", checks },
           { status: ok ? 200 : 503, headers: { "cache-control": "no-store" } },
         );
       },

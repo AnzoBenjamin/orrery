@@ -133,3 +133,15 @@ export async function cancelJob(boss: PgBoss, queue: string, id: string): Promis
   const result = await boss.cancel(queue, id);
   return result.affected > 0;
 }
+
+/** When a job of `queue` last completed, or null if none is retained. */
+export async function lastCompletion(boss: PgBoss, queue: string): Promise<Date | null> {
+  const { rows } = await boss
+    .getDb()
+    .executeSql(
+      `select max(completed_on) as at from ${PG_BOSS_SCHEMA}.job where name = $1 and state = 'completed'`,
+      [queue],
+    );
+  const at = z.object({ at: z.date().nullable() }).parse(rows[0] ?? { at: null }).at;
+  return at;
+}

@@ -1,4 +1,8 @@
-import { allQueues } from "@orrery/jobs";
+import { allQueues, objectsDelete } from "@orrery/jobs";
+
+/** The worker counts as silent when its every-minute sweep has not finished for this long. */
+const WORKER_STALE_MS = 3 * 60 * 1000;
+
 import { z } from "zod";
 import { DomainError } from "../domain-errors.ts";
 import { requireAdmin } from "../policy.ts";
@@ -17,12 +21,26 @@ export const adminOverview = defineOperation({
   input: z.object({}),
   run: async ({ actor, services }) => {
     requireAdmin(actor);
-    const [queues, running, failed] = await Promise.all([
+    const [queues, running, failed, storageOk, lastSweep] = await Promise.all([
       services.jobAdmin.summarize(),
       services.jobAdmin.recent(["active"], 50),
       services.jobAdmin.recent(["failed"], 50),
+      services.storage.reachable(),
+      services.jobAdmin.lastCompletion(objectsDelete.name),
     ]);
-    return { queues, running, failed };
+    // objects.delete runs every minute, so its last completion is the worker's heartbeat.
+    const workerOk = lastSweep !== null && Date.now() - lastSweep.getTime() < WORKER_STALE_MS;
+    return {
+      status: {
+        database: "ok" as const,
+        storage: storageOk ? ("ok" as const) : ("unreachable" as const),
+        worker: workerOk ? ("ok" as const) : ("silent" as const),
+        workerLastSeen: lastSweep?.toISOString() ?? null,
+      },
+      queues,
+      running,
+      failed,
+    };
   },
 });
 

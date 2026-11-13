@@ -32,6 +32,10 @@ test.describe("operator page", () => {
     for (const name of ["email.send", "footage.probe", "objects.delete", "uploads.reap"]) {
       await expect(queues.getByRole("rowheader", { name })).toBeVisible();
     }
+    const status = page.getByRole("region", { name: "Status" });
+    await expect(status).toContainText("Object store");
+    // The running stack's worker finishes its sweep every minute.
+    await expect(status).toContainText("Last scheduled sweep finished");
     await expect(page.getByRole("heading", { name: "Running" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Recent failures" })).toBeVisible();
   });

@@ -3,6 +3,7 @@ export {
   cancelJob,
   type JobState,
   type JobSummary,
+  lastCompletion,
   type QueueSummary,
   recentJobs,
   retryJob,

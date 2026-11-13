@@ -23,6 +23,8 @@ export interface JobAdmin {
   recent(states: readonly JobState[], limit: number): Promise<JobSummary[]>;
   retry(queue: string, id: string): Promise<boolean>;
   cancel(queue: string, id: string): Promise<boolean>;
+  /** When a job of the queue last completed: the worker's heartbeat, via its cron jobs. */
+  lastCompletion(queue: string): Promise<Date | null>;
 }
 
 /** Facts about the HTTP request an operation runs for. */

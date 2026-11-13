@@ -102,8 +102,9 @@ Task numbers are stable references (other specs cite them). Work them in this or
 - [ ] 8. Observability and security
   - [ ] 8.1 Add OpenTelemetry to web, worker, and engine with `traceparent` propagation through job payloads and callbacks. Add GlitchTip error reporting through the Sentry SDKs. Add structured logs.
     - _Requirements: 11.1, 11.2, 11.3_
-  - [ ] 8.2 Add health endpoints and a status section on the admin page.
+  - [x] 8.2 Add health endpoints and a status section on the admin page.
     - _Requirements: 11.4_
+    - Web `/api/health` (database, object store), worker `:9090/health` (database, object store, engine), engine `/health`. Only the database decides a process's health; the rest is reported. The operator page shows the database, object store, and the worker's heartbeat (its every-minute sweep).
   - [ ] 8.3 Add security headers with CSP nonces, engine service-token auth, and the engine egress allowlist.
     - _Requirements: 12.1, 12.4_
     - Done: engine service-token auth and the download origin allowlist (6.3), and security headers from a global request middleware (`src/start.ts`) with a per-request CSP nonce handed to the router. Every end-to-end test fails on a CSP violation. Remaining: verifying the production policy (nonce-only styles, HSTS) against the production build, which lands with the deploy pipeline (10.3), and the share-embed exception to `frame-ancestors` (workbench 11.1).

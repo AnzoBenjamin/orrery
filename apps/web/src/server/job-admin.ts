@@ -1,4 +1,11 @@
-import { allQueues, cancelJob, recentJobs, retryJob, summarizeQueues } from "@orrery/jobs";
+import {
+  allQueues,
+  cancelJob,
+  lastCompletion,
+  recentJobs,
+  retryJob,
+  summarizeQueues,
+} from "@orrery/jobs";
 import type { PgBoss } from "pg-boss";
 import type { JobAdmin } from "./operations/define.ts";
 
@@ -9,5 +16,6 @@ export function createJobAdmin(boss: () => Promise<PgBoss>): JobAdmin {
     recent: async (states, limit) => recentJobs(await boss(), allQueues, states, limit),
     retry: async (queue, id) => retryJob(await boss(), queue, id),
     cancel: async (queue, id) => cancelJob(await boss(), queue, id),
+    lastCompletion: async (queue) => lastCompletion(await boss(), queue),
   };
 }

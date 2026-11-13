@@ -18,6 +18,13 @@ describe("operator operations", () => {
     const overview = await invoke(database().deps, adminOverview, admin, {});
     if (!overview.ok) throw new Error(overview.error.message);
     expect(overview.value.queues.map((q) => q.name)).toContain("footage.probe");
+    // The test Garage answers; no worker runs here, so its sweep has never completed.
+    expect(overview.value.status).toEqual({
+      database: "ok",
+      storage: "ok",
+      worker: "silent",
+      workerLastSeen: null,
+    });
     expect(overview.value.queues.find((q) => q.name === objectsDelete.name)?.failed).toBe(1);
     expect(overview.value.failed).toMatchObject([
       { id: job.id, queue: objectsDelete.name, state: "failed", error: "storage unreachable" },

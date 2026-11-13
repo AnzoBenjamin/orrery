@@ -11,11 +11,23 @@ export class EngineUnavailableError extends Error {
 }
 
 export interface EngineClient {
+  /** Whether the engine's health endpoint answers within `timeoutMs`. */
+  healthy(timeoutMs?: number): Promise<boolean>;
   probe(input: ProbeRequest, signal: AbortSignal): Promise<ProbeResponse>;
 }
 
 export function createEngineClient(config: { url: string; token: string }): EngineClient {
   return {
+    async healthy(timeoutMs = 2000) {
+      try {
+        const response = await fetch(new URL("/health", config.url), {
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+        return response.ok;
+      } catch {
+        return false;
+      }
+    },
     async probe(input, signal) {
       let response: Response;
       try {

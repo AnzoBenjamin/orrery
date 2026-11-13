@@ -44,7 +44,8 @@ beforeAll(async () => {
     SMTP_PORT: String(mailpit.getMappedPort(1025)),
     MAIL_FROM: "Orrery <mail@orrery.test>",
     APP_URL: "http://localhost:53000",
-    ENGINE_URL: "http://engine:8000",
+    // Nothing listens here, so the health check reports the engine as unreachable.
+    ENGINE_URL: "http://127.0.0.1:9",
     ENGINE_SERVICE_TOKEN: "unused-in-this-test-0123456789abcdef",
   });
   // Port 0 binds an ephemeral port, so parallel test runs never collide.
@@ -109,6 +110,10 @@ describe("worker", () => {
   it("reports health", async () => {
     const res = await fetch(`http://127.0.0.1:${worker.healthPort}/health`);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: "ok", database: "ok" });
+    // No object store or engine runs in this test: they are reported, and the worker stays up.
+    expect(await res.json()).toEqual({
+      status: "ok",
+      checks: { database: "ok", storage: "unreachable", engine: "unreachable" },
+    });
   });
 });

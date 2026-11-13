@@ -86,21 +86,36 @@ export async function startWorker(env: WorkerEnv, log: Logger): Promise<RunningW
   await scheduleQueue(boss, uploadsReap, "17 * * * *", {});
 
   let healthy = true;
+  // Dependency status for Compose, Kamal, and Gatus (requirement 11.4). Only the database is
+  // required for the worker to be healthy; storage and engine outages are reported, and the jobs
+  // that need them retry.
   const health: Server = createServer((req, res) => {
     if (req.url !== "/health") {
       res.writeHead(404).end();
       return;
     }
-    database.pool
-      .query("select 1")
-      .then(() => {
-        res.writeHead(healthy ? 200 : 503, { "content-type": "application/json" });
-        res.end(JSON.stringify({ status: healthy ? "ok" : "stopping", database: "ok" }));
-      })
-      .catch(() => {
-        res.writeHead(503, { "content-type": "application/json" });
-        res.end(JSON.stringify({ status: "degraded", database: "unreachable" }));
-      });
+    void (async () => {
+      const [databaseOk, storageOk, engineOk] = await Promise.all([
+        database.pool.query("select 1").then(
+          () => true,
+          () => false,
+        ),
+        storage.reachable(),
+        engine.healthy(),
+      ]);
+      const status = !healthy ? "stopping" : databaseOk ? "ok" : "degraded";
+      res.writeHead(healthy && databaseOk ? 200 : 503, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          status,
+          checks: {
+            database: databaseOk ? "ok" : "unreachable",
+            storage: storageOk ? "ok" : "unreachable",
+            engine: engineOk ? "ok" : "unreachable",
+          },
+        }),
+      );
+    })();
   });
   await new Promise<void>((resolve) => health.listen(env.WORKER_HEALTH_PORT, resolve));
   const address = health.address();

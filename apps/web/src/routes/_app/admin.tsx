@@ -34,7 +34,7 @@ function Operator() {
       </main>
     );
   }
-  const { queues, running, failed } = overview.value;
+  const { status, queues, running, failed } = overview.value;
 
   return (
     <main id="main" className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-10">
@@ -49,6 +49,34 @@ function Operator() {
           Refresh
         </Button>
       </div>
+
+      <section aria-labelledby="status-title" className="mb-10">
+        <h2 id="status-title" className="mb-3 font-display text-2xl text-bone">
+          Status
+        </h2>
+        <dl className="grid grid-cols-[max-content_1fr] gap-x-8 gap-y-2 text-sm">
+          <StatusRow name="Database" ok detail="Answering" />
+          <StatusRow
+            name="Object store"
+            ok={status.storage === "ok"}
+            detail={
+              status.storage === "ok" ? "Answering" : "Not answering: uploads and playback fail"
+            }
+          />
+          <StatusRow
+            name="Worker"
+            ok={status.worker === "ok"}
+            detail={
+              status.workerLastSeen
+                ? `Last scheduled sweep finished ${at(status.workerLastSeen)}`
+                : "No scheduled sweep has finished yet"
+            }
+          />
+        </dl>
+        <p className="mt-2 text-parchment text-sm">
+          The engine's status is part of the worker's health check, which the deployment monitors.
+        </p>
+      </section>
 
       <section aria-labelledby="queues-title">
         <h2 id="queues-title" className="mb-3 font-display text-2xl text-bone">
@@ -107,6 +135,24 @@ function Operator() {
         action="retry"
       />
     </main>
+  );
+}
+
+function StatusRow(props: { name: string; ok: boolean; detail: string }) {
+  return (
+    <>
+      <dt className="flex items-center gap-2 font-display-sc text-bone tracking-[0.08em]">
+        <span
+          aria-hidden="true"
+          className={`size-2.5 ${props.ok ? "bg-verdigris" : "bg-oxblood"}`}
+        />
+        {props.name}
+      </dt>
+      <dd className="text-parchment">
+        <span className="sr-only">{props.ok ? "Healthy. " : "Problem. "}</span>
+        {props.detail}
+      </dd>
+    </>
   );
 }
 

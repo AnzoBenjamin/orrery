@@ -34,8 +34,9 @@
   - [x] 3.2 Implement velocities and accelerations with forward-mode dual numbers.
     - _Requirements: 5.5_
     - `kinematics::dual`: second-order Taylor numbers (`Jet`); every residual is written once over a `Scalar` trait. `kinematics::motion`: `J q′ = e_k`, `J q″ = −γ` with `γ` from one Jet pass, and `point_motion` for every named point. Tested against the closed-form slider-crank, finite differences on the goldens, and a property that the Jet's first-order term equals the analytic Jacobian product for every joint kind.
-  - [ ] 3.3 Implement Grübler and numerical mobility with redundant-constraint and free-motion reporting. Property test 4.
+  - [x] 3.3 Implement Grübler and numerical mobility with redundant-constraint and free-motion reporting. Property test 4.
     - _Requirements: 6.1–6.3_
+    - `kinematics::mobility`: Grübler–Kutzbach from unknowns minus joint equations (higher pairs counted once), numerical mobility from the SVD rank of the joint rows, redundant joints found by adding joints one at a time, and free motions from the null space of joints and drivers, given per body. Property 4 over generated linkages; a triple-crank parallelogram (Grübler 0, numerical 1, `top-3` redundant); free motions of an undriven four-bar and of the cam golden's unheld leaf.
   - [ ] 3.4 Implement transmission angle, Grashof classification, swept collision detection with `parry2d`, and fabrication risk indicators.
     - _Requirements: 8.1–8.4_
   - [ ] 3.5 Property test 3 (continuity).

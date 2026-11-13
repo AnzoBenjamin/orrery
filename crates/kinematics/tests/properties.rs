@@ -5,6 +5,7 @@
 //!    1e-9.
 //! 2. For any body and any two of its points, their world distance is constant across a simulated
 //!    cycle.
+//! 4. For any mechanism without special geometry, numerical mobility equals Grübler mobility.
 //!
 //! The families are the ones the synthetic lab draws from: Grashof crank-rocker four-bars,
 //! offset slider-cranks, and Watt six-bars (a four-bar with a dyad from its coupler to the
@@ -270,5 +271,19 @@ proptest! {
             }
             seed = Some(a.q);
         }
+    }
+
+    /// Property 4: generated linkages have no special geometry, so both counts agree, there is
+    /// nothing redundant, and once driven nothing is left free.
+    #[test]
+    fn numerical_mobility_equals_grubler(value in any_mechanism(), angle in 0.0..TAU) {
+        let m = Model::new(&parse_mechanism(&value.to_string()).unwrap()).unwrap();
+        let a = m.assemble(&[angle], None, &AssemblyOptions::default())
+            .map_err(|e| TestCaseError::fail(format!("{e}")))?;
+        let mobility = m.mobility(&a.q, &[angle]);
+        prop_assert_eq!(mobility.grubler, 1);
+        prop_assert_eq!(mobility.numerical, 1);
+        prop_assert!(mobility.redundant.is_empty(), "{:?}", mobility.redundant);
+        prop_assert!(mobility.free_motions.is_empty(), "{:?}", mobility.free_motions);
     }
 }

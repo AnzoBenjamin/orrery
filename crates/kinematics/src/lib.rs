@@ -9,6 +9,7 @@ pub mod curves;
 pub mod dual;
 pub mod energy;
 pub mod error;
+pub mod mobility;
 pub mod model;
 pub mod motion;
 pub mod planar;

@@ -19,6 +19,7 @@ from orrery_kinematics import (
     GrashofClass,
     InvalidGraphError,
     SeedLengthError,
+    SingularityKind,
     Solver,
     SolverError,
     fit,
@@ -152,6 +153,12 @@ def test_a_loop_that_cannot_close_reports_its_worst_joints() -> None:
     assert worst
     assert worst[0].residual > 0.1
     assert [j.residual for j in worst] == sorted((j.residual for j in worst), reverse=True)
+
+
+def test_enum_members_are_hashable() -> None:
+    # Code collects singularity kinds and Grashof classes into sets and dict keys.
+    assert len({SingularityKind.LOCKUP, SingularityKind.LOCKUP, SingularityKind.BIFURCATION}) == 2
+    assert {GrashofClass.CRANK_ROCKER: 1}[GrashofClass.CRANK_ROCKER] == 1
 
 
 def test_mobility_of_the_four_bar() -> None:

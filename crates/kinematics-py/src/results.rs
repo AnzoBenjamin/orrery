@@ -28,8 +28,8 @@ fn stack(py: Python<'_>, rows: &[Vec<f64>], cols: usize) -> PyResult<Py<PyArray2
 
 /// The kind of a singularity event in a sweep.
 #[gen_stub_pyclass_enum]
-#[pyclass(eq, frozen, module = "orrery_kinematics._native")]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[pyclass(eq, hash, frozen, module = "orrery_kinematics._native")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SingularityKind {
     /// The driver loses influence: the full Jacobian is singular while the joints alone keep
     /// their rank. The reachable range ends there.
@@ -187,8 +187,8 @@ impl From<MobilityReport> for Mobility {
 
 /// Grashof class of a four-bar loop.
 #[gen_stub_pyclass_enum]
-#[pyclass(eq, frozen, module = "orrery_kinematics._native")]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[pyclass(eq, hash, frozen, module = "orrery_kinematics._native")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GrashofClass {
     /// Shortest link beside the frame: it turns fully, the opposite link rocks.
     #[pyo3(name = "CRANK_ROCKER")]

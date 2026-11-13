@@ -38,7 +38,11 @@ async function audit(page: Page, url: string, found: Violation[]) {
   } catch (error) {
     // The page navigated away mid-audit (the next load is audited instead), or the test finished
     // while a last load event was still being audited.
-    if (!(error instanceof Error && /navigat|closed|destroyed|context|test ended/i.test(error.message))) {
+    if (
+      !(
+        error instanceof Error && /navigat|closed|destroyed|context|test ended/i.test(error.message)
+      )
+    ) {
       throw error;
     }
   }

@@ -60,7 +60,8 @@ afterAll(async () => {
   await Promise.all([postgres?.stop(), mailpit?.stop()]);
 });
 
-async function waitForMessageTo(address: string, timeoutMs = 20_000) {
+// Generous: the whole repository's suites start their containers at once under `make test`.
+async function waitForMessageTo(address: string, timeoutMs = 45_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const res = await fetch(`${mailApi}/search?query=${encodeURIComponent(`to:${address}`)}`);

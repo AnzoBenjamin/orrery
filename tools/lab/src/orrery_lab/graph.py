@@ -19,9 +19,9 @@ from typing import Any, Literal
 from orrery_kinematics import Solver
 
 from orrery_lab.generated.mechanism import Mechanism
+from orrery_lab.geometry import Point2
 
 type Json = dict[str, Any]
-type Point2 = tuple[float, float]
 
 PLANE = "plane-main"
 
@@ -40,11 +40,6 @@ def vec3(p: Point2 | tuple[float, float, float]) -> Json:
 
 def ref(body: str, point: str) -> Json:
     return {"bodyId": body, "pointId": point}
-
-
-def unit(dx: float, dy: float) -> Point2:
-    n = math.hypot(dx, dy)
-    return (dx / n, dy / n)
 
 
 @dataclass

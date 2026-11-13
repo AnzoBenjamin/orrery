@@ -1,9 +1,11 @@
 """Every mechanism family, by name."""
 
-from orrery_lab.families import four_bar
+from orrery_lab.families import four_bar, linkages, sliders
 from orrery_lab.family import Family
 
-FAMILIES: dict[str, Family] = {f.name: f for f in (*four_bar.FAMILIES,)}
+FAMILIES: dict[str, Family] = {
+    f.name: f for f in (*four_bar.FAMILIES, *sliders.FAMILIES, *linkages.FAMILIES)
+}
 
 
 def family(name: str) -> Family:

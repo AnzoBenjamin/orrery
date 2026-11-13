@@ -11,6 +11,11 @@ def polar(origin: Point2, length: float, angle: float) -> Point2:
     return (origin[0] + length * math.cos(angle), origin[1] + length * math.sin(angle))
 
 
+def unit(dx: float, dy: float) -> Point2:
+    n = math.hypot(dx, dy)
+    return (dx / n, dy / n)
+
+
 def distance(a: Point2, b: Point2) -> float:
     return math.hypot(b[0] - a[0], b[1] - a[1])
 

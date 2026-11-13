@@ -11,6 +11,7 @@ publish = false
 [dependencies]
 faer = { version = "0.24.4", default-features = false, features = ["std", "sparse-linalg"] }
 parry2d-f64 = { version = "0.31.1", default-features = false, features = ["std", "dim2", "f64", "enhanced-determinism"] }
+parry3d-f64 = { version = "0.31.1", default-features = false, features = ["std", "alloc", "dim3", "f64", "enhanced-determinism"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 thiserror = "2.0.21"

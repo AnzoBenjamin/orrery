@@ -343,12 +343,72 @@ impl Model {
                     .map(|c| (fj.origin[c] - fi.origin[c]) * fi.normal[c])
                     .sum::<f64>()
                     .abs();
-                if pi == pj || (parallel && gap < 0.5 * (ti + tj)) {
+                // Same plane, parallel planes closer than the half thicknesses, or planes that
+                // cross (checked as extruded prisms in 3D).
+                if pi == pj || (parallel && gap < 0.5 * (ti + tj)) || !parallel {
                     pairs.push((*i, *j));
                 }
             }
         }
         pairs
+    }
+
+    /// Whether two bodies move in planes that are not parallel.
+    fn crossing_planes(&self, i: usize, j: usize) -> bool {
+        let normal = |b: usize| {
+            self.bodies[b]
+                .plane
+                .as_ref()
+                .and_then(|p| self.planes.get(p))
+                .map(|f| f.normal)
+        };
+        match (normal(i), normal(j)) {
+            (Some(a), Some(b)) => (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]).abs() <= 1.0 - 1e-9,
+            _ => false,
+        }
+    }
+
+    /// Each outline extruded through its thickness, centered on its plane, as a parry3d compound
+    /// of triangular prisms in the body's local frame.
+    fn prisms(&self) -> BTreeMap<usize, parry3d_f64::shape::SharedShape> {
+        use parry3d_f64::math::{Pose as Pose3, Vector as Vector3};
+        use parry3d_f64::shape::SharedShape as Shape3;
+        self.bodies
+            .iter()
+            .enumerate()
+            .filter_map(|(i, b)| {
+                let (polygon, thickness) = b.outline.as_ref()?;
+                let h = 0.5 * thickness;
+                let parts: Vec<(Pose3, Shape3)> = triangulate(polygon)
+                    .into_iter()
+                    .filter_map(|tri| {
+                        let points: Vec<Vector3> = tri
+                            .iter()
+                            .flat_map(|p| [Vector3::new(p.x, p.y, -h), Vector3::new(p.x, p.y, h)])
+                            .collect();
+                        Shape3::convex_hull(&points).map(|s| (Pose3::IDENTITY, s))
+                    })
+                    .collect();
+                (!parts.is_empty()).then(|| (i, Shape3::compound(parts)))
+            })
+            .collect()
+    }
+
+    /// A body's pose in the world, for parry3d.
+    fn world_pose(&self, body: usize, q: &[f64]) -> parry3d_f64::math::Pose {
+        use parry3d_f64::math::{Mat3, Pose as Pose3, Rot3, Vector as Vector3};
+        let placement = &self.bodies[body].placement;
+        let t = placement.point(q, [0.0; 3]);
+        let col = |v: [f64; 3]| {
+            let w = placement.rotate(q, v);
+            Vector3::new(w[0], w[1], w[2])
+        };
+        let rotation = Rot3::from_mat3(&Mat3::from_cols(
+            col([1.0, 0.0, 0.0]),
+            col([0.0, 1.0, 0.0]),
+            col([0.0, 0.0, 1.0]),
+        ));
+        Pose3::from_parts(Vector3::new(t[0], t[1], t[2]), rotation)
     }
 
     /// The pairs of `pairs` whose outlines overlap at `q`.
@@ -357,6 +417,7 @@ impl Model {
         q: &[f64],
         pairs: &[(usize, usize)],
         shapes: &BTreeMap<usize, SharedShape>,
+        prisms: &BTreeMap<usize, parry3d_f64::shape::SharedShape>,
     ) -> BTreeSet<(usize, usize)> {
         let pose_in = |body: usize, reference: usize| -> Option<Pose> {
             let frame = self.planes.get(self.bodies[body].plane.as_ref()?)?;
@@ -373,6 +434,13 @@ impl Model {
         pairs
             .iter()
             .filter(|(i, j)| {
+                if let (Some(a), Some(b)) = (prisms.get(i), prisms.get(j))
+                    && self.crossing_planes(*i, *j)
+                {
+                    let (pa, pb) = (self.world_pose(*i, q), self.world_pose(*j, q));
+                    return parry3d_f64::query::intersection_test(&pa, a.as_ref(), &pb, b.as_ref())
+                        .is_ok_and(|r| r.intersecting);
+                }
                 let (Some(a), Some(b), Some(sa), Some(sb)) = (
                     pose_in(*i, *i),
                     pose_in(*j, *i),
@@ -397,6 +465,7 @@ impl Model {
             .into_iter()
             .map(|(i, s, _, _)| (i, s))
             .collect();
+        let prisms = self.prisms();
         let mut values = drive.to_vec();
         let mut at = |d: f64, seed: &[f64]| -> Option<Vec<f64>> {
             values[k] = d;
@@ -406,7 +475,7 @@ impl Model {
         };
         let mut ranges: BTreeMap<(usize, usize), Vec<(f64, f64)>> = BTreeMap::new();
         let mut open: BTreeMap<(usize, usize), f64> = BTreeMap::new();
-        let mut before = self.overlapping(&sim.samples[0].q, &pairs, &shapes);
+        let mut before = self.overlapping(&sim.samples[0].q, &pairs, &shapes, &prisms);
         for pair in &before {
             open.insert(*pair, sim.samples[0].drive);
         }
@@ -422,7 +491,7 @@ impl Model {
                 } else {
                     at(d, &prev.1).unwrap_or_else(|| s1.q.clone())
                 };
-                let now = self.overlapping(&q, &pairs, &shapes);
+                let now = self.overlapping(&q, &pairs, &shapes, &prisms);
                 for pair in now.symmetric_difference(&prev.2) {
                     // Bisect the change between the two checks.
                     let (mut lo, mut hi, mut q_lo) = (prev.0, d, prev.1.clone());
@@ -430,7 +499,11 @@ impl Model {
                     for _ in 0..40 {
                         let mid = 0.5 * (lo + hi);
                         let Some(qm) = at(mid, &q_lo) else { break };
-                        if self.overlapping(&qm, &[*pair], &shapes).contains(pair) == start_state {
+                        if self
+                            .overlapping(&qm, &[*pair], &shapes, &prisms)
+                            .contains(pair)
+                            == start_state
+                        {
                             lo = mid;
                             q_lo = qm;
                         } else {

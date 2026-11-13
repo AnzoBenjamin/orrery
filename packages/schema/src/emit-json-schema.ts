@@ -10,7 +10,7 @@
  * Zod schema or the solver.
  */
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
@@ -20,6 +20,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const outputPath = join(root, "packages/schema/schema/mechanism.json");
 const rustPath = join(root, "crates/kinematics/src/generated/mechanism.rs");
 const pythonPath = join(root, "services/engine/src/orrery_engine/generated/mechanism.py");
+// The lab builds graphs with the same models; it gets its own copy rather than importing the engine.
+const labPythonPath = join(root, "tools/lab/src/orrery_lab/generated/mechanism.py");
 
 const emitted = z.toJSONSchema(mechanismSchemaBase, { target: "draft-7", io: "input" }) as {
   definitions?: Record<string, Record<string, unknown>>;
@@ -89,3 +91,5 @@ execFileSync(
   ],
   { cwd: root, stdio: ["ignore", "inherit", "inherit"] },
 ); // biome-ignore format: flag and value pairs
+mkdirSync(dirname(labPythonPath), { recursive: true });
+copyFileSync(pythonPath, labPythonPath);

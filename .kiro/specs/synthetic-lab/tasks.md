@@ -1,8 +1,9 @@
 # Tasks: Synthetic lab
 
 - [ ] 1. Lab package and families
-  - [ ] 1.1 Create `tools/lab` with Typer CLI, the `Family` protocol, parameter spaces, and feasibility checks using `orrery_kinematics`.
+  - [x] 1.1 Create `tools/lab` with Typer CLI, the `Family` protocol, parameter spaces, and feasibility checks using `orrery_kinematics`.
     - _Requirements: 1.2, 1.5_
+    - `orrery-lab` (`version`, `families`, `sample`). A family's `build` draws every body in world coordinates at driver zero, so the drawn pose holds and fixes the branch, and returns the driver range (cyclic for cranks, rocking otherwise) and its breakable parts. Documents are checked by the Pydantic models generated from the shared JSON Schema (copied into the lab by `pnpm codegen`) and by the solver's validation. Feasibility sweeps outward from the drawn pose to both ends of the range: one unbroken reachable range, no dead center, no branch point unless the family allows it, no collisions, and a driven transmission angle (at the coupler-output joint) of at least the family minimum, 20° by default. Rejection sampling with one generator per seed. Property 1 runs under Hypothesis.
   - [ ] 1.2 Implement linkage families: four-bar classes, slider-crank, inverted slider-crank, Scotch yoke, Watt and Stephenson six-bars, Chebyshev lambda, Peaucellier–Lipkin, pantograph, Jansen leg, Whitworth quick-return, flapping-wing automaton.
     - _Requirements: 1.1_
   - [ ] 1.3 Implement gear train, rack and pinion, belt drive, Geneva drive, cam-follower families, and the sewing-machine needle bar and take-up lever family.

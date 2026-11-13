@@ -53,12 +53,14 @@
     - Planar bodies in any plane meet spatial joints through their `Placement` (the double Cardan golden joins two planar yokes). Outlines of bodies in crossing planes are extruded through their thickness into `parry3d-f64` prism compounds and tested in world poses; tested with two bars in perpendicular planes against a brute-force footprint check.
 
 - [ ] 5. Fitter
-  - [ ] 5.1 Implement the implicit-function fitter with Schur complement on geometry parameters, robust IRLS, fixed parameters, and priors.
+  - [x] 5.1 Implement the implicit-function fitter with Schur complement on geometry parameters, robust IRLS, fixed parameters, and priors.
     - _Requirements: 7.1, 7.2, 7.3, 7.6_
+    - `kinematics::fit`: free geometry parameters named by graph paths (the schema's uncertainty paths), per-frame driver values, every frame assembled exactly, `dq/d(θ, d)` from one least-squares solve per frame (exact in `q`; `Φ_θ` by central difference on the graph), the arrow-shaped Gauss–Newton system reduced by the Schur complement on `θ`, Levenberg damping, IRLS for Huber and Cauchy losses, fixed parameters, and Gaussian priors. Observations are meters in a plane frame; camera models are 5.2.
   - [ ] 5.2 Implement planar homography and full projection camera models in the fitter.
     - _Requirements: 7.2_
-  - [ ] 5.3 Implement covariance and per-observation residual reporting.
+  - [x] 5.3 Implement covariance and per-observation residual reporting.
     - _Requirements: 7.5_
+    - Standard deviations from the inverse reduced normal matrix scaled by the residual variance, written into the graph's `uncertainty` map; per-observation residuals with their final robust weights. Tested: exact recovery, noisy fits within 3σ, Cauchy against 20% outliers, fixed parameters, priors.
   - [ ] 5.4 Property tests 5 and 6. Criterion benchmark for the 600-frame, 20-body target.
     - _Requirements: 7.3, 7.4, 7.5_
 

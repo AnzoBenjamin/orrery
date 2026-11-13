@@ -55,9 +55,10 @@
 - [ ] 5. Fitter
   - [x] 5.1 Implement the implicit-function fitter with Schur complement on geometry parameters, robust IRLS, fixed parameters, and priors.
     - _Requirements: 7.1, 7.2, 7.3, 7.6_
-    - `kinematics::fit`: free geometry parameters named by graph paths (the schema's uncertainty paths), per-frame driver values, every frame assembled exactly, `dq/d(θ, d)` from one least-squares solve per frame (exact in `q`; `Φ_θ` by central difference on the graph), the arrow-shaped Gauss–Newton system reduced by the Schur complement on `θ`, Levenberg damping, IRLS for Huber and Cauchy losses, fixed parameters, and Gaussian priors. Observations are meters in a plane frame; camera models are 5.2.
-  - [ ] 5.2 Implement planar homography and full projection camera models in the fitter.
+    - `kinematics::fit`: free geometry parameters named by graph paths (the schema's uncertainty paths), per-frame driver values, every frame assembled exactly, `dq/d(θ, d)` from one least-squares solve per frame (exact in `q`; `Φ_θ` by central difference on the graph), the arrow-shaped Gauss–Newton system reduced by the Schur complement on `θ`, Levenberg damping, IRLS for Huber and Cauchy losses, fixed parameters, and Gaussian priors.
+  - [x] 5.2 Implement planar homography and full projection camera models in the fitter.
     - _Requirements: 7.2_
+    - `fit::Camera`: a plane frame (meters), a planar homography (static, or one per frame for a moving camera, carried in the per-frame block of the Schur system), and a pinhole projection (shared intrinsics, held when calibrated; a static pose or one per frame), all with exact Jet derivatives. Tested by recovering a static and a per-frame homography and a calibrated camera's pose along with the geometry; one length is held to fix the scale a camera would otherwise absorb.
   - [x] 5.3 Implement covariance and per-observation residual reporting.
     - _Requirements: 7.5_
     - Standard deviations from the inverse reduced normal matrix scaled by the residual variance, written into the graph's `uncertainty` map; per-observation residuals with their final robust weights. Tested: exact recovery, noisy fits within 3σ, Cauchy against 20% outliers, fixed parameters, priors.

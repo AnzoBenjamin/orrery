@@ -1,3 +1,4 @@
+import { inArray } from "drizzle-orm";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
@@ -6,11 +7,13 @@ import {
   createFootage,
   createSpecimen,
   deleteSpecimen,
+  deleteSpecimensForOwner,
   findSpecimenById,
   listSpecimensForOwner,
   newId,
   updateSpecimen,
 } from "../src/index.ts";
+import { objectDeletion } from "../src/schema/index.ts";
 import { insertUser, useTestDatabase } from "./support.ts";
 
 const database = useTestDatabase();
@@ -83,5 +86,35 @@ describe("specimens", () => {
     expect(await findSpecimenById(database().db, s.id)).toBeUndefined();
     expect(await countPendingDeletions(database().db)).toBe(pendingBefore + 2);
     expect(await deleteSpecimen(database().db, s.id)).toBe(false);
+  });
+
+  it("deletes every specimen of one owner, queues all their objects, and spares other owners", async () => {
+    const owner = await insertUser(database());
+    const bystander = await insertUser(database());
+    const keys: string[] = [];
+    for (const title of ["Loom", "Clock"]) {
+      const s = await createSpecimen(database().db, { ownerId: owner.id, title });
+      const key = `users/${owner.id}/specimens/${s.id}/footage/ref.mp4`;
+      keys.push(key);
+      await createFootage(database().db, {
+        id: newId(),
+        specimenId: s.id,
+        role: "reference",
+        objectKey: key,
+        originalFilename: "ref.mp4",
+        byteSize: 100,
+      });
+    }
+    const kept = await createSpecimen(database().db, { ownerId: bystander.id, title: "Toy" });
+
+    expect(await deleteSpecimensForOwner(database().db, owner.id)).toBe(2);
+    expect(await countSpecimensForOwner(database().db, owner.id)).toBe(0);
+    expect(await findSpecimenById(database().db, kept.id)).toBeDefined();
+    const queued = await database()
+      .db.select({ objectKey: objectDeletion.objectKey })
+      .from(objectDeletion)
+      .where(inArray(objectDeletion.objectKey, keys));
+    expect(queued.map((q) => q.objectKey).sort()).toEqual([...keys].sort());
+    expect(await deleteSpecimensForOwner(database().db, owner.id)).toBe(0);
   });
 });

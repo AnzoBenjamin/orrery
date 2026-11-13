@@ -20,6 +20,20 @@ export function authErrorMessage(error: { code?: string | undefined; status?: nu
       return "Use at most 128 characters for your password.";
     case "INVALID_TOKEN":
       return "This link is invalid or has expired. Request a new one.";
+    case "INVALID_PASSWORD":
+      return "That password is not correct. Enter the password you sign in with.";
+    case "SESSION_EXPIRED":
+    case "SESSION_NOT_FRESH":
+      return "For your safety, this needs a recent sign-in. Sign out, sign in again, then retry.";
+    case "FAILED_TO_UNLINK_LAST_ACCOUNT":
+      return "This is your only way to sign in. Add another before removing it.";
+    case "PASSKEY_NOT_FOUND":
+      return "That passkey no longer exists. Reload the page to see your current passkeys.";
+    case "AUTH_CANCELLED":
+    case "ERROR_CEREMONY_ABORTED":
+      return "The passkey request was cancelled. Try again when your device asks.";
+    case "ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED":
+      return "This device already holds a passkey for your account. Use that one to sign in.";
     default:
       if (error.status === 429) {
         return "Too many attempts from this network. Wait a few minutes, then try again.";

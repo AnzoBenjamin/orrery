@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { passkey } from "@better-auth/passkey";
-import { schema } from "@orrery/db";
+import { deleteSpecimensForOwner, schema } from "@orrery/db";
 import { authSchemaOptions } from "@orrery/db/auth-options";
 import { emailSend, enqueue } from "@orrery/jobs";
 import { betterAuth } from "better-auth";
@@ -64,6 +64,19 @@ function createAuth() {
     },
     socialProviders,
     account: { accountLinking: { enabled: true, trustedProviders: ["github", "google"] } },
+    user: {
+      ...authSchemaOptions.user,
+      deleteUser: {
+        enabled: true,
+        // The user row's cascade removes specimens and footage rows but would strand their
+        // objects in storage, so the specimens are deleted first and their objects queued
+        // (requirement 4.8). If the user row then fails to delete, the account is left empty
+        // and the request can be retried.
+        beforeDelete: async (user) => {
+          await deleteSpecimensForOwner(database().db, user.id);
+        },
+      },
+    },
     session: {
       expiresIn: 30 * 24 * HOUR_S,
       updateAge: 24 * HOUR_S,

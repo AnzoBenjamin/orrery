@@ -9,6 +9,7 @@ export async function requestActor(): Promise<Actor> {
   return {
     kind: "user",
     userId: session.user.id,
+    sessionId: session.session.id,
     emailVerified: session.user.emailVerified,
     isAdmin: (session.user as { role?: string }).role === "admin",
   };

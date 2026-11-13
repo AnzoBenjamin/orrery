@@ -79,6 +79,32 @@ export async function deleteSpecimen(ex: Executor, id: string): Promise<boolean>
   });
 }
 
+/**
+ * Deletes every specimen an owner has, with their footage, and queues all of their stored objects
+ * for removal, atomically. Used when an account is deleted: the user row's cascade would remove
+ * the rows but leave their objects in storage. Returns the number of specimens deleted.
+ */
+export async function deleteSpecimensForOwner(ex: Executor, ownerId: string): Promise<number> {
+  return ex.transaction(async (tx) => {
+    const targets = await tx
+      .select({ id: specimen.id, coverObjectKey: specimen.coverObjectKey })
+      .from(specimen)
+      .where(eq(specimen.ownerId, ownerId))
+      .for("update");
+    if (targets.length === 0) return 0;
+    const footageKeys = await tx
+      .select({ objectKey: footage.objectKey })
+      .from(footage)
+      .innerJoin(specimen, eq(footage.specimenId, specimen.id))
+      .where(eq(specimen.ownerId, ownerId));
+    const keys = footageKeys.map((f) => f.objectKey);
+    for (const t of targets) if (t.coverObjectKey) keys.push(t.coverObjectKey);
+    await enqueueObjectDeletions(tx, keys);
+    await tx.delete(specimen).where(eq(specimen.ownerId, ownerId));
+    return targets.length;
+  });
+}
+
 export async function countSpecimensForOwner(ex: Executor, ownerId: string): Promise<number> {
   const [row] = await ex
     .select({ n: sql<number>`count(*)::int` })

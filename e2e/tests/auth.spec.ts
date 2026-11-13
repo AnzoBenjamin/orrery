@@ -13,7 +13,7 @@ test.describe("email and password accounts", () => {
       .click();
     await expect(page.getByText(email)).toBeVisible();
     await expect(page.getByText("Email confirmed")).toBeVisible();
-    await expect(page.getByRole("region", { name: "Account" })).toContainText(name);
+    await expect(page.getByRole("region", { name: "Account", exact: true })).toContainText(name);
   });
 
   test("an unconfirmed account cannot sign in", async ({ page }) => {

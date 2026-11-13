@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { z } from "zod";
 import { call } from "../server/call.ts";
 import {
   specimenCreate,
@@ -8,13 +7,7 @@ import {
   specimenList,
   specimenUpdate,
 } from "../server/operations/specimens.ts";
-
-// The transport only types the input for callers. Each operation's strict schema validates it
-// inside `call`, where a rejection becomes an Invalid result with per-field messages.
-const typed =
-  <S extends z.ZodObject>(_schema: S) =>
-  (input: z.input<S>) =>
-    input;
+import { typed } from "./typed.ts";
 
 export const createSpecimenFn = createServerFn({ method: "POST" })
   .validator(typed(specimenCreate.input))

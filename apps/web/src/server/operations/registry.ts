@@ -1,3 +1,9 @@
+import {
+  accountGet,
+  accountPreferencesUpdate,
+  accountSessionRevoke,
+  accountSessionsRevokeOthers,
+} from "./account.ts";
 import type { AnyOperation } from "./define.ts";
 import {
   specimenCreate,
@@ -17,4 +23,8 @@ export const operations: readonly AnyOperation[] = [
   specimenGet,
   specimenUpdate,
   specimenDelete,
+  accountGet,
+  accountPreferencesUpdate,
+  accountSessionRevoke,
+  accountSessionsRevokeOthers,
 ];

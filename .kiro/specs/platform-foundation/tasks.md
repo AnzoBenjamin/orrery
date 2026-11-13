@@ -49,11 +49,12 @@ Task numbers are stable references (other specs cite them). Work them in this or
   - [ ] 4.2 Build the email package with React Email templates (verification, reset, new sign-in alert, analysis complete) and the `email.send` queue.
     - _Requirements: 4.2, 4.3, 10.1, 10.2_
     - Done: `packages/email` (four templates, Nodemailer mailer, Mailpit delivery test) and the `email.send` queue with idempotent job ids. Remaining: the new-device sign-in alert hook, which needs a known-device table.
-  - [ ] 4.3 Build sign-up, sign-in, verify, reset, and account settings screens (sessions, linked methods, passkeys, email preferences, delete account) to the design language. Coordinate visuals with workbench task 2.
+  - [x] 4.3 Build sign-up, sign-in, verify, reset, and account settings screens (sessions, linked methods, passkeys, email preferences, delete account) to the design language. Coordinate visuals with workbench task 2.
     - _Requirements: 4.6, 4.7, 4.8, 10.3_
+    - Account settings read sessions, linked accounts, and passkeys through secret-free query modules and operations (in the cross-user test). Revoking a session is an operation; linking, unlinking, passkeys, and account deletion go through the Better Auth client. Deletion removes specimens and queues their objects first. Only the analysis-complete email preference is shown: sound and units controls land with the workbench features they affect.
   - [ ] 4.4 End-to-end tests: sign-up with Mailpit verification, unverified upload blocked, reset flow, passkey via virtual authenticator, session revocation, account deletion removes objects.
     - _Requirements: 4.1–4.8, 13.3_
-    - Done: sign-up with Mailpit verification, unverified sign-in refused, wrong password, sign-out, reset flow, reset privacy, invalid reset link. Remaining with 4.3 and 6.x: passkey via virtual authenticator, session revocation, account deletion, unverified upload.
+    - Done: sign-up with Mailpit verification, unverified sign-in refused, wrong password, sign-out, reset flow, reset privacy, invalid reset link, passkey via virtual authenticator, session revocation (one and all others), analysis email preference, account deletion removing specimens and sign-in. Remaining with 6.x: unverified upload blocked, account deletion removing stored objects.
 
 - [ ] 5. Authorization and sharing
   - [x] 5.1 Implement `policy.ts` and the `authed()` server-function wrapper with typed domain errors.

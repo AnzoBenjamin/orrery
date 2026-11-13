@@ -11,6 +11,7 @@ import { getSession } from "../server/session.ts";
 const search = z.object({
   redirect: z.string().max(2000).optional(),
   reset: z.literal("1").optional(),
+  deleted: z.literal("1").optional(),
 });
 
 export const Route = createFileRoute("/sign-in")({
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/sign-in")({
 
 function SignIn() {
   const methods = Route.useLoaderData();
-  const { redirect: target, reset } = Route.useSearch();
+  const { redirect: target, reset, deleted } = Route.useSearch();
   const destination = safeRedirect(target, "/cabinet");
   const navigate = useNavigate();
   const [pending, setPending] = useState<"password" | "passkey" | "github" | "google" | null>(null);
@@ -85,6 +86,9 @@ function SignIn() {
       <div className="flex flex-col gap-5">
         {reset ? (
           <Banner tone="success" title="Password changed. Sign in with the new one." />
+        ) : null}
+        {deleted ? (
+          <Banner tone="success" title="Your account and everything in it have been deleted." />
         ) : null}
         {error ? <Banner tone="error" title={error} /> : null}
         <Form onSubmit={onSubmit} className="flex flex-col gap-5">

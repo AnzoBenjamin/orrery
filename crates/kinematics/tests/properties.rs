@@ -5,6 +5,8 @@
 //!    1e-9.
 //! 2. For any body and any two of its points, their world distance is constant across a simulated
 //!    cycle.
+//! 3. For any simulation step where no singularity is reported, the pose change is bounded by a
+//!    Lipschitz constant times the driver step.
 //! 4. For any mechanism without special geometry, numerical mobility equals Grübler mobility.
 //!
 //! The families are the ones the synthetic lab draws from: Grashof crank-rocker four-bars,
@@ -21,6 +23,7 @@ use std::f64::consts::TAU;
 use kinematics::AssemblyOptions;
 use kinematics::model::Model;
 use kinematics::schema::parse_mechanism;
+use kinematics::simulate::SimulationOptions;
 use proptest::prelude::*;
 use serde_json::{Value, json};
 
@@ -129,8 +132,8 @@ fn four_bar_parts(f: &FourBar) -> (Vec<Value>, Vec<Value>) {
     (bodies, joints)
 }
 
-/// The coupler trace point over a turn, on the open branch, by closed form.
-fn coupler_path(f: &FourBar, steps: u32) -> Vec<(f64, f64)> {
+/// The coupler trace point over a turn, by closed form, on the branch `side` (±1).
+fn coupler_path(f: &FourBar, steps: u32, side: f64) -> Vec<(f64, f64)> {
     (0..steps)
         .map(|i| {
             let t = TAU * f64::from(i) / f64::from(steps);
@@ -138,7 +141,7 @@ fn coupler_path(f: &FourBar, steps: u32) -> Vec<(f64, f64)> {
             let (dx, dy) = (f.ground - b.0, -b.1);
             let d = dx.hypot(dy);
             let a = (f.coupler * f.coupler - f.rocker * f.rocker + d * d) / (2.0 * d);
-            let h = (f.coupler * f.coupler - a * a).max(0.0).sqrt();
+            let h = side * (f.coupler * f.coupler - a * a).max(0.0).sqrt();
             let (ux, uy) = (dx / d, dy / d);
             let c = (b.0 + a * ux - h * uy, b.1 + a * uy + h * ux);
             let (ex, ey) = ((c.0 - b.0) / f.coupler, (c.1 - b.1) / f.coupler);
@@ -184,7 +187,11 @@ fn six_bar() -> impl Strategy<Value = Value> {
     (four_bar(), -0.3..0.3_f64, 0.2..0.4_f64, 0.3..0.7_f64).prop_filter_map(
         "dyad that closes through a turn",
         |(f, px, py, split)| {
-            let path = coupler_path(&f, 360);
+            // The solver may assemble either branch of the four-bar, so the dyad must close on both.
+            let path: Vec<(f64, f64)> = coupler_path(&f, 360, 1.0)
+                .into_iter()
+                .chain(coupler_path(&f, 360, -1.0))
+                .collect();
             let dist: Vec<f64> = path.iter().map(|(x, y)| (x - px).hypot(y - py)).collect();
             let (near, far) = dist
                 .iter()
@@ -285,5 +292,34 @@ proptest! {
         prop_assert_eq!(mobility.numerical, 1);
         prop_assert!(mobility.redundant.is_empty(), "{:?}", mobility.redundant);
         prop_assert!(mobility.free_motions.is_empty(), "{:?}", mobility.free_motions);
+    }
+
+    /// Property 3: between two samples with no singularity, no coordinate moves further than the
+    /// larger of its speeds at the two ends allows, with a factor of 2 for the curvature in
+    /// between: continuation never jumps branch.
+    #[test]
+    fn simulation_steps_are_lipschitz(value in any_mechanism(), steps in 36_u32..120) {
+        let m = Model::new(&parse_mechanism(&value.to_string()).unwrap()).unwrap();
+        let h = TAU / f64::from(steps);
+        let sim = m.simulate(0, &[0.0], (0.0, TAU, h), None, &SimulationOptions::default())
+            .map_err(|e| TestCaseError::fail(format!("{e}")))?;
+        prop_assert_eq!(sim.samples.len(), steps as usize + 1);
+        for w in sim.samples.windows(2) {
+            let (a, b) = (&w[0], &w[1]);
+            if sim.singularities.iter().any(|s| s.drive >= a.drive - 1e-12 && s.drive <= b.drive + 1e-12) {
+                continue;
+            }
+            let (va, vb) = (m.velocity(&a.q, &[a.drive], 0), m.velocity(&b.q, &[b.drive], 0));
+            // Only body poses: curve parameters are not part of the pose.
+            for (i, body) in m.bodies.iter().enumerate() {
+                let kinematics::constraint::BodySlot::Var(start) = body.slot else { continue };
+                for c in start..start + 3 {
+                    let speed = va[c].abs().max(vb[c].abs());
+                    let moved = (b.q[c] - a.q[c]).abs();
+                    prop_assert!(moved <= 2.0 * speed * h + 1e-9,
+                        "body {} coordinate {} moved {moved} with speed {speed} over {h} at {}", m.bodies[i].id, c - start, a.drive);
+                }
+            }
+        }
     }
 }

@@ -27,7 +27,7 @@
     - _Requirements: 4.1, 3.2_
     - `tests/properties.rs` generates Grashof crank-rocker four-bars, offset slider-cranks, and Watt six-bars that turn a full revolution (property 1 at random angles without a seed, property 2 through a turn with continuation); property 9 over random gear ratios is in `tests/planar_joints.rs`.
 
-- [ ] 3. Simulation and analysis
+- [x] 3. Simulation and analysis
   - [x] 3.1 Implement continuation with adaptive steps, reachable sub-ranges, and singularity detection and classification.
     - _Requirements: 5.1–5.4_
     - `kinematics::simulate`: continuation with a secant predictor, step halving on non-convergence or a body turning more than 0.3 rad, reachable sub-ranges with re-acquisition past a gap, and trajectories of every named point. Dead centers at range ends (full Jacobian singular, joints full rank), lockups where the output points' velocity reverses (located by bisection), and bifurcations where the joint rows lose rank (located by golden-section search). Tested on a crank-rocker (two lockups at the collinear positions), a rocker-driven four-bar (dead center at the swing limit), a non-Grashof crank (two reachable ranges), and a parallelogram (change point at π).
@@ -40,8 +40,9 @@
   - [x] 3.4 Implement transmission angle, Grashof classification, swept collision detection with `parry2d`, and fabrication risk indicators.
     - _Requirements: 8.1–8.4_
     - `kinematics::plausibility`: four-bar loops found as revolute 4-cycles (frame, driven input, coupler, output), Grashof classes, least folded transmission angle at both floating joints, outline collisions with `parry2d-f64` (ear-clipped triangle compounds) between unjoined bodies in one plane or in parallel planes closer than their half thicknesses, located by subdividing each step and bisecting, slenderness from outlines, and quasi-static reaction reversals under springs and a unit load opposing each output point. Collisions are checked against a brute-force separating-axis test.
-  - [ ] 3.5 Property test 3 (continuity).
+  - [x] 3.5 Property test 3 (continuity).
     - _Requirements: 4.2, 5.2_
+    - `tests/properties.rs`: between samples with no singularity, every body coordinate moves at most twice its larger end speed times the step, over generated linkages and step counts. Writing it found that the six-bar generator only checked the dyad on one four-bar branch; it now requires both.
 
 - [ ] 4. Spatial support
   - [ ] 4.1 Implement spatial body poses with quaternions and spherical, universal, cylindrical, and 3D-axis revolute and prismatic constraints.

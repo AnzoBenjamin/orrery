@@ -10,7 +10,7 @@
     - _Requirements: 2.2, 2.3, 2.4_
     - Done: seven files in `fixtures/golden/mechanism` cover every body kind, joint kind, follower, slot curve, driver profile, external and internal meshes, open and crossed belts, a spatial RSSR, and two planar subsystems in perpendicular planes; eight files in `invalid/` each break one rule. Round trips pass in TypeScript, Rust, and Python, and invalid graphs fail in TypeScript and Rust. Remaining: the Python invalid-graph test, which calls `kinematics::validate` through `kinematics-py` (6.3) so the rules are not written a third time.
 
-- [ ] 2. Planar solver
+- [x] 2. Planar solver
   - [x] 2.1 Implement state layout, the `Constraint` trait, and revolute, prismatic, and driver constraints with analytic Jacobians.
     - _Requirements: 3.2, 4.1_
     - `kinematics::model` compiles a graph into `(x, y, θ)` per moving planar body (the ground fixed, a spatial ground projected into each plane), and `kinematics::constraint` implements revolute, prismatic, and angle and displacement drivers with analytic Jacobians, checked against finite differences by `proptest`. A prismatic joint holds B parallel to A (documented on the Zod schema). Joint kinds and spatial bodies beyond this build are refused with `InvalidGraph` naming the joint; 2.3 and 4.1 add them.
@@ -23,8 +23,9 @@
   - [x] 2.4 Implement spring energy terms and constrained energy minimization.
     - _Requirements: 4.4_
     - `kinematics::energy`: projected Gauss–Newton in the SVD null space of the constraint Jacobian, re-assembling after each step with a backtracking line search. Tested against the closed-form and brute-force least-energy pose of a sprung lever.
-  - [ ] 2.5 Property tests 1, 2, and 9 with `proptest` mechanism generators.
+  - [x] 2.5 Property tests 1, 2, and 9 with `proptest` mechanism generators.
     - _Requirements: 4.1, 3.2_
+    - `tests/properties.rs` generates Grashof crank-rocker four-bars, offset slider-cranks, and Watt six-bars that turn a full revolution (property 1 at random angles without a seed, property 2 through a turn with continuation); property 9 over random gear ratios is in `tests/planar_joints.rs`.
 
 - [ ] 3. Simulation and analysis
   - [ ] 3.1 Implement continuation with adaptive steps, reachable sub-ranges, and singularity detection and classification.

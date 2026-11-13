@@ -167,7 +167,7 @@ fn problem(
         // The true poses only pick the branch: the fit re-assembles from the wrong geometry.
         seeds: Some(poses),
         observations,
-        camera: Camera::Plane("p".into()),
+        camera: Camera::Plane { plane: "p".into() },
         loss,
         max_iterations: 60,
     }

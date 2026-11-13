@@ -1,7 +1,14 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "stream",
-  "globalPassThroughEnv": ["CI", "DOCKER_HOST", "TESTCONTAINERS_*"],
+  "globalPassThroughEnv": [
+    "CI",
+    "DOCKER_HOST",
+    "TESTCONTAINERS_*",
+    "CARGO_HOME",
+    "RUSTUP_HOME",
+    "UV_*"
+  ],
   "tasks": {
     "codegen": {
       "dependsOn": ["^codegen"],

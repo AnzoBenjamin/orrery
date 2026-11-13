@@ -4,6 +4,8 @@
 use crate::validate::ValidationIssue;
 
 /// One joint's remaining constraint error after a failed assembly.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct JointResidual {
     pub joint_id: String,
@@ -11,6 +13,13 @@ pub struct JointResidual {
     pub residual: f64,
 }
 
+#[derive(serde::Serialize)]
+#[serde(
+    tag = "kind",
+    content = "detail",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum SolverError {
     /// The graph breaks a schema rule, or describes something the solver cannot build.

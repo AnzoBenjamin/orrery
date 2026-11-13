@@ -67,8 +67,9 @@
     - `tests/fit_properties.rs` (fixed seed, since the 3σ bound is probabilistic): noisy fits of generated crank-rockers land within 3 reported σ; Cauchy fits with up to 20% gross outliers stay within 2× the outlier-free error (floored at 1.5σ, since one clean sample's error can land far below the noise). `FitProblem::seeds` picks the assembly branch per frame. `benches/solver.rs` (criterion) on a 20-body parallelogram chain, natively on the development machine: 600-frame fit 2.3 s (target 5 s), one re-solve after a drag 0.46 ms (target 2 ms), 360-step cycle 145 ms. The cycle is above the 50 ms browser target of requirement 9.3; getting under it means sharing the per-step factorization between assembly and the singularity checks, measured in the browser by 6.2. The CI regression gate (15%) lands with the engine workflow (platform-foundation 10.2).
 
 - [ ] 6. Bindings
-  - [ ] 6.1 Build `crates/kinematics-wasm` and `packages/kinematics-wasm` with the Web Worker host, typed `SolverClient`, latest-wins cancellation, and transferable buffers.
+  - [x] 6.1 Build `crates/kinematics-wasm` and `packages/kinematics-wasm` with the Web Worker host, typed `SolverClient`, latest-wins cancellation, and transferable buffers.
     - _Requirements: 9.1, 9.2, 9.4_
+    - `crates/kinematics-wasm` (wasm-bindgen, SIMD): a `Solver` per graph with assemble, point positions, simulate, mobility, plausibility, and `fit`; typed arrays out, typed errors thrown as `{ kind, detail }`. `packages/kinematics-wasm`: `pkg/` built by `pnpm codegen` with wasm-pack (committed, in the stale check), a worker host (`serve`) that answers in order, transfers typed-array buffers, and on each channel runs only the latest waiting request, and a typed `SolverClient`. Tested in Node over a real `MessageChannel`. `wasm-bindgen-cli` is pinned in the toolbox.
   - [ ] 6.2 Browser performance test in Playwright measuring drag re-solve and cycle simulation against the targets.
     - _Requirements: 9.3_
   - [ ] 6.3 Build `crates/kinematics-py` with maturin, NumPy I/O, GIL release, and generated stubs.

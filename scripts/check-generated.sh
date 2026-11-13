@@ -12,6 +12,10 @@ artifacts=(
   packages/schema/schema/mechanism.json
   crates/kinematics/src/generated/mechanism.rs
   services/engine/src/orrery_engine/generated/mechanism.py
+  packages/kinematics-wasm/pkg/kinematics.js
+  packages/kinematics-wasm/pkg/kinematics.d.ts
+  packages/kinematics-wasm/pkg/kinematics_bg.wasm
+  packages/kinematics-wasm/pkg/kinematics_bg.wasm.d.ts
   services/engine/src/orrery_engine/generated/contract.py
   services/engine/src/orrery_engine/generated/__init__.py
 )

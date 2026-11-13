@@ -125,7 +125,7 @@ fn fit_problem(mechanism: &Mechanism) -> FitProblem {
         drive,
         seeds: Some(poses),
         observations,
-        camera: Camera::Plane("p".into()),
+        camera: Camera::Plane { plane: "p".into() },
         loss: Loss::Squared,
         max_iterations: 10,
     }

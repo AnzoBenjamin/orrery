@@ -21,6 +21,8 @@ use crate::error::SolverError;
 use crate::model::Model;
 
 /// The kind of a singularity event.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SingularityKind {
     DeadCenter,
@@ -28,6 +30,8 @@ pub enum SingularityKind {
     Bifurcation,
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Singularity {
     /// The swept driver's value at the event.

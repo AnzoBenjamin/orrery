@@ -1,0 +1,4 @@
+# WebAssembly SIMD for the browser solver (mechanism-core design, "WebAssembly"). Every browser
+# the workbench supports runs wasm SIMD.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]

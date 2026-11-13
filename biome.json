@@ -11,6 +11,7 @@
       "!**/generated",
       "!packages/engine-contract/schema",
       "!packages/schema/schema",
+      "!packages/kinematics-wasm/pkg",
       "!**/routeTree.gen.ts",
       "!.kiro",
       "!packages/db/migrations",

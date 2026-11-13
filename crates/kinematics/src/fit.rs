@@ -29,6 +29,8 @@ use crate::model::{Model, PlaneFrame};
 use crate::schema::Mechanism;
 
 /// The loss applied to each observation's residual length `r` (in the observation's units).
+#[derive(serde::Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Loss {
     /// `r²/2`.
@@ -72,17 +74,23 @@ impl Loss {
 }
 
 /// One geometry parameter to estimate or hold.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
     /// A path into the graph, such as `bodies.crank.points.b.local.x` or `joints.mesh.phase`.
     pub path: String,
     /// Held at its value in the graph (requirement 7.6).
+    #[serde(default)]
     pub fixed: bool,
     /// A Gaussian prior `(mean, standard deviation)` (requirement 7.6).
+    #[serde(default)]
     pub prior: Option<(f64, f64)>,
 }
 
 /// One observed point in one frame.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Observation {
     pub frame: usize,
@@ -95,10 +103,16 @@ pub struct Observation {
 }
 
 /// How observations relate to the mechanism (requirement 7.2).
+#[derive(serde::Deserialize)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Camera {
     /// Meters in the 2D coordinates of `plane:<id>`: a stabilized, scaled view.
-    Plane(String),
+    Plane { plane: String },
     /// Pixels, through a planar homography from `plane:<id>` coordinates (meters): `[u v 1]ᵀ ∝
     /// H [x y 1]ᵀ` with `H[2][2] = 1`. Static (one `H`) or one per frame for a moving camera.
     /// `initial` holds the eight free entries, row by row, of each `H`.
@@ -122,7 +136,7 @@ impl Camera {
     /// Global camera parameters and per-frame camera parameters, by count.
     fn split(&self, frames: usize) -> (usize, usize) {
         match self {
-            Self::Plane(_) => (0, 0),
+            Self::Plane { .. } => (0, 0),
             Self::Homography { initial, .. } => {
                 if initial.len() == 1 && frames != 1 {
                     (8, 0)
@@ -149,7 +163,7 @@ impl Camera {
     fn initial(&self, frames: usize) -> (Vec<f64>, Vec<Vec<f64>>) {
         let (global, _) = self.split(frames);
         match self {
-            Self::Plane(_) => (Vec::new(), vec![Vec::new(); frames]),
+            Self::Plane { .. } => (Vec::new(), vec![Vec::new(); frames]),
             Self::Homography { initial, .. } => {
                 if global > 0 {
                     (initial[0].to_vec(), vec![Vec::new(); frames])
@@ -178,6 +192,8 @@ impl Camera {
     }
 }
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone)]
 pub struct FitProblem {
     /// The topology with initial geometry.
@@ -187,6 +203,7 @@ pub struct FitProblem {
     pub drive: Vec<Vec<f64>>,
     /// Starting poses, one per frame, that pick the assembly branch (from tracked points). Without
     /// them each frame is seeded from the previous one, and the first from the drawn pose.
+    #[serde(default)]
     pub seeds: Option<Vec<Vec<f64>>>,
     pub observations: Vec<Observation>,
     pub camera: Camera,
@@ -195,6 +212,8 @@ pub struct FitProblem {
 }
 
 /// One observation's fitted residual.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObservationResidual {
     /// Index into the problem's observations.
@@ -205,6 +224,8 @@ pub struct ObservationResidual {
     pub weight: f64,
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone)]
 pub struct FitResult {
     /// The graph with the fitted geometry written in, and standard deviations in `uncertainty`.
@@ -286,7 +307,7 @@ fn observe<T: Scalar>(
         (along(f.u), along(f.v))
     };
     match camera {
-        Camera::Plane(_) => {
+        Camera::Plane { .. } => {
             let (x, y) = plane.map_or((w[0], w[1]), in_plane);
             [x, y]
         }
@@ -447,7 +468,7 @@ pub fn fit(problem: &FitProblem) -> Result<FitResult, SolverError> {
         .map_err(|e| SolverError::invalid("mechanism", e.to_string()))?;
     let base = Model::new(&problem.mechanism)?;
     let plane = match &problem.camera {
-        Camera::Plane(id) | Camera::Homography { plane: id, .. } => {
+        Camera::Plane { plane: id } | Camera::Homography { plane: id, .. } => {
             Some(*base.planes.get(id).ok_or_else(|| {
                 SolverError::invalid(
                     "camera",

@@ -13,6 +13,8 @@ use crate::model::Model;
 use crate::spatial::Placement;
 
 /// A joint whose equations repeat what earlier joints already impose.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Redundant {
     pub joint_id: String,
@@ -22,6 +24,8 @@ pub struct Redundant {
 
 /// One body's share of a free motion, per unit of the motion, in world coordinates: the
 /// velocity of the body's local origin and its angular velocity.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct BodyMotion {
     pub body_id: String,
@@ -29,6 +33,8 @@ pub struct BodyMotion {
     pub rotation: [f64; 3],
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mobility {
     /// Grübler–Kutzbach mobility from body and joint counts (may be negative).

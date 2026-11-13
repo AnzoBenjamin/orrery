@@ -115,7 +115,9 @@ fn problem(observations: Vec<Observation>, angles: &[f64], loss: Loss) -> FitPro
             .collect(),
         seeds: None,
         observations,
-        camera: Camera::Plane("plane-main".into()),
+        camera: Camera::Plane {
+            plane: "plane-main".into(),
+        },
         loss,
         max_iterations: 50,
     }

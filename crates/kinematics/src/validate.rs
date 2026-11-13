@@ -7,6 +7,8 @@ use std::collections::{HashMap, HashSet};
 use crate::schema::{Body, BodyKind, FollowerType, Joint, Mechanism, PointRef};
 
 /// One broken rule, with a message in the same words as the Zod refinement.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationIssue {
     /// Where in the document, such as `joints[1].anchorB`.

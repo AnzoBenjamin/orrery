@@ -21,6 +21,7 @@ ARG WASM_PACK_VERSION=0.15.1
 ARG PLAYWRIGHT_VERSION=1.65.0
 ARG OSV_SCANNER_VERSION=2.7.1
 ARG CARGO_TYPIFY_VERSION=0.8.0
+ARG WASM_BINDGEN_VERSION=0.2.130
 
 ENV DEBIAN_FRONTEND=noninteractive \
     RUSTUP_HOME=/opt/rustup \
@@ -77,8 +78,11 @@ RUN set -eux; \
     rm /tmp/rustup-init
 
 # cargo-typify: Rust types from the mechanism JSON Schema (structure.md, "Contracts flow one way").
+# wasm-bindgen-cli: the version must equal the wasm-bindgen crate in Cargo.lock; wasm-pack uses it
+# instead of downloading one at build time.
 # Built from crates.io with its own lockfile; the registry cache is dropped from the layer.
 RUN cargo install --locked --root /usr/local "cargo-typify@${CARGO_TYPIFY_VERSION}" \
+ && cargo install --locked --root /usr/local "wasm-bindgen-cli@${WASM_BINDGEN_VERSION}" \
  && rm -rf /opt/cargo/registry /opt/cargo/git
 
 # wasm-pack

@@ -17,6 +17,8 @@ use crate::planar::V2;
 use crate::simulate::Simulation;
 
 /// Grashof class of a four-bar loop (requirement 8.2).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GrashofClass {
     /// Shortest link beside the frame: it turns fully, the opposite link rocks.
@@ -32,6 +34,8 @@ pub enum GrashofClass {
 }
 
 /// The least transmission angle at one floating joint of a loop over the cycle.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Transmission {
     pub joint_id: String,
@@ -42,6 +46,8 @@ pub struct Transmission {
     pub at: f64,
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct FourBarLoop {
     /// Frame, input, coupler, output.
@@ -56,6 +62,8 @@ pub struct FourBarLoop {
 }
 
 /// Two outlines overlapping, over driver ranges (requirement 8.3).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Collision {
     pub bodies: (String, String),
@@ -64,6 +72,8 @@ pub struct Collision {
 }
 
 /// Where a joint's reaction force flips direction (requirement 8.4).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReactionReversal {
     pub joint_id: String,
@@ -73,6 +83,8 @@ pub struct ReactionReversal {
     pub peak: f64,
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Plausibility {
     pub loops: Vec<FourBarLoop>,

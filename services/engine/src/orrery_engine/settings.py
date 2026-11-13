@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import Field, SecretStr, ValidationError, field_validator
+from pydantic import Field, SecretStr, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -28,6 +28,22 @@ class Settings(BaseSettings):
 
     log_level: str = "info"
 
+    environment: str = "development"
+    """Deployment environment tag for traces and error reports."""
+
+    release: str | None = None
+    """The deployed commit, for traces and error reports."""
+
+    otlp_endpoint: str | None = None
+    """OTLP/HTTP collector base URL. Tracing is off without it."""
+
+    sentry_dsn: SecretStr | None = None
+    """GlitchTip DSN. Error reporting is off without it."""
+
+    @model_validator(mode="after")
+    def _check_production(self) -> "Settings":
+        return _production_requires_telemetry(self)
+
     @field_validator("allowed_source_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:
@@ -43,6 +59,22 @@ class Settings(BaseSettings):
                 msg = "each origin must look like https://host[:port] with no path"
                 raise ValueError(msg)
         return value
+
+
+def _production_requires_telemetry(settings: "Settings") -> "Settings":
+    if settings.environment == "production":
+        missing = [
+            name
+            for name, value in (
+                ("otlp_endpoint", settings.otlp_endpoint),
+                ("sentry_dsn", settings.sentry_dsn),
+            )
+            if value is None
+        ]
+        if missing:
+            msg = f"required in production: {', '.join('ENGINE_' + m.upper() for m in missing)}"
+            raise ValueError(msg)
+    return settings
 
 
 def describe_errors(error: ValidationError) -> str:

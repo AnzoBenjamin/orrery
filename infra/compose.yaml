@@ -144,6 +144,7 @@ services:
     command: [pnpm, --filter, "@orrery/web", dev]
     environment:
       <<: *app-env
+      OTEL_SERVICE_NAME: orrery-web
       BETTER_AUTH_URL: http://localhost:${WEB_PORT:-53000}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?run make env}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
@@ -170,6 +171,7 @@ services:
     command: [pnpm, --filter, "@orrery/worker", dev]
     environment:
       <<: *app-env
+      OTEL_SERVICE_NAME: orrery-worker
       APP_URL: http://localhost:${WEB_PORT:-53000}
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
@@ -199,6 +201,7 @@ services:
       ENGINE_SERVICE_TOKEN: ${ENGINE_SERVICE_TOKEN:?run make env}
       ENGINE_ALLOWED_SOURCE_ORIGINS: http://garage:3900
       ENGINE_LOG_LEVEL: ${LOG_LEVEL:-info}
+      ENGINE_OTLP_ENDPOINT: http://otel-collector:4318
     cpus: ${ENGINE_CPUS:-3}
     mem_limit: 3g
     oom_score_adj: 800

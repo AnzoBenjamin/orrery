@@ -1,3 +1,4 @@
+import { currentTraceparent, inSpan, reportError } from "@orrery/telemetry";
 import type { PgBoss } from "pg-boss";
 import { v5 as uuidv5 } from "uuid";
 import type { z } from "zod";
@@ -78,7 +79,7 @@ export function jobIdFor(queue: string, idempotencyKey: string): string {
 
 /**
  * Validates and publishes a job. Returns the job id, or null when a job with the same
- * idempotency key already exists.
+ * idempotency key already exists. The active trace travels with the job (requirement 11.1).
  */
 export async function enqueue<TSchema extends z.ZodType>(
   boss: PgBoss,
@@ -90,7 +91,7 @@ export async function enqueue<TSchema extends z.ZodType>(
   const key = q.idempotencyKey(data);
   return boss.send(
     q.name,
-    { payload: data, traceparent: options.traceparent ?? null },
+    { payload: data, traceparent: options.traceparent ?? currentTraceparent() ?? null },
     {
       ...(key === undefined ? {} : { id: jobIdFor(q.name, key) }),
       ...(options.startAfter === undefined ? {} : { startAfter: options.startAfter }),
@@ -139,13 +140,28 @@ export async function work<TSchema extends z.ZodType>(
     { batchSize: 1, localConcurrency: options.concurrency ?? 1 },
     async (jobs) => {
       for (const job of jobs) {
-        const payload = parse(q, job.data.payload);
-        await handler(payload, {
-          id: job.id,
-          retryCount: job.retryCount,
-          traceparent: job.data.traceparent,
-          signal: job.signal,
-        });
+        await inSpan(
+          `job ${q.name}`,
+          job.data.traceparent,
+          { "job.queue": q.name, "job.id": job.id, "job.attempt": job.retryCount + 1 },
+          async () => {
+            try {
+              const payload = parse(q, job.data.payload);
+              await handler(payload, {
+                id: job.id,
+                retryCount: job.retryCount,
+                traceparent: job.data.traceparent,
+                signal: job.signal,
+              });
+            } catch (error) {
+              // Only the last attempt's failure is an incident; earlier ones are retried.
+              if (job.retryCount >= q.retryLimit) {
+                reportError(error, { queue: q.name, job: job.id });
+              }
+              throw error;
+            }
+          },
+        );
       }
     },
   );

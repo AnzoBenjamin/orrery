@@ -7,8 +7,10 @@ from pathlib import Path
 import httpx
 import pytest
 import uvicorn
+from opentelemetry.sdk.trace import TracerProvider
 from orrery_engine.app import create_app
 from orrery_engine.settings import Settings, describe_errors
+from orrery_engine.telemetry import add_trace_ids
 from pydantic import ValidationError
 
 TOKEN = "t" * 40
@@ -99,3 +101,22 @@ def test_settings_errors_name_variables_but_never_values() -> None:
     assert "ENGINE_SERVICE_TOKEN" in text
     assert "ENGINE_ALLOWED_SOURCE_ORIGINS" in text
     assert secret not in text
+
+
+def test_log_lines_carry_the_active_trace_ids() -> None:
+
+    tracer = TracerProvider().get_tracer("test")
+    with tracer.start_as_current_span("probe") as span:
+        event = add_trace_ids(None, "info", {"event": "probe accepted"})
+    assert event["trace_id"] == format(span.get_span_context().trace_id, "032x")
+    assert add_trace_ids(None, "info", {"event": "outside"}) == {"event": "outside"}
+
+
+def test_production_requires_tracing_and_error_reporting(file_server: str) -> None:
+    with pytest.raises(ValidationError) as caught:
+        Settings(
+            service_token=TOKEN,  # pyright: ignore[reportArgumentType]
+            allowed_source_origins=(file_server,),
+            environment="production",
+        )
+    assert "ENGINE_OTLP_ENDPOINT" in str(caught.value)

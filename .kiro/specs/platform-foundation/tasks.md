@@ -102,6 +102,7 @@ Task numbers are stable references (other specs cite them). Work them in this or
 - [ ] 8. Observability and security
   - [ ] 8.1 Add OpenTelemetry to web, worker, and engine with `traceparent` propagation through job payloads and callbacks. Add GlitchTip error reporting through the Sentry SDKs. Add structured logs.
     - _Requirements: 11.1, 11.2, 11.3_
+    - Done: `packages/telemetry` (OTel NodeSDK with http, undici, pg, and pino instrumentation, preloaded with `node --import @orrery/telemetry/register` and Node 26 synchronous loader hooks; Sentry SDK for errors only, no personal data beyond user id). Jobs carry the enqueuing request's `traceparent` and run in a span that continues it; the worker's call to the engine propagates it over HTTP; the engine (OpenTelemetry FastAPI and httpx instrumentation, sentry-sdk) continues it. Verified locally: one trace id from the web request through the job to the engine's log line. Logs are JSON with trace ids in all three. Remaining: engine callbacks (with 7.5's callback half), and browser error reporting, which needs the GlitchTip origin in the CSP once production is configured (10.4).
   - [x] 8.2 Add health endpoints and a status section on the admin page.
     - _Requirements: 11.4_
     - Web `/api/health` (database, object store), worker `:9090/health` (database, object store, engine), engine `/health`. Only the database decides a process's health; the rest is reported. The operator page shows the database, object store, and the worker's heartbeat (its every-minute sweep).

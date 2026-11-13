@@ -4,9 +4,9 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/main.ts",
+    "dev": "tsx watch --import @orrery/telemetry/register src/main.ts",
     "build": "node scripts/build.ts",
-    "start": "node dist/main.js",
+    "start": "node --import @orrery/telemetry/register dist/main.js",
     "migrate": "tsx src/migrate.ts",
     "typecheck": "tsc --project tsconfig.json",
     "test": "vitest run",
@@ -19,6 +19,7 @@
     "@orrery/engine-contract": "workspace:*",
     "@orrery/jobs": "workspace:*",
     "@orrery/storage": "workspace:*",
+    "@orrery/telemetry": "workspace:*",
     "pg-boss": "12.38.2",
     "pino": "10.4.0",
     "zod": "4.6.7"

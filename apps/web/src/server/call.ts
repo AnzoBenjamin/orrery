@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { enqueue } from "@orrery/jobs";
+import { reportError, setErrorUser } from "@orrery/telemetry";
 import { getRequestIP } from "@tanstack/react-start/server";
 import type { z } from "zod";
 import { database, databaseReady } from "./db.ts";
@@ -7,6 +7,7 @@ import type { Result } from "./domain-errors.ts";
 import { serverEnv } from "./env.ts";
 import { createJobAdmin } from "./job-admin.ts";
 import { jobProducer } from "./jobs.ts";
+import { log } from "./log.ts";
 import { invoke, type Operation, type Services } from "./operations/define.ts";
 import { createLimits, type Limit } from "./rate-limits.ts";
 import { requestActor } from "./request-actor.ts";
@@ -33,7 +34,7 @@ let limits: Limit | undefined;
 
 /**
  * The body of every server function: resolve the actor, then invoke the operation. Unexpected
- * errors are logged with a reference the user can quote (GlitchTip reporting lands with 8.1).
+ * errors are reported to GlitchTip and logged with a reference the user can quote.
  */
 export async function call<TSchema extends z.ZodObject, TOutput>(
   op: Operation<TSchema, TOutput>,
@@ -43,13 +44,12 @@ export async function call<TSchema extends z.ZodObject, TOutput>(
   const actor = await requestActor();
   // kamal-proxy (and the dev server) put the client's address first in X-Forwarded-For.
   const ip = getRequestIP({ xForwardedFor: true }) ?? null;
+  setErrorUser(actor.kind === "user" ? actor.userId : null);
   return invoke({ db: database().db, services }, op, actor, input, {
     request: { ip },
     report: (error) => {
-      const reference = randomUUID().slice(0, 8);
-      process.stderr.write(
-        `${JSON.stringify({ level: "error", reference, operation: op.name, error: String(error), stack: error instanceof Error ? error.stack : undefined })}\n`,
-      );
+      const reference = reportError(error, { operation: op.name });
+      log.error({ err: error, reference, operation: op.name }, "operation failed");
       return reference;
     },
   });

@@ -6,6 +6,7 @@ import {
   type Listener,
 } from "@orrery/db";
 import { serverEnv } from "./env.ts";
+import { log } from "./log.ts";
 
 let handle: DbHandle | undefined;
 let ready: Promise<void> | undefined;
@@ -44,10 +45,7 @@ export function databaseListener(): Listener {
   listener ??= createListener({
     connectionString: serverEnv().DATABASE_URL,
     applicationName: "orrery-web-listen",
-    onError: (error) =>
-      process.stderr.write(
-        `${JSON.stringify({ level: "warn", msg: "listen connection lost", error: String(error) })}\n`,
-      ),
+    onError: (error) => log.warn({ err: error }, "listen connection lost"),
   });
   return listener;
 }

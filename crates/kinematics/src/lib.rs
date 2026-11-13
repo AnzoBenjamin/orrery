@@ -11,6 +11,7 @@ pub mod error;
 pub mod model;
 pub mod planar;
 pub mod schema;
+pub mod simulate;
 pub mod validate;
 
 pub use assembly::{Assembly, AssemblyOptions, LinearPath};

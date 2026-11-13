@@ -135,6 +135,8 @@ pub struct Model {
     pub drivers: Vec<Driver>,
     pub links: Vec<(usize, usize, Link)>,
     pub springs: Vec<Spring>,
+    /// Points with the `output` role: (body index, point id).
+    pub outputs: Vec<(usize, String)>,
     pub planes: HashMap<String, PlaneFrame>,
     body_index: HashMap<String, usize>,
 }
@@ -212,6 +214,17 @@ impl Model {
             drivers: Vec::new(),
             links: Vec::new(),
             springs: Vec::new(),
+            outputs: mechanism
+                .bodies
+                .iter()
+                .enumerate()
+                .flat_map(|(i, b)| {
+                    b.points
+                        .iter()
+                        .filter(|p| p.role == schema::PointRole::Output)
+                        .map(move |p| (i, p.id.as_str().to_owned()))
+                })
+                .collect(),
             planes,
             body_index,
         };

@@ -1,9 +1,9 @@
 """Solver checks a drawn sample must pass (requirement 1.2, design "Feasibility").
 
-The sample is valid against the shared schema, assembles at its drawn pose, reaches its whole
-driver range without the reachable range breaking (no dead center or lockup of the loop before the
-end), keeps its transmission angles above the family's minimum, has no branch points unless the
-family is defined by them, and its outlines do not collide.
+The sample is valid against the shared schema, assembles exactly where it was drawn, reaches its
+whole driver range without the reachable range breaking (no dead center or lockup of the loop
+before the end), keeps its transmission angles above the family's minimum, has no branch points
+unless the family is defined by them, and its outlines do not collide.
 """
 
 from __future__ import annotations
@@ -51,6 +51,19 @@ def _covers(reachable: list[tuple[float, float]], start: float, end: float, step
     )
 
 
+def _holds_drawn_pose(built: Built, solver: Solver, state: npt.NDArray[np.float64]) -> bool:
+    """Whether the assembled points are where the family drew them (bodies drawn in place)."""
+    drawn = {
+        (body["id"], point["id"]): (point["local"]["x"], point["local"]["y"], point["local"]["z"])
+        for body in built.document["bodies"]
+        for point in body["points"]
+    }
+    positions = solver.point_positions(state)
+    expected = np.array([drawn[name] for name in solver.point_names])
+    extent = float(np.ptp(expected, axis=0).max()) or 1.0
+    return bool(np.abs(positions - expected).max() <= 1e-9 * extent)
+
+
 def _sweep(
     solver: Solver, drawn: npt.NDArray[np.float64], end: float, requirements: Requirements
 ) -> tuple[str | None, float]:
@@ -85,17 +98,27 @@ def _sweep(
     return None, least
 
 
-def check(built: Built, requirements: Requirements) -> Verdict:
+def _parse(built: Built) -> tuple[MechanismModel, Solver] | str:
     try:
-        model, solver = checked(built.document)
+        return checked(built.document)
     except pydantic.ValidationError as e:
-        return Verdict(f"schema: {e.errors()[0]['msg']}")
+        return f"schema: {e.errors()[0]['msg']}"
     except InvalidGraphError as e:
-        return Verdict(f"graph: {e.issues[0].message}")
+        return f"graph: {e.issues[0].message}"
+
+
+def check(built: Built, requirements: Requirements) -> Verdict:
+    parsed = _parse(built)
+    if isinstance(parsed, str):
+        return Verdict(parsed)
+    model, solver = parsed
     try:
         drawn = solver.assemble(np.zeros(solver.driver_count))
     except AssemblyFailedError:
         return Verdict("the drawn pose does not assemble")
+    if not _holds_drawn_pose(built, solver, drawn):
+        # The solver assembled elsewhere, perhaps on another branch than the one drawn.
+        return Verdict("the drawn pose does not satisfy the joints")
     least = math.pi / 2
     # Sweep outward from the drawn pose, so both halves keep the drawn branch.
     for end in (e for e in built.drive_range if e != 0.0):

@@ -35,6 +35,18 @@ def outputs(solver: Solver, sample: Sample) -> list[tuple[str, str]]:
     return [name for name in solver.point_names if roles[name] == "output"]
 
 
+def size(sample: Sample) -> float:
+    """The diagonal of the drawn mechanism's bounding box."""
+    points = np.array(
+        [
+            (p["local"]["x"], p["local"]["y"])
+            for b in sample.built.document["bodies"]
+            for p in b["points"]
+        ]
+    )
+    return float(np.hypot(*np.ptp(points, axis=0)))
+
+
 @pytest.mark.parametrize("name", sorted(FAMILIES))
 def test_every_family_moves_its_output(name: str) -> None:
     for seed in range(3):
@@ -44,7 +56,7 @@ def test_every_family_moves_its_output(name: str) -> None:
         assert names, "the family names no output point"
         for body, point in names:
             path = track(solver, sim, body, point)
-            assert np.ptp(path, axis=0).max() > 0.02 * sample.params["scale"], (seed, body)
+            assert np.ptp(path, axis=0).max() > 0.02 * size(sample), (seed, body)
 
 
 def line_residual(path: npt.NDArray[np.float64]) -> float:

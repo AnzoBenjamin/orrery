@@ -104,7 +104,10 @@ const prismaticJointSchema = jointBaseSchema
   })
   .meta({ title: "PrismaticJoint" });
 
-/** Pin-in-slot joint */
+/**
+ * Pin-in-slot joint. The pin is on `pin.bodyId`; the slot is cut in the joint's other body. A pose
+ * with the pin past either end of the slot is not an assembly.
+ */
 const pinInSlotJointSchema = jointBaseSchema
   .extend({
     kind: z.literal("pin_in_slot"),
@@ -115,7 +118,10 @@ const pinInSlotJointSchema = jointBaseSchema
   })
   .meta({ title: "PinInSlotJoint" });
 
-/** Gear mesh constraint */
+/**
+ * Gear mesh: (θA − θC) = ratio · (θB − θC) + phase, angles relative to the carrier C, the body both
+ * gears are pinned to by revolute joints (the ground for fixed axles, the arm of a planetary set).
+ */
 const gearMeshJointSchema = jointBaseSchema
   .extend({
     kind: z.literal("gear_mesh"),
@@ -126,18 +132,21 @@ const gearMeshJointSchema = jointBaseSchema
   })
   .meta({ title: "GearMeshJoint" });
 
-/** Belt or chain constraint */
+/** Belt or chain between two pulleys pinned to one carrier, like a gear mesh with zero phase. */
 const beltJointSchema = jointBaseSchema
   .extend({
     kind: z.literal("belt"),
-    /** Pulley ratio */
+    /** Radius of B over radius of A, so A turns `ratio` times as far as B */
     ratio: z.number().positive(),
     /** True for crossed belt, false for open belt */
     crossed: z.boolean(),
   })
   .meta({ title: "BeltJoint" });
 
-/** Cam-follower constraint */
+/**
+ * Cam-follower contact. A knife edge touches the profile at `followerPoint`, a roller centered there
+ * rolls on it, and a flat face through `followerPoint` along the follower's local x axis rests on it.
+ */
 const camFollowerJointSchema = jointBaseSchema
   .extend({
     kind: z.literal("cam_follower"),

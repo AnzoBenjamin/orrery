@@ -3,10 +3,16 @@
 
 use std::collections::HashMap;
 
-use crate::constraint::{BodySlot, Constraint, DrivenCoordinate, Driver, Prismatic, Revolute};
+use crate::constraint::{
+    AngleRatio, BodySlot, CamContact, Constraint, DrivenCoordinate, Driver, FollowerShape,
+    PinInSlot, Prismatic, Revolute, Spring,
+};
+use crate::curves::{CamProfile, Curve};
 use crate::error::SolverError;
 use crate::planar::{Pose2, V2};
-use crate::schema::{self, BodyKind, DriverCoordinate, Joint, Mechanism, PointRef, Vec3};
+use crate::schema::{
+    self, BodyKind, DriverCoordinate, FollowerType, Joint, Mechanism, PointRef, SlotCurve, Vec3,
+};
 use crate::validate::{joint_common, joint_kind, validate};
 
 /// A plane's frame in world coordinates: `world = origin + x·u + y·v + z·normal`.
@@ -113,6 +119,13 @@ pub enum Link {
     Prismatic(Prismatic),
 }
 
+/// What one joint of the graph becomes.
+enum Compiled {
+    Link(Link),
+    Constraint(Box<dyn Constraint>),
+    Spring(Spring),
+}
+
 /// The compiled mechanism.
 #[derive(Debug)]
 pub struct Model {
@@ -121,6 +134,7 @@ pub struct Model {
     pub constraints: Vec<Box<dyn Constraint>>,
     pub drivers: Vec<Driver>,
     pub links: Vec<(usize, usize, Link)>,
+    pub springs: Vec<Spring>,
     pub planes: HashMap<String, PlaneFrame>,
     body_index: HashMap<String, usize>,
 }
@@ -197,23 +211,29 @@ impl Model {
             constraints: Vec::new(),
             drivers: Vec::new(),
             links: Vec::new(),
+            springs: Vec::new(),
             planes,
             body_index,
         };
         let mut by_joint: HashMap<String, Link> = HashMap::new();
         for (i, joint) in mechanism.joints.iter().enumerate() {
-            let link = model.compile_joint(i, joint)?;
             let common = joint_common(joint);
             let (a, b) = (
                 model.body_index[common.body_a],
                 model.body_index[common.body_b],
             );
-            match &link {
-                Link::Revolute(r) => model.constraints.push(Box::new(r.clone())),
-                Link::Prismatic(p) => model.constraints.push(Box::new(p.clone())),
+            match model.compile_joint(i, joint, mechanism)? {
+                Compiled::Link(link) => {
+                    match &link {
+                        Link::Revolute(r) => model.constraints.push(Box::new(r.clone())),
+                        Link::Prismatic(p) => model.constraints.push(Box::new(p.clone())),
+                    }
+                    by_joint.insert(common.id.to_owned(), link.clone());
+                    model.links.push((a, b, link));
+                }
+                Compiled::Constraint(c) => model.constraints.push(c),
+                Compiled::Spring(spring) => model.springs.push(spring),
             }
-            by_joint.insert(common.id.to_owned(), link.clone());
-            model.links.push((a, b, link));
         }
         for (index, driver) in mechanism.drivers.iter().enumerate() {
             let path = format!("drivers[{index}]");
@@ -274,7 +294,91 @@ impl Model {
         Ok(local_in_plane(body, plane, local, &self.planes))
     }
 
-    fn compile_joint(&self, i: usize, joint: &Joint) -> Result<Link, SolverError> {
+    /// A new extra unknown (a curve parameter) at the end of the state.
+    fn aux(&mut self) -> usize {
+        self.n_vars += 1;
+        self.n_vars - 1
+    }
+
+    /// The body both `a` and `b` turn on: one with a revolute joint to each.
+    fn carrier(mechanism: &Mechanism, a: &str, b: &str) -> Option<String> {
+        let partners = |body: &str| -> Vec<String> {
+            mechanism
+                .joints
+                .iter()
+                .filter(|j| matches!(j, Joint::Revolute { .. }))
+                .filter_map(|j| {
+                    let c = joint_common(j);
+                    if c.body_a == body {
+                        Some(c.body_b.to_owned())
+                    } else if c.body_b == body {
+                        Some(c.body_a.to_owned())
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        };
+        let of_b = partners(b);
+        partners(a).into_iter().find(|c| of_b.contains(c))
+    }
+
+    /// A curve or profile cut in `body` must be in the joint's plane frame. A spatial ground has
+    /// no 2D frame of its own, so such a body is refused.
+    fn require_planar_frame(&self, body: usize, id: &str, path: &str) -> Result<(), SolverError> {
+        let info = &self.bodies[body];
+        if info.plane.is_none() {
+            return Err(SolverError::invalid(
+                path,
+                format!(
+                    "Joint {id} cuts its curve in body {}, which has no plane; give that body the joint's plane",
+                    info.id
+                ),
+            ));
+        }
+        Ok(())
+    }
+
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the parts of one ratio constraint"
+    )]
+    fn angle_ratio(
+        &self,
+        id: String,
+        a: usize,
+        b: usize,
+        ratio: f64,
+        phase: f64,
+        mechanism: &Mechanism,
+        path: &str,
+    ) -> Result<Compiled, SolverError> {
+        let carrier = Self::carrier(mechanism, &self.bodies[a].id, &self.bodies[b].id)
+            .and_then(|c| self.body_index.get(&c).copied())
+            .ok_or_else(|| {
+                SolverError::invalid(
+                    path,
+                    format!(
+                        "Joint {id} needs both wheels pinned by revolute joints to one carrier body"
+                    ),
+                )
+            })?;
+        Ok(Compiled::Constraint(Box::new(AngleRatio {
+            id,
+            a: self.bodies[a].slot,
+            b: self.bodies[b].slot,
+            carrier: self.bodies[carrier].slot,
+            ratio,
+            phase,
+        })))
+    }
+
+    fn compile_joint(
+        &mut self,
+        i: usize,
+        joint: &Joint,
+        mechanism: &Mechanism,
+    ) -> Result<Compiled, SolverError> {
         let path = format!("joints[{i}]");
         let common = joint_common(joint);
         let (a, b) = (
@@ -302,18 +406,19 @@ impl Model {
                         ));
                     }
                 }
-                Ok(Link::Revolute(Revolute {
+                Ok(Compiled::Link(Link::Revolute(Revolute {
                     id,
                     a: slot_a,
                     anchor_a: self.anchor(&plane, anchor_a, &path)?,
                     b: slot_b,
                     anchor_b: self.anchor(&plane, anchor_b, &path)?,
-                }))
+                })))
             }
             Joint::Prismatic {
                 anchor_a,
                 anchor_b,
                 axis_local_a,
+                limits,
                 ..
             } => {
                 let body_a = &self.bodies[a];
@@ -336,19 +441,119 @@ impl Model {
                         format!("Prismatic joint {id} needs a slide axis in the plane"),
                     ));
                 }
-                Ok(Link::Prismatic(Prismatic {
+                Ok(Compiled::Link(Link::Prismatic(Prismatic {
                     id,
                     a: slot_a,
                     anchor_a: self.anchor(&plane, anchor_a, &path)?,
                     axis: axis * (1.0 / len),
                     b: slot_b,
                     anchor_b: self.anchor(&plane, anchor_b, &path)?,
-                }))
+                    limits: limits.map(|(lo, hi)| (lo.min(hi), lo.max(hi))),
+                })))
             }
+            Joint::PinInSlot { pin, slot, .. } => {
+                let pin_index = self.body_index[pin.body_id.as_str()];
+                let slot_index = if pin_index == a { b } else { a };
+                self.require_planar_frame(slot_index, &id, &path)?;
+                let curve = match slot {
+                    SlotCurve::LineSegment { start, end } => Curve::Line {
+                        start: V2::new(start.x, start.y),
+                        end: V2::new(end.x, end.y),
+                    },
+                    SlotCurve::CircularArc {
+                        center,
+                        radius,
+                        angle_start,
+                        angle_end,
+                    } => Curve::Arc {
+                        center: V2::new(center.x, center.y),
+                        radius: *radius,
+                        a0: *angle_start,
+                        a1: *angle_end,
+                    },
+                    SlotCurve::CubicBspline {
+                        control_points,
+                        knots,
+                    } => Curve::bspline(
+                        control_points.iter().map(|p| V2::new(p.x, p.y)).collect(),
+                        knots.clone(),
+                    )
+                    .map_err(|e| SolverError::invalid(&path, format!("Slot of joint {id}: {e}")))?,
+                };
+                let pin_local = self.anchor(&plane, pin, &path)?;
+                Ok(Compiled::Constraint(Box::new(PinInSlot {
+                    id,
+                    pin_body: self.bodies[pin_index].slot,
+                    pin: pin_local,
+                    slot_body: self.bodies[slot_index].slot,
+                    curve,
+                    s_index: self.aux(),
+                })))
+            }
+            Joint::GearMesh { ratio, phase, .. } => {
+                self.angle_ratio(id, a, b, *ratio, *phase, mechanism, &path)
+            }
+            Joint::Belt { ratio, crossed, .. } => {
+                let signed = if *crossed { -*ratio } else { *ratio };
+                self.angle_ratio(id, a, b, signed, 0.0, mechanism, &path)
+            }
+            Joint::CamFollower {
+                follower,
+                follower_point,
+                roller_radius,
+                ..
+            } => {
+                let (cam_index, follower_index) = if mechanism.bodies[a].kind == BodyKind::Cam {
+                    (a, b)
+                } else {
+                    (b, a)
+                };
+                self.require_planar_frame(cam_index, &id, &path)?;
+                let Some(cam) = &mechanism.bodies[cam_index].cam else {
+                    return Err(SolverError::invalid(
+                        path,
+                        format!("Joint {id} has no cam profile"),
+                    ));
+                };
+                let shape = match follower {
+                    FollowerType::Knife => FollowerShape::Knife,
+                    FollowerType::Flat => FollowerShape::Flat,
+                    FollowerType::Roller => FollowerShape::Roller(roller_radius.unwrap_or(0.0)),
+                };
+                let point = self.anchor(&plane, follower_point, &path)?;
+                Ok(Compiled::Constraint(Box::new(CamContact {
+                    id,
+                    cam: self.bodies[cam_index].slot,
+                    profile: CamProfile {
+                        base: cam.base_radius,
+                        a: cam.fourier.a.clone(),
+                        b: cam.fourier.b.clone(),
+                    },
+                    follower: self.bodies[follower_index].slot,
+                    point,
+                    shape,
+                    psi_index: self.aux(),
+                })))
+            }
+            Joint::Spring {
+                anchor_a,
+                anchor_b,
+                stiffness,
+                free_length,
+                ..
+            } => Ok(Compiled::Spring(Spring {
+                id,
+                a: slot_a,
+                anchor_a: self.anchor(&plane, anchor_a, &path)?,
+                b: slot_b,
+                anchor_b: self.anchor(&plane, anchor_b, &path)?,
+                stiffness: *stiffness,
+                free_length: *free_length,
+            })),
             other => Err(SolverError::invalid(
                 path,
                 format!(
-                    "Joint {id} is a {} joint; this solver build handles revolute and prismatic joints only",
+                    "Joint {id} is a {} joint; this solver build handles planar joints only",
                     joint_kind(other)
                 ),
             )),

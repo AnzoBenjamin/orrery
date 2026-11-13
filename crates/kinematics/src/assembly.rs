@@ -167,7 +167,7 @@ impl Model {
     }
 
     /// Levenberg–Marquardt from `start`. Returns the final state and whether it converged.
-    fn levenberg_marquardt(
+    pub(crate) fn levenberg_marquardt(
         &self,
         start: Vec<f64>,
         drive: &[f64],
@@ -271,10 +271,33 @@ impl Model {
                 .collect(),
         };
         let mut best: Option<Assembly> = None;
+        // A pose that satisfies the equations but leaves a slot or slider range.
+        let mut outside_range: Option<Vec<JointResidual>> = None;
         for start in starts {
             let (assembly, converged) = self.levenberg_marquardt(start, drive, options);
             if converged {
-                return Ok(assembly);
+                let assembly = if self.springs.is_empty() {
+                    assembly
+                } else {
+                    self.relax(assembly, drive, options)
+                };
+                // A pin past the end of its slot, or a slider past its limits, is not a pose the
+                // machine can take (requirement 4.3). Another start may find one that is.
+                let outside: Vec<JointResidual> = self
+                    .constraints
+                    .iter()
+                    .filter_map(|c| {
+                        c.violation(&assembly.q).map(|v| JointResidual {
+                            joint_id: c.source_id().to_owned(),
+                            residual: v,
+                        })
+                    })
+                    .collect();
+                if outside.is_empty() {
+                    return Ok(assembly);
+                }
+                outside_range.get_or_insert(outside);
+                continue;
             }
             if best
                 .as_ref()
@@ -282,6 +305,10 @@ impl Model {
             {
                 best = Some(assembly);
             }
+        }
+        if let Some(mut worst_joints) = outside_range {
+            worst_joints.sort_by(|a, b| b.residual.total_cmp(&a.residual));
+            return Err(SolverError::AssemblyFailed { worst_joints });
         }
         let q = best.map(|b| b.q).unwrap_or_else(|| vec![0.0; self.n_vars]);
         Err(SolverError::AssemblyFailed {
@@ -338,6 +365,10 @@ impl Model {
                 q[i + 1] = p.y;
                 q[i + 2] = p.theta;
             }
+        }
+        // Curve parameters start where the curve passes closest to its partner.
+        for c in &self.constraints {
+            c.init_aux(&mut q);
         }
         q
     }

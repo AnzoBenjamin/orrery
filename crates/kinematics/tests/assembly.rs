@@ -193,14 +193,27 @@ fn wrong_driver_or_seed_sizes_are_typed_errors() {
 
 #[test]
 fn joints_and_bodies_beyond_this_build_are_refused_with_a_reason() {
-    for (name, message) in [
+    // A spatial joint between planar links.
+    let mut spherical = golden("four-bar-crank-rocker.json");
+    spherical["joints"][1]["kind"] = "spherical".into();
+    for (name, value, message) in [
         (
-            "gear-train-and-belts.json",
-            "handles revolute and prismatic joints only",
+            "spatial-rssr.json",
+            golden("spatial-rssr.json"),
+            "handles planar bodies only",
         ),
-        ("spatial-rssr.json", "handles planar bodies only"),
+        (
+            "two-plane-subsystems.json",
+            golden("two-plane-subsystems.json"),
+            "handles planar bodies only",
+        ),
+        (
+            "a spherical joint in a four-bar",
+            spherical,
+            "handles planar joints only",
+        ),
     ] {
-        match Model::new(&mechanism(&golden(name))) {
+        match Model::new(&mechanism(&value)) {
             Err(SolverError::InvalidGraph(issues)) => {
                 assert!(
                     issues.iter().any(|i| i.message.contains(message)),

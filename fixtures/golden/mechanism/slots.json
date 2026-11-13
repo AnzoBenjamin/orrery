@@ -60,15 +60,6 @@
             "z": 0.0
           },
           "role": "joint_anchor"
-        },
-        {
-          "id": "follower-axle",
-          "local": {
-            "x": 0.2,
-            "y": 0.2,
-            "z": 0.0
-          },
-          "role": "joint_anchor"
         }
       ],
       "status": "observed",
@@ -116,6 +107,15 @@
             "z": 0.0
           },
           "role": "joint_anchor"
+        },
+        {
+          "id": "column",
+          "local": {
+            "x": -0.02,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
         }
       ],
       "status": "observed",
@@ -141,13 +141,13 @@
       "confidence": 1.0
     },
     {
-      "id": "follower",
+      "id": "pin-block",
       "label": "D",
-      "kind": "link",
+      "kind": "slider_block",
       "planeId": "plane-main",
       "points": [
         {
-          "id": "axle",
+          "id": "slide",
           "local": {
             "x": 0,
             "y": 0,
@@ -158,11 +158,11 @@
         {
           "id": "pin",
           "local": {
-            "x": 0.05,
+            "x": 0,
             "y": 0,
             "z": 0.0
           },
-          "role": "joint_anchor"
+          "role": "tracked"
         }
       ],
       "status": "observed",
@@ -258,63 +258,68 @@
       "slot": {
         "type": "circular_arc",
         "center": {
-          "x": 0,
+          "x": -0.2,
           "y": 0
         },
-        "radius": 0.16,
-        "angleStart": 2.6,
-        "angleEnd": 3.6
+        "radius": 0.1,
+        "angleStart": 0.7,
+        "angleEnd": 2.0
       },
       "status": "inferred",
       "confidence": 0.6
     },
     {
-      "id": "j-follower",
-      "kind": "revolute",
-      "bodyA": "ground",
-      "bodyB": "follower",
+      "id": "pin-block-slide",
+      "kind": "prismatic",
+      "bodyA": "yoke",
+      "bodyB": "pin-block",
       "anchorA": {
-        "bodyId": "ground",
-        "pointId": "follower-axle"
+        "bodyId": "yoke",
+        "pointId": "column"
       },
       "anchorB": {
-        "bodyId": "follower",
-        "pointId": "axle"
+        "bodyId": "pin-block",
+        "pointId": "slide"
+      },
+      "axisLocalA": {
+        "x": 0,
+        "y": 1,
+        "z": 0
       },
       "status": "observed",
-      "confidence": 0.98
+      "confidence": 0.97
     },
     {
       "id": "slot-spline",
       "kind": "pin_in_slot",
-      "bodyA": "follower",
-      "bodyB": "lever",
+      "bodyA": "pin-block",
+      "bodyB": "ground",
       "pin": {
-        "bodyId": "follower",
+        "bodyId": "pin-block",
         "pointId": "pin"
       },
       "slot": {
         "type": "cubic_bspline",
         "controlPoints": [
           {
-            "x": 0,
-            "y": 0.1
+            "x": -0.13,
+            "y": 0.06
           },
           {
-            "x": 0.02,
-            "y": 0.14
+            "x": -0.095,
+            "y": 0.075
           },
           {
-            "x": 0.05,
-            "y": 0.16
+            "x": -0.06,
+            "y": 0.05
           },
           {
-            "x": 0.09,
-            "y": 0.15
+            "x": -0.025,
+            "y": 0.07
           },
           {
-            "x": 0.12,
-            "y": 0.12
+            "x": 0.01,
+            "y": 0.06
           }
         ],
         "knots": [0, 0, 0, 0, 0.5, 1, 1, 1, 1]

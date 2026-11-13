@@ -2,6 +2,7 @@
 //! "Constraints"). Each constraint reads body poses from the state vector `q` and writes its
 //! residual rows; driver values arrive separately so the same model serves every crank angle.
 
+use crate::curves::{CamProfile, Curve};
 use crate::planar::{Pose2, V2};
 
 /// Where a body's pose comes from: fixed (the ground) or three unknowns in `q`.
@@ -59,6 +60,14 @@ pub trait Constraint: std::fmt::Debug + Send + Sync {
     fn residual(&self, q: &[f64], drive: &[f64], out: &mut [f64]);
     /// Appends the Jacobian rows, starting at `row`, with respect to `q`.
     fn jacobian(&self, q: &[f64], drive: &[f64], row: usize, out: &mut Vec<Entry>);
+    /// Sets this constraint's own unknowns (curve parameters) to a good start for the body
+    /// poses already in `q`.
+    fn init_aux(&self, _q: &mut [f64]) {}
+    /// How far the pose at `q` is outside a range the joint allows (a slot's ends, a slider's
+    /// limits), in meters, or `None` when it is inside.
+    fn violation(&self, _q: &[f64]) -> Option<f64> {
+        None
+    }
 }
 
 /// Planar revolute joint: the two anchors coincide (2 rows, meters).
@@ -113,6 +122,8 @@ pub struct Prismatic {
     pub axis: V2,
     pub b: BodySlot,
     pub anchor_b: V2,
+    /// Allowed displacement range, in meters.
+    pub limits: Option<(f64, f64)>,
 }
 
 impl Prismatic {
@@ -171,6 +182,12 @@ impl Constraint for Prismatic {
         push_theta(out, row + 1, self.b, 1.0);
         push_theta(out, row + 1, self.a, -1.0);
     }
+    fn violation(&self, q: &[f64]) -> Option<f64> {
+        let (lo, hi) = self.limits?;
+        let s = self.displacement(q);
+        let outside = (lo - s).max(s - hi);
+        (outside > 1e-9).then_some(outside)
+    }
 }
 
 /// What a driver sets.
@@ -222,5 +239,278 @@ impl Constraint for Driver {
             }
             DrivenCoordinate::Displacement(p) => p.displacement_jacobian(q, row, out),
         }
+    }
+}
+
+/// Pin-in-slot: the pin coincides with the slot curve at parameter `s`, an extra unknown
+/// (2 rows, 1 unknown).
+#[derive(Debug, Clone)]
+pub struct PinInSlot {
+    pub id: String,
+    pub pin_body: BodySlot,
+    pub pin: V2,
+    pub slot_body: BodySlot,
+    /// The slot in the slot body's frame.
+    pub curve: Curve,
+    /// Index of `s` in `q`.
+    pub s_index: usize,
+}
+
+impl Constraint for PinInSlot {
+    fn source_id(&self) -> &str {
+        &self.id
+    }
+    fn dim(&self) -> usize {
+        2
+    }
+    fn residual(&self, q: &[f64], _: &[f64], out: &mut [f64]) {
+        let (c, _) = self.curve.eval(q[self.s_index]);
+        let d = self.pin_body.pose(q).apply(self.pin) - self.slot_body.pose(q).apply(c);
+        out[0] = d.x;
+        out[1] = d.y;
+    }
+    fn jacobian(&self, q: &[f64], _: &[f64], row: usize, out: &mut Vec<Entry>) {
+        let (pp, ps) = (self.pin_body.pose(q), self.slot_body.pose(q));
+        let (c, dc) = self.curve.eval(q[self.s_index]);
+        let along = ps.rotate(dc);
+        let (dp, dsl) = (pp.rotate_derivative(self.pin), ps.rotate_derivative(c));
+        for (k, w) in [V2::new(1.0, 0.0), V2::new(0.0, 1.0)]
+            .into_iter()
+            .enumerate()
+        {
+            push_point(out, row + k, self.pin_body, w, dp, 1.0);
+            push_point(out, row + k, self.slot_body, w, dsl, -1.0);
+            out.push((row + k, self.s_index, -w.dot(along)));
+        }
+    }
+    fn init_aux(&self, q: &mut [f64]) {
+        let target = self.pin_body.pose(q).apply(self.pin);
+        let pose = self.slot_body.pose(q);
+        let (lo, hi) = self.curve.bounds();
+        let samples = 64_u32;
+        let best = (0..=samples)
+            .map(|i| lo + (hi - lo) * f64::from(i) / f64::from(samples))
+            .min_by(|a, b| {
+                let da = (pose.apply(self.curve.eval(*a).0) - target).norm();
+                let db = (pose.apply(self.curve.eval(*b).0) - target).norm();
+                da.total_cmp(&db)
+            })
+            .unwrap_or(lo);
+        q[self.s_index] = best;
+    }
+    fn violation(&self, q: &[f64]) -> Option<f64> {
+        let s = q[self.s_index];
+        let (lo, hi) = self.curve.bounds();
+        let outside = (lo - s).max(s - hi);
+        // In meters: the parameter overshoot times the curve's speed at the nearer end.
+        let end = if s < lo { lo } else { hi };
+        let meters = outside * self.curve.eval(end).1.norm();
+        (outside > 0.0 && meters > 1e-9).then_some(meters)
+    }
+}
+
+/// Gear mesh or belt: `(θA − θC) = ratio · (θB − θC) + phase`, angles relative to the carrier `C`
+/// both wheels turn on (1 row, radians). For a gear, `ratio` is teeth B over teeth A, negative for
+/// an external mesh; for a belt, radius B over radius A, negative when crossed.
+#[derive(Debug, Clone)]
+pub struct AngleRatio {
+    pub id: String,
+    pub a: BodySlot,
+    pub b: BodySlot,
+    pub carrier: BodySlot,
+    pub ratio: f64,
+    pub phase: f64,
+}
+
+impl Constraint for AngleRatio {
+    fn source_id(&self) -> &str {
+        &self.id
+    }
+    fn dim(&self) -> usize {
+        1
+    }
+    fn residual(&self, q: &[f64], _: &[f64], out: &mut [f64]) {
+        let c = self.carrier.pose(q).theta;
+        let (ta, tb) = (self.a.pose(q).theta - c, self.b.pose(q).theta - c);
+        out[0] = self.ratio.mul_add(-tb, ta) - self.phase;
+    }
+    fn jacobian(&self, _: &[f64], _: &[f64], row: usize, out: &mut Vec<Entry>) {
+        push_theta(out, row, self.a, 1.0);
+        push_theta(out, row, self.b, -self.ratio);
+        push_theta(out, row, self.carrier, self.ratio - 1.0);
+    }
+}
+
+/// The follower's contact with a cam.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FollowerShape {
+    /// The follower point touches the profile.
+    Knife,
+    /// The follower point is the center of a roller of this radius.
+    Roller(f64),
+    /// A flat face through the follower point along the follower's local x axis.
+    Flat,
+}
+
+/// Cam and follower in contact at profile angle `ψ`, an extra unknown (2 rows, 1 unknown).
+#[derive(Debug, Clone)]
+pub struct CamContact {
+    pub id: String,
+    pub cam: BodySlot,
+    pub profile: CamProfile,
+    pub follower: BodySlot,
+    pub point: V2,
+    pub shape: FollowerShape,
+    /// Index of `ψ` in `q`.
+    pub psi_index: usize,
+}
+
+impl CamContact {
+    /// The cam-frame point the follower point must reach, and its derivative in ψ.
+    fn target(&self, psi: f64) -> (V2, V2) {
+        match self.shape {
+            FollowerShape::Roller(r) => self.profile.roller_center(psi, r),
+            FollowerShape::Knife | FollowerShape::Flat => {
+                let (c, c1, _) = self.profile.point(psi);
+                (c, c1)
+            }
+        }
+    }
+}
+
+impl Constraint for CamContact {
+    fn source_id(&self) -> &str {
+        &self.id
+    }
+    fn dim(&self) -> usize {
+        2
+    }
+    fn residual(&self, q: &[f64], _: &[f64], out: &mut [f64]) {
+        let (pc, pf) = (self.cam.pose(q), self.follower.pose(q));
+        let psi = q[self.psi_index];
+        let follower = pf.apply(self.point);
+        if self.shape == FollowerShape::Flat {
+            let (c, c1, _) = self.profile.point(psi);
+            let normal = pf.rotate(V2::new(0.0, 1.0));
+            out[0] = normal.dot(pc.apply(c) - follower);
+            out[1] = normal.dot(pc.rotate(c1));
+        } else {
+            let d = follower - pc.apply(self.target(psi).0);
+            out[0] = d.x;
+            out[1] = d.y;
+        }
+    }
+    fn jacobian(&self, q: &[f64], _: &[f64], row: usize, out: &mut Vec<Entry>) {
+        let (pc, pf) = (self.cam.pose(q), self.follower.pose(q));
+        let psi = q[self.psi_index];
+        if self.shape == FollowerShape::Flat {
+            let (c, c1, c2) = self.profile.point(psi);
+            let normal = pf.rotate(V2::new(0.0, 1.0));
+            let d_normal = pf.rotate_derivative(V2::new(0.0, 1.0));
+            let gap = pc.apply(c) - pf.apply(self.point);
+            // Row 1: the profile point lies on the face.
+            push_point(out, row, self.cam, normal, pc.rotate_derivative(c), 1.0);
+            push_point(
+                out,
+                row,
+                self.follower,
+                normal,
+                pf.rotate_derivative(self.point),
+                -1.0,
+            );
+            push_theta(out, row, self.follower, d_normal.dot(gap));
+            out.push((row, self.psi_index, normal.dot(pc.rotate(c1))));
+            // Row 2: the profile tangent there is parallel to the face.
+            push_theta(out, row + 1, self.cam, normal.dot(pc.rotate_derivative(c1)));
+            push_theta(out, row + 1, self.follower, d_normal.dot(pc.rotate(c1)));
+            out.push((row + 1, self.psi_index, normal.dot(pc.rotate(c2))));
+        } else {
+            let (t, dt) = self.target(psi);
+            let (df, dc) = (pf.rotate_derivative(self.point), pc.rotate_derivative(t));
+            let along = pc.rotate(dt);
+            for (k, w) in [V2::new(1.0, 0.0), V2::new(0.0, 1.0)]
+                .into_iter()
+                .enumerate()
+            {
+                push_point(out, row + k, self.follower, w, df, 1.0);
+                push_point(out, row + k, self.cam, w, dc, -1.0);
+                out.push((row + k, self.psi_index, -w.dot(along)));
+            }
+        }
+    }
+    fn init_aux(&self, q: &mut [f64]) {
+        let samples = 180_u32;
+        let mut residual = [0.0; 2];
+        let mut trial = q.to_vec();
+        let best = (0..samples)
+            .map(|i| std::f64::consts::TAU * f64::from(i) / f64::from(samples))
+            .min_by(|a, b| {
+                let mut cost = |psi: f64| {
+                    trial[self.psi_index] = psi;
+                    self.residual(&trial, &[], &mut residual);
+                    residual[0].hypot(residual[1])
+                };
+                cost(*a).total_cmp(&cost(*b))
+            })
+            .unwrap_or(0.0);
+        q[self.psi_index] = best;
+    }
+}
+
+/// A linear spring: energy `k (L − L₀)² / 2`, no residual rows (design: "Springs do not add
+/// residuals").
+#[derive(Debug, Clone)]
+pub struct Spring {
+    pub id: String,
+    pub a: BodySlot,
+    pub anchor_a: V2,
+    pub b: BodySlot,
+    pub anchor_b: V2,
+    pub stiffness: f64,
+    pub free_length: f64,
+}
+
+impl Spring {
+    /// The spring's length at `q`, in meters.
+    #[must_use]
+    pub fn length(&self, q: &[f64]) -> f64 {
+        (self.b.pose(q).apply(self.anchor_b) - self.a.pose(q).apply(self.anchor_a)).norm()
+    }
+
+    /// The spring's energy in joules.
+    #[must_use]
+    pub fn energy(&self, q: &[f64]) -> f64 {
+        let stretch = self.length(q) - self.free_length;
+        0.5 * self.stiffness * stretch * stretch
+    }
+
+    /// The gradient of the length with respect to `q`, as (column, value) entries.
+    #[must_use]
+    pub fn length_gradient(&self, q: &[f64]) -> Vec<(usize, f64)> {
+        let (pa, pb) = (self.a.pose(q), self.b.pose(q));
+        let d = pb.apply(self.anchor_b) - pa.apply(self.anchor_a);
+        let len = d.norm();
+        if len < 1e-15 {
+            return Vec::new();
+        }
+        let u = d * (1.0 / len);
+        let mut rows = Vec::new();
+        push_point(
+            &mut rows,
+            0,
+            self.b,
+            u,
+            pb.rotate_derivative(self.anchor_b),
+            1.0,
+        );
+        push_point(
+            &mut rows,
+            0,
+            self.a,
+            u,
+            pa.rotate_derivative(self.anchor_a),
+            -1.0,
+        );
+        rows.into_iter().map(|(_, c, v)| (c, v)).collect()
     }
 }

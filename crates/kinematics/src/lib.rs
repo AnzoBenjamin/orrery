@@ -5,6 +5,8 @@
 
 pub mod assembly;
 pub mod constraint;
+pub mod curves;
+pub mod energy;
 pub mod error;
 pub mod model;
 pub mod planar;

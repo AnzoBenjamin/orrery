@@ -17,10 +17,12 @@
   - [x] 2.2 Implement Levenberg–Marquardt assembly with `faer` sparse and dense paths, seeded branch continuity, and `AssemblyFailed` diagnostics.
     - _Requirements: 4.1, 4.2, 4.3_
     - `kinematics::assembly`: Levenberg–Marquardt with Marquardt scaling, each step a damped least-squares QR (`faer` dense below 30 unknowns, sparse QR above, selectable for tests). A seed keeps the branch; without one, deterministic starting poses are built outward from the ground. Failures return `AssemblyFailed` with the three worst joints. Tested against closed-form four-bar and slider-crank positions through a full turn, with the branch held.
-  - [ ] 2.3 Implement pin-in-slot, gear mesh (external, internal, rack and pinion), belt, and cam-follower constraints, plus cam Fourier profiles and slot curves.
+  - [x] 2.3 Implement pin-in-slot, gear mesh (external, internal, rack and pinion), belt, and cam-follower constraints, plus cam Fourier profiles and slot curves.
     - _Requirements: 3.1, 3.2, 3.5, 3.6_
-  - [ ] 2.4 Implement spring energy terms and constrained energy minimization.
+    - Pin-in-slot and cam contact carry their curve parameter as an extra unknown; gears and belts relate angles to the carrier both wheels are pinned to; knife, roller, and flat-faced followers; slot curves (line, arc, cubic B-spline by de Boor) and Fourier cam profiles with derivatives and a tolerance-bounded polyline (`kinematics::curves`). A pin past its slot's end or a slider past its limits is an `AssemblyFailed`. The slots golden was redrawn so every slot holds its pin through a full turn.
+  - [x] 2.4 Implement spring energy terms and constrained energy minimization.
     - _Requirements: 4.4_
+    - `kinematics::energy`: projected Gauss–Newton in the SVD null space of the constraint Jacobian, re-assembling after each step with a backtracking line search. Tested against the closed-form and brute-force least-energy pose of a sprung lever.
   - [ ] 2.5 Property tests 1, 2, and 9 with `proptest` mechanism generators.
     - _Requirements: 4.1, 3.2_
 

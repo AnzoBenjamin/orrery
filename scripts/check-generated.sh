@@ -16,6 +16,7 @@ artifacts=(
   packages/kinematics-wasm/pkg/kinematics.d.ts
   packages/kinematics-wasm/pkg/kinematics_bg.wasm
   packages/kinematics-wasm/pkg/kinematics_bg.wasm.d.ts
+  crates/kinematics-py/python/orrery_kinematics/_native/__init__.pyi
   services/engine/src/orrery_engine/generated/contract.py
   services/engine/src/orrery_engine/generated/__init__.py
 )

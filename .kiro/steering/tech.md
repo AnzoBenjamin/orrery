@@ -77,7 +77,7 @@ The engine runs on CPU only. There is no GPU anywhere in the stack. See the visi
 
 - `kinematics`: pure Rust. `faer` for dense and sparse linear algebra, `parry2d` / `parry3d` for collision (the `-f64` builds, `parry2d-f64` and `parry3d-f64`, since the solver is double precision throughout), `serde` for I/O.
 - `kinematics-wasm`: `wasm-bindgen`, run inside a Web Worker. Typed-array I/O.
-- `kinematics-py`: PyO3 plus maturin, NumPy array I/O.
+- `kinematics-py`: PyO3 plus maturin, NumPy array I/O, stubs from `pyo3-stub-gen`. Imported as `orrery_kinematics`, a uv workspace member, so `uv sync` builds it. The toolbox sets `PYO3_PYTHON` to its uv-managed interpreter. The engine image will need a Rust build stage once the engine imports it.
 - One solver implementation shared by browser and engine. No reimplementation in TypeScript or Python.
 
 ## Synthetic lab (`tools/lab`)

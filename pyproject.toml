@@ -1,6 +1,7 @@
-# uv workspace root. It is not a package itself; members live in services/ and tools/.
+# uv workspace root. It is not a package itself; members live in services/ and tools/, plus the
+# solver's Python bindings (built by maturin from crates/kinematics-py).
 [tool.uv.workspace]
-members = ["services/*", "tools/*"]
+members = ["services/*", "tools/*", "crates/kinematics-py"]
 
 [dependency-groups]
 dev = [
@@ -17,7 +18,7 @@ required-version = "==0.13.8"
 [tool.ruff]
 target-version = "py313"
 line-length = 100
-extend-exclude = ["**/generated/**", ".kiro"]
+extend-exclude = ["**/generated/**", ".kiro", "crates/kinematics-py/python/orrery_kinematics/_native"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP", "N", "S", "SIM", "RUF", "PL", "PT", "TID", "ANN", "BLE", "C4", "PERF"]
@@ -29,11 +30,11 @@ ignore = ["PLR0913"]
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.13"
-include = ["services", "tools"]
+include = ["services", "tools", "crates/kinematics-py"]
 exclude = ["**/generated/**", "**/.venv/**", "**/node_modules/**"]
 venvPath = "."
 venv = ".venv"
 
 [tool.pytest.ini_options]
-testpaths = ["services", "tools"]
+testpaths = ["services", "tools", "crates/kinematics-py/tests"]
 addopts = ["--import-mode=importlib", "--strict-markers"]

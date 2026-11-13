@@ -2,6 +2,8 @@ packages:
   - apps/*
   - packages/*
   - e2e
+  # Only for its `codegen` script (the Python bindings' type stubs).
+  - crates/kinematics-py
 
 # Exact versions on `pnpm add`, so the lockfile and package.json agree on what is pinned.
 savePrefix: ""

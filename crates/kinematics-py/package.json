@@ -1,0 +1,12 @@
+{
+  "name": "@orrery/kinematics-py",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Runs the Python bindings' stub generator in `pnpm codegen`. The package itself is built by maturin through uv.",
+  "scripts": {
+    "codegen": "cargo run --quiet --locked --bin stub_gen"
+  },
+  "dependencies": {
+    "@orrery/schema": "workspace:*"
+  }
+}

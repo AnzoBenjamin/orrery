@@ -31,6 +31,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     UV_PYTHON_DOWNLOADS=never \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/workspace/.venv \
+    PYO3_PYTHON=/opt/uv-python/python3 \
     PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright \
     TURBO_TELEMETRY_DISABLED=1 \
     PATH=/opt/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -62,7 +63,9 @@ RUN set -eux; \
     echo "${sum}  /tmp/uv.tgz" | sha256sum -c -; \
     tar -xzf /tmp/uv.tgz -C /usr/local/bin --strip-components=1; \
     rm /tmp/uv.tgz; \
-    UV_PYTHON_DOWNLOADS=automatic uv python install "${PYTHON_VERSION}"
+    UV_PYTHON_DOWNLOADS=automatic uv python install "${PYTHON_VERSION}"; \
+    # PYO3_PYTHON: the interpreter crates/kinematics-py builds against.
+    ln -s "$(uv python find --no-project "${PYTHON_VERSION}")" /opt/uv-python/python3
 
 # Rust
 RUN set -eux; \

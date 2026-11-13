@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 uv sync --frozen --all-packages --quiet
 
 shopt -s nullglob
-members=(services/*/pyproject.toml tools/*/pyproject.toml)
+members=(services/*/pyproject.toml tools/*/pyproject.toml crates/kinematics-py/pyproject.toml)
 
 case "$1" in
   lint)

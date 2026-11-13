@@ -1,0 +1,30 @@
+[project]
+name = "orrery-kinematics"
+version = "0.1.0"
+description = "Orrery's mechanism solver for Python: the same Rust solver the browser runs."
+license = "Apache-2.0"
+requires-python = ">=3.13,<3.14"
+dependencies = ["numpy==2.5.4"]
+
+[build-system]
+requires = ["maturin==1.16.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+module-name = "orrery_kinematics._native"
+python-source = "python"
+manifest-path = "Cargo.toml"
+# Tests sweep and fit thousands of times; a debug build makes them minutes long.
+profile = "release"
+locked = true
+
+# uv rebuilds the extension when any of these change, including the solver crate it wraps.
+[tool.uv]
+cache-keys = [
+  { file = "pyproject.toml" },
+  { file = "Cargo.toml" },
+  { file = "src/**/*.rs" },
+  { file = "../kinematics/Cargo.toml" },
+  { file = "../kinematics/src/**/*.rs" },
+  { file = "../../Cargo.lock" },
+]

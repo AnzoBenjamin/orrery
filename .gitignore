@@ -57,3 +57,6 @@ codexconfig.txt
 /debug/
 
 # The .kiro directory is committed and must never be ignored (Kiroween rule, checked in CI).
+
+# Extension modules maturin builds in place for editable installs.
+crates/kinematics-py/python/**/*.so

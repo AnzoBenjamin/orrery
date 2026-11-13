@@ -113,6 +113,7 @@ fn problem(observations: Vec<Observation>, angles: &[f64], loss: Loss) -> FitPro
             .iter()
             .map(|a| vec![a + 0.05 * noise.normal()])
             .collect(),
+        seeds: None,
         observations,
         camera: Camera::Plane("plane-main".into()),
         loss,

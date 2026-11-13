@@ -20,3 +20,7 @@ expect_used = "warn"
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+# Tests run the solver thousands of times (property tests, fits); unoptimized they take minutes.
+[profile.test]
+opt-level = 2

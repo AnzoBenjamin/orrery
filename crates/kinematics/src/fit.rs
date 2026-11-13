@@ -185,6 +185,9 @@ pub struct FitProblem {
     pub parameters: Vec<Parameter>,
     /// Initial driver values, one vector per frame.
     pub drive: Vec<Vec<f64>>,
+    /// Starting poses, one per frame, that pick the assembly branch (from tracked points). Without
+    /// them each frame is seeded from the previous one, and the first from the drawn pose.
+    pub seeds: Option<Vec<Vec<f64>>>,
     pub observations: Vec<Observation>,
     pub camera: Camera,
     pub loss: Loss,
@@ -517,7 +520,15 @@ pub fn fit(problem: &FitProblem) -> Result<FitResult, SolverError> {
     };
     let theta0: Vec<f64> = free.iter().map(|&p| initial[p]).collect();
     let mut model = setup.model_at(&theta0)?;
-    let poses = setup.assemble_all(&model, &problem.drive, None)?;
+    if let Some(seeds) = &problem.seeds
+        && (seeds.len() != frames || seeds.iter().any(|s| s.len() != base.n_vars))
+    {
+        return Err(SolverError::invalid(
+            "seeds",
+            "Give one starting pose per frame, sized to the state",
+        ));
+    }
+    let poses = setup.assemble_all(&model, &problem.drive, problem.seeds.as_deref())?;
     let (cam_global, cam_frames) = problem.camera.initial(frames);
     let mut est = Estimate {
         theta: theta0,

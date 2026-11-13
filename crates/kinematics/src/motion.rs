@@ -119,11 +119,22 @@ impl Model {
 
     /// Velocity of every output point with respect to driver `k`, stacked.
     pub(crate) fn output_velocity(&self, q: &[f64], drive: &[f64], k: usize) -> Vec<f64> {
-        let motion = self.point_motion(q, drive, k);
+        if self.outputs.is_empty() {
+            return Vec::new();
+        }
+        let dq = self.velocity(q, drive, k);
+        let jets: Vec<Jet> = q
+            .iter()
+            .zip(&dq)
+            .map(|(v, d)| Jet::new(*v, *d, 0.0))
+            .collect();
         self.outputs
             .iter()
-            .filter_map(|(b, p)| motion.get(&(self.bodies[*b].id.clone(), p.clone())))
-            .flat_map(|m| m.velocity)
+            .filter_map(|(b, p)| {
+                let local = *self.bodies[*b].points.get(p)?;
+                Some(self.bodies[*b].placement.point(&jets, local).map(|c| c.d1))
+            })
+            .flatten()
             .collect()
     }
 }

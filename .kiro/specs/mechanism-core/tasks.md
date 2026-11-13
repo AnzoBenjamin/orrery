@@ -52,7 +52,7 @@
     - _Requirements: 3.4, 8.3_
     - Planar bodies in any plane meet spatial joints through their `Placement` (the double Cardan golden joins two planar yokes). Outlines of bodies in crossing planes are extruded through their thickness into `parry3d-f64` prism compounds and tested in world poses; tested with two bars in perpendicular planes against a brute-force footprint check.
 
-- [ ] 5. Fitter
+- [x] 5. Fitter
   - [x] 5.1 Implement the implicit-function fitter with Schur complement on geometry parameters, robust IRLS, fixed parameters, and priors.
     - _Requirements: 7.1, 7.2, 7.3, 7.6_
     - `kinematics::fit`: free geometry parameters named by graph paths (the schema's uncertainty paths), per-frame driver values, every frame assembled exactly, `dq/d(θ, d)` from one least-squares solve per frame (exact in `q`; `Φ_θ` by central difference on the graph), the arrow-shaped Gauss–Newton system reduced by the Schur complement on `θ`, Levenberg damping, IRLS for Huber and Cauchy losses, fixed parameters, and Gaussian priors.
@@ -62,8 +62,9 @@
   - [x] 5.3 Implement covariance and per-observation residual reporting.
     - _Requirements: 7.5_
     - Standard deviations from the inverse reduced normal matrix scaled by the residual variance, written into the graph's `uncertainty` map; per-observation residuals with their final robust weights. Tested: exact recovery, noisy fits within 3σ, Cauchy against 20% outliers, fixed parameters, priors.
-  - [ ] 5.4 Property tests 5 and 6. Criterion benchmark for the 600-frame, 20-body target.
+  - [x] 5.4 Property tests 5 and 6. Criterion benchmark for the 600-frame, 20-body target.
     - _Requirements: 7.3, 7.4, 7.5_
+    - `tests/fit_properties.rs` (fixed seed, since the 3σ bound is probabilistic): noisy fits of generated crank-rockers land within 3 reported σ; Cauchy fits with up to 20% gross outliers stay within 2× the outlier-free error (floored at 1.5σ, since one clean sample's error can land far below the noise). `FitProblem::seeds` picks the assembly branch per frame. `benches/solver.rs` (criterion) on a 20-body parallelogram chain, natively on the development machine: 600-frame fit 2.3 s (target 5 s), one re-solve after a drag 0.46 ms (target 2 ms), 360-step cycle 145 ms. The cycle is above the 50 ms browser target of requirement 9.3; getting under it means sharing the per-step factorization between assembly and the singularity checks, measured in the browser by 6.2. The CI regression gate (15%) lands with the engine workflow (platform-foundation 10.2).
 
 - [ ] 6. Bindings
   - [ ] 6.1 Build `crates/kinematics-wasm` and `packages/kinematics-wasm` with the Web Worker host, typed `SolverClient`, latest-wins cancellation, and transferable buffers.

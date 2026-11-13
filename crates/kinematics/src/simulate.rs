@@ -129,6 +129,31 @@ impl Model {
         )
     }
 
+    /// The rank of the joint rows alone, and a rank indicator per column: the diagonal of their
+    /// column-pivoted QR factor relative to its largest entry. The diagonal falls with the
+    /// singular values as rows become dependent, and costs a fraction of an SVD, so it is what
+    /// every sample checks.
+    fn joint_conditioning(&self, q: &[f64], drive: &[f64]) -> (usize, Vec<f64>) {
+        let rows = self.joint_rows();
+        if rows == 0 || self.n_vars == 0 {
+            return (0, Vec::new());
+        }
+        let mut a = Mat::<f64>::zeros(rows, self.n_vars);
+        for (i, j, v) in self.jacobian(q, drive) {
+            if i < rows {
+                a[(i, j)] += v;
+            }
+        }
+        let qr = a.col_piv_qr();
+        let r = qr.R();
+        let diag: Vec<f64> = (0..r.nrows().min(r.ncols()))
+            .map(|k| r[(k, k)].abs())
+            .collect();
+        let top = diag.first().copied().unwrap_or(0.0).max(1e-300);
+        let rank = diag.iter().filter(|s| **s > 1e-8 * top).count();
+        (rank, diag.iter().map(|s| s / top).collect())
+    }
+
     /// Smallest singular value of the full Jacobian relative to the largest, the rank of the
     /// joint rows alone, and those rows' singular values relative to their largest.
     fn conditioning(&self, q: &[f64], drive: &[f64]) -> (f64, usize, Vec<f64>) {
@@ -310,7 +335,7 @@ impl Model {
         k: usize,
         tracker: &mut Tracker,
     ) {
-        let (_, rank, joint_sv) = self.conditioning(&q, drive);
+        let (rank, joint_sv) = self.joint_conditioning(&q, drive);
         let baseline = *tracker.rank.get_or_insert(rank);
         // How close the joints are to losing rank: their last kept singular value.
         let indicator = baseline
@@ -377,7 +402,7 @@ impl Model {
             let a = self
                 .assemble(&values, Some(seed), &AssemblyOptions::default())
                 .ok()?;
-            let (_, _, sv) = self.conditioning(&a.q, &values);
+            let (_, sv) = self.joint_conditioning(&a.q, &values);
             Some((sv.get(baseline - 1).copied().unwrap_or(0.0), a.q))
         };
         let ratio = 0.5 * (5.0_f64.sqrt() - 1.0);

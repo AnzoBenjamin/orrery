@@ -47,7 +47,7 @@ api POST AllowBucketKey -d "$(jq -n --arg b "$bucket_id" --arg k "$S3_ACCESS_KEY
 api POST "UpdateBucket?id=${bucket_id}" -d "$(jq -n --arg origins "$S3_CORS_ORIGINS" '{corsRules: [{
   ID: "browser-uploads",
   AllowedOrigin: ($origins | split(",")),
-  AllowedMethod: ["GET", "HEAD", "PUT"],
+  AllowedMethod: ["GET", "HEAD", "PUT", "POST", "DELETE"],
   AllowedHeader: ["*"],
   ExposeHeader: ["ETag"],
   MaxAgeSeconds: 3600

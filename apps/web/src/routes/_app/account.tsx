@@ -6,16 +6,22 @@ import {
   SectionHeading,
   SessionsSection,
   SignInMethodsSection,
+  StorageSection,
 } from "../../components/account-sections.tsx";
 import { getAccountFn } from "../../functions/account.ts";
+import { getStorageUsageFn } from "../../functions/footage.ts";
 import { failureMessage } from "../../lib/result.ts";
 import { getAuthMethods } from "../../server/auth-methods.ts";
 
 export const Route = createFileRoute("/_app/account")({
   head: () => ({ meta: [{ title: "Account · Orrery" }] }),
   loader: async () => {
-    const [account, methods] = await Promise.all([getAccountFn({ data: {} }), getAuthMethods()]);
-    return { account, methods };
+    const [account, methods, usage] = await Promise.all([
+      getAccountFn({ data: {} }),
+      getAuthMethods(),
+      getStorageUsageFn({ data: {} }),
+    ]);
+    return { account, methods, usage };
   },
   pendingComponent: AccountSkeleton,
   component: Account,
@@ -23,7 +29,7 @@ export const Route = createFileRoute("/_app/account")({
 
 function Account() {
   const { session } = Route.useRouteContext();
-  const { account, methods } = Route.useLoaderData();
+  const { account, methods, usage } = Route.useLoaderData();
   return (
     <main id="main" className="mx-auto w-full max-w-3xl px-4 py-12">
       <Plate number={5} title="Account" caption={session.user.name}>
@@ -45,6 +51,7 @@ function Account() {
             <>
               <SignInMethodsSection account={account.value} configured={methods} />
               <SessionsSection sessions={account.value.sessions} />
+              <StorageSection usage={usage} />
               <PreferencesSection preferences={account.value.preferences} />
               <DeleteAccountSection
                 email={session.user.email}

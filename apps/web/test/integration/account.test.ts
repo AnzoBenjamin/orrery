@@ -38,7 +38,7 @@ describe("account operations", () => {
     const user = await userActor(database());
     const other = await anotherSession(user.userId, FIREFOX_MAC);
 
-    const result = await invoke(database().db, accountGet, user, {});
+    const result = await invoke(database().deps, accountGet, user, {});
     if (!result.ok) throw new Error(result.error.message);
     expect(result.value.preferences).toEqual({ analysisCompleteEmail: true });
     expect(result.value.sessions.map((s) => [s.id, s.current])).toEqual([
@@ -53,17 +53,17 @@ describe("account operations", () => {
 
   it("turns analysis emails off and on, and rejects settings it does not offer", async () => {
     const user = await userActor(database());
-    const off = await invoke(database().db, accountPreferencesUpdate, user, {
+    const off = await invoke(database().deps, accountPreferencesUpdate, user, {
       analysisCompleteEmail: false,
     });
     expect(off).toEqual({ ok: true, value: { analysisCompleteEmail: false } });
-    const view = await invoke(database().db, accountGet, user, {});
+    const view = await invoke(database().deps, accountGet, user, {});
     expect(view.ok && view.value.preferences).toEqual({ analysisCompleteEmail: false });
-    const on = await invoke(database().db, accountPreferencesUpdate, user, {
+    const on = await invoke(database().deps, accountPreferencesUpdate, user, {
       analysisCompleteEmail: true,
     });
     expect(on).toEqual({ ok: true, value: { analysisCompleteEmail: true } });
-    const unknown = await invoke(database().db, accountPreferencesUpdate, user, {
+    const unknown = await invoke(database().deps, accountPreferencesUpdate, user, {
       analysisCompleteEmail: true,
       units: "imperial",
     });
@@ -74,16 +74,16 @@ describe("account operations", () => {
     const user = await userActor(database());
     const other = await anotherSession(user.userId, FIREFOX_MAC);
 
-    const self = await invoke(database().db, accountSessionRevoke, user, {
+    const self = await invoke(database().deps, accountSessionRevoke, user, {
       sessionId: user.sessionId,
     });
     expect(self).toMatchObject({ ok: false, error: { kind: "Conflict" } });
 
-    const revoked = await invoke(database().db, accountSessionRevoke, user, {
+    const revoked = await invoke(database().deps, accountSessionRevoke, user, {
       sessionId: other.id,
     });
     expect(revoked).toEqual({ ok: true, value: { revoked: true } });
-    const again = await invoke(database().db, accountSessionRevoke, user, {
+    const again = await invoke(database().deps, accountSessionRevoke, user, {
       sessionId: other.id,
     });
     expect(again).toMatchObject({ ok: false, error: { kind: "NotFound" } });
@@ -94,16 +94,16 @@ describe("account operations", () => {
     await anotherSession(user.userId, FIREFOX_MAC);
     await anotherSession(user.userId, FIREFOX_MAC);
 
-    const result = await invoke(database().db, accountSessionsRevokeOthers, user, {});
+    const result = await invoke(database().deps, accountSessionsRevokeOthers, user, {});
     expect(result).toEqual({ ok: true, value: { revoked: 2 } });
-    const view = await invoke(database().db, accountGet, user, {});
+    const view = await invoke(database().deps, accountGet, user, {});
     expect(view.ok && view.value.sessions.map((s) => s.id)).toEqual([user.sessionId]);
   });
 
   it("requires a signed-in user", async () => {
     const unauthenticated = { ok: false, error: { kind: "Unauthenticated" } };
-    expect(await invoke(database().db, accountGet, anonymous, {})).toMatchObject(unauthenticated);
-    expect(await invoke(database().db, accountSessionsRevokeOthers, anonymous, {})).toMatchObject(
+    expect(await invoke(database().deps, accountGet, anonymous, {})).toMatchObject(unauthenticated);
+    expect(await invoke(database().deps, accountSessionsRevokeOthers, anonymous, {})).toMatchObject(
       unauthenticated,
     );
   });

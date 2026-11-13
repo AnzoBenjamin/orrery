@@ -10,13 +10,16 @@ import {
 } from "@orrery/ui";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
+import { Meter } from "react-aria-components";
 import {
   revokeOtherSessionsFn,
   revokeSessionFn,
   updatePreferencesFn,
 } from "../functions/account.ts";
 import { authClient, authErrorMessage } from "../lib/auth-client.ts";
+import { formatBytes } from "../lib/format.ts";
 import { failureMessage } from "../lib/result.ts";
+import type { Result } from "../server/domain-errors.ts";
 import type {
   AccountView,
   PasskeyView,
@@ -390,6 +393,45 @@ export function SessionsSection(props: { sessions: SessionView[] }) {
           <p className="o-description">This is the only place you are signed in.</p>
         )}
       </div>
+    </section>
+  );
+}
+
+export function StorageSection(props: {
+  usage: Result<{ usedBytes: number; quotaBytes: number }>;
+}) {
+  const { usage } = props;
+  return (
+    <section aria-labelledby="storage-title">
+      <SectionHeading id="storage-title">Storage</SectionHeading>
+      {usage.ok ? (
+        <div className="flex flex-col gap-2">
+          <Meter
+            aria-label="Footage storage used"
+            value={usage.value.usedBytes}
+            maxValue={usage.value.quotaBytes}
+            className="flex flex-col gap-2"
+          >
+            {({ percentage }) => (
+              <>
+                <p className="text-lampblack">
+                  <span className="font-instrument">{formatBytes(usage.value.usedBytes)}</span> of{" "}
+                  <span className="font-instrument">{formatBytes(usage.value.quotaBytes)}</span>{" "}
+                  used by footage
+                </p>
+                <div className="h-2 w-full shadow-[inset_0_0_0_1px_rgb(14_13_11/0.6)]">
+                  <div className="h-full bg-lampblack" style={{ width: `${percentage}%` }} />
+                </div>
+              </>
+            )}
+          </Meter>
+          <p className="o-description">
+            Uploads that would pass the limit are refused. Removing footage frees its space.
+          </p>
+        </div>
+      ) : (
+        <Banner tone="error" title={failureMessage(usage) ?? "Storage use could not be read."} />
+      )}
     </section>
   );
 }

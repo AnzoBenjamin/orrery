@@ -26,7 +26,7 @@ env: ## Create or update .env from .env.example, generating local secrets
 # Startup order: infrastructure, then one-shot setup (Garage bootstrap, migrations), then the app.
 # The web app and worker refuse to run against an unmigrated database, so migrate comes first.
 INFRA := postgres garage mailpit otel-collector
-APP := web worker
+APP := engine web worker
 
 up: install ## Start the full stack and wait until every service is healthy
 	$(COMPOSE) up --detach --build --wait --wait-timeout 180 $(INFRA)

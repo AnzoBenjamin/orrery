@@ -1,0 +1,27 @@
+{
+  "name": "@orrery/storage",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./limits": "./src/limits.ts",
+    "./keys": "./src/keys.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1166.0",
+    "@aws-sdk/s3-request-presigner": "3.1166.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "fast-check": "4.10.2",
+    "testcontainers": "12.2.1",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}

@@ -1,0 +1,12 @@
+# Build contexts use the repository root; send only what images need.
+**/node_modules
+**/.venv
+**/.turbo
+**/dist
+**/test-results
+.git
+.ruff_cache
+.codebuff-index
+debug
+target
+.env

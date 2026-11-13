@@ -44,6 +44,8 @@ beforeAll(async () => {
     SMTP_PORT: String(mailpit.getMappedPort(1025)),
     MAIL_FROM: "Orrery <mail@orrery.test>",
     APP_URL: "http://localhost:53000",
+    ENGINE_URL: "http://engine:8000",
+    ENGINE_SERVICE_TOKEN: "unused-in-this-test-0123456789abcdef",
   });
   // Port 0 binds an ephemeral port, so parallel test runs never collide.
   worker = await startWorker({ ...env, WORKER_HEALTH_PORT: 0 }, createLogger("warn"));

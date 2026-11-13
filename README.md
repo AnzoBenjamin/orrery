@@ -13,11 +13,12 @@ The repository is being built spec by spec, in the order listed in `.kiro/steeri
 - The local service stack: PostgreSQL 18, Garage (S3 API, bootstrapped with a bucket, an application key, and CORS for browser uploads), Mailpit, and the OpenTelemetry Collector.
 - `packages/config`: validated environment for the web app and worker.
 - `packages/db`: the Drizzle schema, committed migrations, typed query modules, and a Testcontainers harness for integration tests against real Postgres 18.
+- `packages/storage`: the Garage (S3) client, object keys scoped by user and specimen, upload limits, and a Testcontainers harness for a real Garage.
 - CI that starts the same stack and runs the same checks and tests in the same image.
+- `apps/web` and `apps/worker`: accounts (email and password with confirmation and reset, passkeys, GitHub and Google when configured), account settings, the cabinet of specimens, and footage upload. Open `http://localhost:53000` after `make up`, and read the emails at `http://localhost:58025`.
+- `services/engine`: the CPU-only Python engine. It currently inspects uploaded footage (`/v1/probe`); reconstruction comes with the vision-pipeline spec.
 
-- `apps/web` and `apps/worker`: email and password accounts with confirmation and password reset, sent through the pg-boss worker. Open `http://localhost:53000` after `make up`, and read the emails at `http://localhost:58025`.
-
-The engine lands with the upload tasks and joins the stack then. This README is updated as each one ships.
+Footage goes from the browser straight to Garage in resumable 8 MiB parts (Uppy, with each request signed by the web app). The worker then has the engine check the file's real container, codec, duration, and size, and background jobs delete removed files and clean up abandoned uploads. This README is updated as each feature ships.
 
 ## Requirements
 

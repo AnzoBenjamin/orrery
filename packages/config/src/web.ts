@@ -30,6 +30,15 @@ export const webServerShape = {
     .min(1, "must be a whole number from 1 to 1000")
     .max(1000, "must be a whole number from 1 to 1000")
     .default(1),
+  /**
+   * Footage bytes one user may store (requirement 6.7). Lower it when the disk is small
+   * (tech.md: about 15 active users per 100 GB at the 5 GB default).
+   */
+  STORAGE_QUOTA_BYTES: z.coerce
+    .number({ error: "must be a whole number of bytes" })
+    .int("must be a whole number of bytes")
+    .min(100_000_000, "must be at least 100000000 (100 MB)")
+    .default(5_000_000_000),
   GITHUB_CLIENT_ID: z.string().min(1, "must not be empty").optional(),
   GITHUB_CLIENT_SECRET: z.string().min(1, "must not be empty").optional(),
   GOOGLE_CLIENT_ID: z.string().min(1, "must not be empty").optional(),

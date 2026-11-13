@@ -6,6 +6,16 @@ import {
 } from "./account.ts";
 import type { AnyOperation } from "./define.ts";
 import {
+  footageDelete,
+  footageList,
+  footagePlayback,
+  footageUploadAbort,
+  footageUploadComplete,
+  footageUploadCreate,
+  footageUploadSign,
+  footageUsage,
+} from "./footage.ts";
+import {
   specimenCreate,
   specimenDelete,
   specimenGet,
@@ -27,4 +37,12 @@ export const operations: readonly AnyOperation[] = [
   accountPreferencesUpdate,
   accountSessionRevoke,
   accountSessionsRevokeOthers,
+  footageList,
+  footageUsage,
+  footageUploadCreate,
+  footageUploadSign,
+  footageUploadComplete,
+  footageUploadAbort,
+  footageDelete,
+  footagePlayback,
 ];

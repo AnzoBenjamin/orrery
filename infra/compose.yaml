@@ -175,6 +175,8 @@ services:
       SMTP_PORT: "1025"
       MAIL_FROM: ${MAIL_FROM:-Orrery <mail@orrery.localhost>}
       WORKER_HEALTH_PORT: "9090"
+      ENGINE_URL: http://engine:8000
+      ENGINE_SERVICE_TOKEN: ${ENGINE_SERVICE_TOKEN:?run make env}
     mem_limit: 768m
     healthcheck:
       test: [CMD, curl, -fsS, -o, /dev/null, http://127.0.0.1:9090/health]
@@ -182,6 +184,29 @@ services:
       timeout: 5s
       retries: 40
       start_period: 10s
+
+  # The engine runs its production image with the production limits (tech.md): CPU quota of
+  # nproc - 1 on the reference 4 vCPU VPS, 3 GB of memory, and the first service the kernel kills
+  # when memory runs out, since an analysis retries from its checkpoint. Not published to the host;
+  # only the worker calls it.
+  engine:
+    <<: *defaults
+    build:
+      context: ..
+      dockerfile: services/engine/Dockerfile
+    image: orrery-engine:local
+    environment:
+      ENGINE_SERVICE_TOKEN: ${ENGINE_SERVICE_TOKEN:?run make env}
+      ENGINE_ALLOWED_SOURCE_ORIGINS: http://garage:3900
+      ENGINE_LOG_LEVEL: ${LOG_LEVEL:-info}
+    cpus: ${ENGINE_CPUS:-3}
+    mem_limit: 3g
+    oom_score_adj: 800
+    tmpfs:
+      - /tmp:size=2g,mode=1777
+    depends_on:
+      garage:
+        condition: service_healthy
 
   # Playwright against the running stack (`make e2e`). It shares the web container's network
   # namespace, so the browser reaches the app at the same origin a developer's browser uses.
@@ -200,6 +225,20 @@ services:
       - ..:/workspace
       - pnpm-store:/home/dev/.local/share/pnpm
     shm_size: 1gb
+    depends_on:
+      s3-loopback:
+        condition: service_started
+
+  # Presigned URLs name the object store's public endpoint, http://localhost:<GARAGE_S3_PORT>.
+  # The e2e browser's localhost is the web container's network namespace, so this forwards that
+  # port there to Garage. The Host header stays localhost:<port>, so signatures still match.
+  s3-loopback:
+    profiles: [tools]
+    image: alpine/socat:1.8.0.3@sha256:beb4a68d9e4fe6b0f21ea774a0fde6c31f580dde6368939ed70100c5385b015e
+    restart: unless-stopped
+    network_mode: service:web
+    command: ["TCP-LISTEN:${GARAGE_S3_PORT:-53900},fork,reuseaddr", "TCP:garage:3900"]
+    mem_limit: 32m
 
   # Docker API for Testcontainers in the toolbox, limited to what it needs (no swarm, secrets,
   # plugins, or system endpoints). Only on the toolbox's network, never published to the host.

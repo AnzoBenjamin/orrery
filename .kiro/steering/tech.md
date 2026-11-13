@@ -43,7 +43,7 @@ All runtimes below run inside Docker (the `toolbox` image for tooling, service i
 
 ## Storage, email, realtime
 
-- S3 API: Garage (AGPL-3.0) in every environment: local, tests, and production. `@aws-sdk/client-s3` with presigned URLs. Uppy with the AWS S3 multipart plugin on the client. MinIO is not used: its community edition entered maintenance mode in December 2025 and its repository was archived in April 2026.
+- S3 API: Garage (AGPL-3.0) in every environment: local, tests, and production. `@aws-sdk/client-s3` with presigned URLs. Uppy with the AWS S3 multipart plugin on the client. Uppy 6's `@uppy/aws-s3` asks for every S3 request to be signed separately, so one server function (`footage.upload.sign`) signs each step, and only for the footage's own key, its own upload id, and part numbers within the declared size. The AWS SDK runs with `requestChecksumCalculation: "WHEN_REQUIRED"` so presigned part URLs carry no checksum parameters the browser would have to reproduce. MinIO is not used: its community edition entered maintenance mode in December 2025 and its repository was archived in April 2026.
 - Email: Nodemailer over SMTP everywhere (outbound-only Postfix with OpenDKIM in production, Mailpit locally and in tests), templates in React Email. Postal was dropped because it needs MariaDB and a message queue, which do not fit one small VPS.
 - Realtime: Server-Sent Events from the web app, fed by Postgres `LISTEN/NOTIFY`. Listeners use a dedicated connection outside the pool.
 
@@ -64,6 +64,7 @@ The engine runs on CPU only. There is no GPU anywhere in the stack. See the visi
 - Arrays exchanged with the browser: Apache Arrow (`pyarrow` in Python, `apache-arrow` in the browser).
 - Fabrication output: `ezdxf`, SVG, PDF via `reportlab`.
 - Logging: `structlog`. Tracing: OpenTelemetry.
+- Footage probe: PyAV (bundled FFmpeg libraries) reads container, codec, duration, frame timing, and display rotation from the file content; the declared name and type are ignored.
 - Model licenses: SAM 2.1 and DINOv2 are Apache-2.0. CoTracker3 weights are CC-BY-NC 4.0, so the optional backend is non-commercial only. Weights are downloaded at build time, never committed. List them in `THIRD_PARTY_MODELS.md`.
 
 ## Browser-side ML (`apps/web`)
@@ -90,6 +91,8 @@ The engine runs on CPU only. There is no GPU anywhere in the stack. See the visi
 - Internal TypeScript packages are source-only: `exports` point at `.ts` files, Vite bundles them for the web app, and Node 26 runs them directly through type stripping (so `erasableSyntaxOnly` is on). There is no package build step.
 - Testcontainers in the toolbox reaches Docker through `tecnativa/docker-socket-proxy` (Apache-2.0) on the Compose network, with only the container, image, network, volume, and exec APIs enabled. Mounting the socket and joining its group was rejected: on Docker Desktop the group is GID 0, and that left processes unkillable.
 - Rust: clippy, rustfmt, proptest, criterion for benchmarks.
+- Device names in account settings: `bowser` (MIT) parses user agents. `ua-parser-js` 2.x was rejected for its AGPL-3.0 license.
+- End-to-end browser and object store: presigned URLs name `http://localhost:<GARAGE_S3_PORT>`. The e2e container shares the web container's network namespace, so an `alpine/socat` sidecar (`s3-loopback`) forwards that port to Garage there, keeping the signed Host header valid.
 - Observability: OpenTelemetry traces, metrics, and logs propagated web → worker → engine via `traceparent`, exported to OpenObserve. Errors go to self-hosted GlitchTip (MIT) through the MIT-licensed Sentry SDKs, which GlitchTip accepts. `pino` logs in Node.
 
 ## Deployment (one CPU-only VPS, all free and open-source software)

@@ -1,9 +1,25 @@
 import { randomUUID } from "node:crypto";
+import { enqueue } from "@orrery/jobs";
 import type { z } from "zod";
 import { database, databaseReady } from "./db.ts";
 import type { Result } from "./domain-errors.ts";
-import { invoke, type Operation } from "./operations/define.ts";
+import { serverEnv } from "./env.ts";
+import { jobProducer } from "./jobs.ts";
+import { invoke, type Operation, type Services } from "./operations/define.ts";
 import { requestActor } from "./request-actor.ts";
+import { storage } from "./storage.ts";
+
+const services: Services = {
+  get storage() {
+    return storage();
+  },
+  get quotaBytes() {
+    return serverEnv().STORAGE_QUOTA_BYTES;
+  },
+  enqueue: async (queue, payload) => {
+    await enqueue(await jobProducer(), queue, payload);
+  },
+};
 
 /**
  * The body of every server function: resolve the actor, then invoke the operation. Unexpected
@@ -15,7 +31,7 @@ export async function call<TSchema extends z.ZodObject, TOutput>(
 ): Promise<Result<TOutput>> {
   await databaseReady();
   const actor = await requestActor();
-  return invoke(database().db, op, actor, input, {
+  return invoke({ db: database().db, services }, op, actor, input, {
     report: (error) => {
       const reference = randomUUID().slice(0, 8);
       process.stderr.write(

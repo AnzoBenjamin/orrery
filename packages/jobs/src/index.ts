@@ -9,6 +9,15 @@ export {
   jobIdFor,
   type PayloadOf,
   type QueueDefinition,
+  scheduleQueue,
   work,
 } from "./queue.ts";
-export { allQueues, type EmailMessage, emailMessage, emailSend } from "./queues.ts";
+export {
+  allQueues,
+  type EmailMessage,
+  emailMessage,
+  emailSend,
+  footageProbe,
+  objectsDelete,
+  uploadsReap,
+} from "./queues.ts";

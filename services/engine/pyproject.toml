@@ -1,0 +1,19 @@
+[project]
+name = "orrery-engine"
+version = "0.1.0"
+description = "Orrery's vision and reconstruction service. CPU only."
+license = "Apache-2.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "av==19.0.2",
+    "fastapi==0.162.5",
+    "httpx==0.28.1",
+    "pydantic==2.14.3",
+    "pydantic-settings==2.16.2",
+    "structlog==26.1.0",
+    "uvicorn==0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.8,<0.14"]
+build-backend = "uv_build"

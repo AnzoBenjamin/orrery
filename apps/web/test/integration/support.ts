@@ -1,20 +1,57 @@
 import { randomBytes } from "node:crypto";
 import { schema } from "@orrery/db";
 import { createTestDatabase, type TestDatabase } from "@orrery/db/testing";
+import { allQueues, createProducer, enqueue, ensureQueues, migrateJobSchema } from "@orrery/jobs";
+import { Storage } from "@orrery/storage";
+import type { PgBoss } from "pg-boss";
 import { afterAll, beforeAll, inject } from "vitest";
 import type { Actor } from "../../src/server/actor.ts";
+import type { Deps } from "../../src/server/operations/define.ts";
 
-export function withTestDatabase(): () => TestDatabase {
-  let database: TestDatabase | undefined;
+export interface TestEnv extends TestDatabase {
+  /** What operations run against: this database, the test Garage, and pg-boss on this database. */
+  deps: Deps;
+  boss: PgBoss;
+  storage: Storage;
+}
+
+/** Storage quota in tests: small, so the quota check can be reached with small files. */
+export const TEST_QUOTA_BYTES = 50_000_000;
+
+/** One migrated database per test file, with the real object store and job queue. */
+export function withTestDatabase(): () => TestEnv {
+  let env: TestEnv | undefined;
   beforeAll(async () => {
-    database = await createTestDatabase(inject("pgAdminUrl"));
+    const database = await createTestDatabase(inject("pgAdminUrl"));
+    await migrateJobSchema(database.url);
+    const boss = createProducer(database.url);
+    await boss.start();
+    await ensureQueues(boss, allQueues);
+    const storage = new Storage(inject("garage"));
+    env = {
+      ...database,
+      boss,
+      storage,
+      deps: {
+        db: database.db,
+        services: {
+          storage,
+          quotaBytes: TEST_QUOTA_BYTES,
+          enqueue: async (queue, payload) => {
+            await enqueue(boss, queue, payload);
+          },
+        },
+      },
+    };
   });
   afterAll(async () => {
-    await database?.close();
+    await env?.boss.stop({ graceful: false });
+    env?.storage.destroy();
+    await env?.close();
   });
   return () => {
-    if (!database) throw new Error("test database is not ready");
-    return database;
+    if (!env) throw new Error("test database is not ready");
+    return env;
   };
 }
 

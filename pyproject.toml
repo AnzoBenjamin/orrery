@@ -23,7 +23,7 @@ select = ["E", "W", "F", "I", "B", "UP", "N", "S", "SIM", "RUF", "PL", "PT", "TI
 ignore = ["PLR0913"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S101", "PLR2004", "ANN"]
+"**/tests/**" = ["S101", "S105", "S106", "S603", "S607", "PLR2004", "ANN"]
 
 [tool.pyright]
 typeCheckingMode = "strict"
@@ -32,3 +32,7 @@ include = ["services", "tools"]
 exclude = ["**/generated/**", "**/.venv/**", "**/node_modules/**"]
 venvPath = "."
 venv = ".venv"
+
+[tool.pytest.ini_options]
+testpaths = ["services", "tools"]
+addopts = ["--import-mode=importlib", "--strict-markers"]

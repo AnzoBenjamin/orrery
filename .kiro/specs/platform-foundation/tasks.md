@@ -28,8 +28,8 @@ Task numbers are stable references (other specs cite them). Work them in this or
     - _Requirements: 1A.1–1A.9_
   - [ ] 2.1 Write `infra/compose.yaml` with Postgres 18, Garage (single node, with bucket, key, and CORS bootstrap), Mailpit, OTel collector, web, worker, and engine. The engine image is CPU-only and runs with the same CPU and memory limits as production.
     - _Requirements: 1.4, 13.2_
-  - [ ] 2.2 Add typed env schemas for web, worker, and engine with redacted error output. Add `.env.example`.
-    - Web and worker schemas, `.env.example`, and property 5 are done (`packages/config`). The engine's `pydantic-settings` schema lands with 6.3, when `services/engine` is created.
+  - [x] 2.2 Add typed env schemas for web, worker, and engine with redacted error output. Add `.env.example`.
+    - Web and worker schemas and property 5 in `packages/config`; the engine's `pydantic-settings` schema in `services/engine` with the same no-values rule.
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
 - [ ] 3. Database
@@ -54,7 +54,7 @@ Task numbers are stable references (other specs cite them). Work them in this or
     - Account settings read sessions, linked accounts, and passkeys through secret-free query modules and operations (in the cross-user test). Revoking a session is an operation; linking, unlinking, passkeys, and account deletion go through the Better Auth client. Deletion removes specimens and queues their objects first. Only the analysis-complete email preference is shown: sound and units controls land with the workbench features they affect.
   - [ ] 4.4 End-to-end tests: sign-up with Mailpit verification, unverified upload blocked, reset flow, passkey via virtual authenticator, session revocation, account deletion removes objects.
     - _Requirements: 4.1–4.8, 13.3_
-    - Done: sign-up with Mailpit verification, unverified sign-in refused, wrong password, sign-out, reset flow, reset privacy, invalid reset link, passkey via virtual authenticator, session revocation (one and all others), analysis email preference, account deletion removing specimens and sign-in. Remaining with 6.x: unverified upload blocked, account deletion removing stored objects.
+    - Done: sign-up with Mailpit verification, unverified sign-in refused, wrong password, sign-out, reset flow, reset privacy, invalid reset link, passkey via virtual authenticator, session revocation (one and all others), analysis email preference, account deletion removing specimens and sign-in. Account deletion now also removes stored objects (end-to-end). Unverified uploads are refused by the operation (integration test); an unverified user cannot sign in, so there is no UI path to test end to end.
 
 - [ ] 5. Authorization and sharing
   - [x] 5.1 Implement `policy.ts` and the `authed()` server-function wrapper with typed domain errors.
@@ -67,15 +67,17 @@ Task numbers are stable references (other specs cite them). Work them in this or
     - Done for every registered operation (property 1, fast-check). Server routes join the registry as they are added.
 
 - [ ] 6. Uploads and storage
-  - [ ] 6.1 Implement multipart server functions and the S3 client configured for Garage.
+  - [x] 6.1 Implement multipart server functions and the S3 client configured for Garage.
     - _Requirements: 6.1, 6.4_
-  - [ ] 6.2 Build the upload component on Uppy core with `@uppy/aws-s3` multipart and Golden Retriever, with a custom UI.
+    - `packages/storage` (client, keys, limits, Garage Testcontainers harness). Uppy 6 signs each S3 request, so `footage.upload.sign` signs one step at a time, bound to the footage's key, upload id, and part range; `footage.upload.complete` checks the stored size and queues the probe after commit.
+  - [x] 6.2 Build the upload component on Uppy core with `@uppy/aws-s3` multipart and Golden Retriever, with a custom UI.
     - _Requirements: 6.1, 6.2_
-  - [ ] 6.3 Implement the `footage.probe` job and engine `/v1/probe` endpoint with size, duration, and codec validation.
+  - [x] 6.3 Implement the `footage.probe` job and engine `/v1/probe` endpoint with size, duration, and codec validation.
     - _Requirements: 6.3_
-  - [ ] 6.4 Implement `objects.delete` and `uploads.reap` jobs.
+    - Creates `services/engine` (FastAPI, PyAV, pydantic-settings with redacted errors, service-token auth, download origin allowlist) and its Compose service with the production CPU and memory limits. The probe response is mirrored in the worker with Zod until the engine contract (7.5) generates both sides.
+  - [x] 6.4 Implement `objects.delete` and `uploads.reap` jobs.
     - _Requirements: 6.5, 6.6_
-  - [ ] 6.5 End-to-end tests: resumable upload across a forced offline period, rejection of a renamed non-video file, deletion cleanup.
+  - [x] 6.5 End-to-end tests: resumable upload across a forced offline period, rejection of a renamed non-video file, deletion cleanup.
     - _Requirements: 6.1–6.6_
 
 - [ ] 7. Jobs, realtime, and engine contract
@@ -102,7 +104,7 @@ Task numbers are stable references (other specs cite them). Work them in this or
 
 - [ ] 9. Testing infrastructure
   - [ ] 9.1 Set up Vitest with Testcontainers global setup for Postgres and Garage.
-    - Postgres is done (`@orrery/db/testing`: one container per run, a migrated template database, one clone per test file). Garage lands with 6.1.
+    - Postgres (`@orrery/db/testing`: one container per run, a migrated template database, one clone per test file) and Garage (`@orrery/storage/testing`).
     - _Requirements: 13.1_
   - [x] 9.2 Set up Playwright against the Compose stack with a Mailpit client, axe checks on every visited page, and failure artifacts.
     - _Requirements: 13.2, 13.3, 13.5, 13.6_
@@ -125,6 +127,7 @@ Task numbers are stable references (other specs cite them). Work them in this or
   - [ ] 10.6 Add the contention load test: run an analysis at full engine quota while k6 drives page loads and server functions, and fail CI if p95 exceeds 300 ms.
     - _Requirements: 14.9, 14.10_
   - [ ] 10.7 Implement the per-user storage quota check at upload creation and show usage in account settings. Integration and end-to-end tests.
+    - Done: the quota check (`STORAGE_QUOTA_BYTES`, default 5 GB) and its integration test, and usage in account settings. Remaining: an end-to-end test of a refused upload.
     - _Requirements: 6.7_
 
 - [ ] 11. Kiro hooks

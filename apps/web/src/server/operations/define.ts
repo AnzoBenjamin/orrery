@@ -1,13 +1,35 @@
 import type { Db, Executor } from "@orrery/db";
+import type { QueueDefinition } from "@orrery/jobs";
+import type { Storage } from "@orrery/storage";
 import type { z } from "zod";
 import type { Actor } from "../actor.ts";
 import { DomainError, type Result } from "../domain-errors.ts";
+
+/** The outside systems operations use besides the database. Tests pass real instances. */
+export interface Services {
+  storage: Storage;
+  /** Footage bytes one user may store. */
+  quotaBytes: number;
+  enqueue: <S extends z.ZodType>(queue: QueueDefinition<S>, payload: z.input<S>) => Promise<void>;
+}
+
+export interface Deps {
+  db: Db;
+  services: Services;
+}
 
 export interface OperationContext<TInput> {
   actor: Actor;
   input: TInput;
   /** An open transaction; the operation commits only if `run` resolves. */
   tx: Executor;
+  services: Services;
+  /**
+   * Runs `effect` once the transaction has committed, such as publishing a job about rows the
+   * transaction wrote. Effects must be safe to lose: a failure is reported, not returned, and a
+   * reconciling job repairs what it left undone.
+   */
+  afterCommit: (effect: () => Promise<void>) => void;
 }
 
 /**
@@ -37,7 +59,7 @@ export interface InvokeOptions {
 
 /** Validates input, runs the operation in a transaction, and maps errors to a Result. */
 export async function invoke<TSchema extends z.ZodObject, TOutput>(
-  db: Db,
+  deps: Deps,
   op: Operation<TSchema, TOutput>,
   actor: Actor,
   rawInput: unknown,
@@ -55,9 +77,18 @@ export async function invoke<TSchema extends z.ZodObject, TOutput>(
       error: { kind: "Invalid", message: "Some of the details need correcting.", fields },
     };
   }
+  const effects: (() => Promise<void>)[] = [];
+  let value: TOutput;
   try {
-    const value = await db.transaction((tx) => op.run({ actor, input: parsed.data, tx }));
-    return { ok: true, value };
+    value = await deps.db.transaction((tx) =>
+      op.run({
+        actor,
+        input: parsed.data,
+        tx,
+        services: deps.services,
+        afterCommit: (effect) => effects.push(effect),
+      }),
+    );
   } catch (error) {
     if (error instanceof DomainError) {
       return {
@@ -75,4 +106,8 @@ export async function invoke<TSchema extends z.ZodObject, TOutput>(
       },
     };
   }
+  for (const effect of effects) {
+    await effect().catch((error: unknown) => options.report?.(error));
+  }
+  return { ok: true, value };
 }

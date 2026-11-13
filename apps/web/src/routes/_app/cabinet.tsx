@@ -1,5 +1,5 @@
 import { Banner, Button, Dialog, DialogTrigger, toRoman } from "@orrery/ui";
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { SpecimenForm } from "../../components/specimen-form.tsx";
 import {
@@ -187,7 +187,13 @@ function SpecimenDrawer(props: {
           id={`specimen-${s.id}`}
           className="mt-5 font-display text-2xl text-lampblack leading-tight"
         >
-          {s.title}
+          <Link
+            to="/specimens/$specimenId"
+            params={{ specimenId: s.id }}
+            className="hover:underline hover:decoration-oxblood hover:underline-offset-4"
+          >
+            {s.title}
+          </Link>
         </h2>
         <p className="mt-2 line-clamp-3 flex-1 font-display text-umber italic">
           {s.description || "No notes yet."}

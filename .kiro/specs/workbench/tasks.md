@@ -23,11 +23,12 @@
   - [ ] 4.1 Add `mechanism`, `mechanism_revision`, and `specimen_sample` tables and migration with typed queries. Integration tests.
     - _Requirements: 4.1, 8.4_
   - [ ] 4.2 Build the cabinet and specimen overview with create, rename, describe, duplicate, delete, search, and filter. End-to-end tests.
-    - Done: cabinet with create, rename, describe, delete, paging, empty, error, and loading states, with end-to-end tests. Remaining: specimen overview page, duplicate, search, filter.
+    - Done: cabinet with create, rename, describe, delete, paging, empty, error, and loading states, and the specimen page with its footage, with end-to-end tests. Remaining: duplicate, search, filter, and the specimen overview's analysis and revision summaries (they arrive with those features).
     - _Requirements: 4.1, 4.2, 4.3_
 
 - [ ] 5. Footage and capture
   - [ ] 5.1 Build upload UI on the platform uploader with role assignment, probe results, rejection guidance, and proxy playback.
+    - Done: role assignment, resumable uploads with pause, resume, retry, and cancel, probe results, rejection guidance, playback of the original. Remaining: a normalized proxy for codecs the browser cannot play (comes with the vision pipeline's normalization).
     - _Requirements: 5.1, 5.3_
   - [ ] 5.1a Build the trim control with the suggested window and the printable marker sheet PDF (ArUco tags, colored dots, scale ruler).
     - _Requirements: 5.4, 5.5_

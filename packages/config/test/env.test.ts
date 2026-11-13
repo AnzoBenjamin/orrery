@@ -18,6 +18,8 @@ const worker = {
   SMTP_PORT: "1025",
   MAIL_FROM: "Orrery <mail@orrery.example>",
   APP_URL: "http://localhost:53000",
+  ENGINE_URL: "http://engine:8000",
+  ENGINE_SERVICE_TOKEN: "engine-service-token-0123456789abcdef",
 };
 
 const web = {

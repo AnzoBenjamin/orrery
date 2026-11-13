@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.ts";
 import { signIn, signUpAndVerify } from "../support/flows.ts";
+import { media } from "../support/media.ts";
 
 async function openAccount(page: Page) {
   await page.goto("/account");
@@ -125,7 +126,17 @@ test.describe("account settings", () => {
     await page.getByRole("button", { name: "Accession your first specimen" }).click();
     await page.getByLabel("Name").fill("Doomed music box");
     await page.getByRole("button", { name: "Enter in the register" }).click();
-    await expect(page.getByRole("listitem", { name: "Doomed music box" })).toBeVisible();
+    await page.getByRole("link", { name: "Doomed music box" }).click();
+    const chooser = page.waitForEvent("filechooser");
+    await page.getByRole("button", { name: "Choose files" }).click();
+    await (await chooser).setFiles(media.shortClip());
+    const item = page.getByRole("list", { name: "Footage" }).getByRole("listitem", {
+      name: "short.mp4",
+    });
+    await expect(item).toContainText("Ready", { timeout: 60_000 });
+    await item.getByRole("button", { name: "Play short.mp4" }).click();
+    const objectUrl = await item.getByLabel("Playback of short.mp4").getAttribute("src");
+    if (!objectUrl) throw new Error("the player has no source");
 
     await openAccount(page);
     await page.getByRole("button", { name: "Delete account" }).click();
@@ -147,5 +158,13 @@ test.describe("account settings", () => {
     await expect(page).toHaveURL(/\/sign-in\?redirect=/);
     await signIn(page, email, password);
     await expect(page.getByRole("alert")).toContainText("do not match an account");
+
+    // The footage file itself is removed from storage by the background deletion job.
+    await expect
+      .poll(async () => (await page.request.get(objectUrl)).status(), {
+        timeout: 150_000,
+        intervals: [2_000, 5_000],
+      })
+      .toBe(404);
   });
 });

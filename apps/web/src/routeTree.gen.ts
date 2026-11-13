@@ -20,6 +20,7 @@ import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
 import { Route as AppCabinetRouteImport } from './routes/_app/cabinet'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as AppSpecimensSpecimenIdRouteImport } from './routes/_app/specimens/$specimenId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -76,6 +77,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppSpecimensSpecimenIdRoute = AppSpecimensSpecimenIdRouteImport.update({
+  id: '/specimens/$specimenId',
+  path: '/specimens/$specimenId',
+  getParentRoute: () => AppRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AppAccountRoute
   '/cabinet': typeof AppCabinetRoute
   '/api/health': typeof ApiHealthRoute
+  '/specimens/$specimenId': typeof AppSpecimensSpecimenIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/account': typeof AppAccountRoute
   '/cabinet': typeof AppCabinetRoute
   '/api/health': typeof ApiHealthRoute
+  '/specimens/$specimenId': typeof AppSpecimensSpecimenIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/_app/account': typeof AppAccountRoute
   '/_app/cabinet': typeof AppCabinetRoute
   '/api/health': typeof ApiHealthRoute
+  '/_app/specimens/$specimenId': typeof AppSpecimensSpecimenIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -136,6 +145,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/cabinet'
     | '/api/health'
+    | '/specimens/$specimenId'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/cabinet'
     | '/api/health'
+    | '/specimens/$specimenId'
     | '/api/auth/$'
   id:
     | '__root__'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/_app/account'
     | '/_app/cabinet'
     | '/api/health'
+    | '/_app/specimens/$specimenId'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -258,6 +270,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/specimens/$specimenId': {
+      id: '/_app/specimens/$specimenId'
+      path: '/specimens/$specimenId'
+      fullPath: '/specimens/$specimenId'
+      preLoaderRoute: typeof AppSpecimensSpecimenIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -271,11 +290,13 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
   AppCabinetRoute: typeof AppCabinetRoute
+  AppSpecimensSpecimenIdRoute: typeof AppSpecimensSpecimenIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
   AppCabinetRoute: AppCabinetRoute,
+  AppSpecimensSpecimenIdRoute: AppSpecimensSpecimenIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

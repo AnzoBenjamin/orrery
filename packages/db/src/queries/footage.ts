@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, lt, sql } from "drizzle-orm";
 import type { Executor } from "../client.ts";
 import { footage, specimen } from "../schema/index.ts";
 import { enqueueObjectDeletions } from "./object-deletions.ts";
@@ -30,6 +30,12 @@ export async function findFootage(
     .select()
     .from(footage)
     .where(and(eq(footage.id, input.id), eq(footage.specimenId, input.specimenId)));
+  return row;
+}
+
+/** Loads footage by id regardless of owner. Only the policy module should call this. */
+export async function findFootageById(ex: Executor, id: string): Promise<Footage | undefined> {
+  const [row] = await ex.select().from(footage).where(eq(footage.id, id));
   return row;
 }
 
@@ -116,4 +122,19 @@ export async function storageBytesForOwner(ex: Executor, ownerId: string): Promi
     .innerJoin(specimen, eq(specimen.id, footage.specimenId))
     .where(eq(specimen.ownerId, ownerId));
   return Number(row?.bytes ?? 0);
+}
+
+/** Footage in `status` not touched since `before`, oldest first, for the reconciling jobs. */
+export async function listFootageInStatusSince(
+  ex: Executor,
+  status: Footage["status"],
+  before: Date,
+  limit: number,
+): Promise<Footage[]> {
+  return ex
+    .select()
+    .from(footage)
+    .where(and(eq(footage.status, status), lt(footage.updatedAt, before)))
+    .orderBy(asc(footage.updatedAt))
+    .limit(limit);
 }

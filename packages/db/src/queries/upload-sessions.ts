@@ -13,6 +13,15 @@ export async function createUploadSession(
   return row;
 }
 
+/** The upload session of a footage item, open or completed. */
+export async function findUploadSession(
+  ex: Executor,
+  footageId: string,
+): Promise<UploadSession | undefined> {
+  const [row] = await ex.select().from(uploadSession).where(eq(uploadSession.footageId, footageId));
+  return row;
+}
+
 /** The session of a footage item, if its upload is still open and not expired. */
 export async function findOpenUploadSession(
   ex: Executor,

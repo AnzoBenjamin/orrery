@@ -98,6 +98,24 @@ export async function enqueue<TSchema extends z.ZodType>(
   );
 }
 
+/**
+ * Runs a queue on a cron schedule (UTC). Every scheduled job carries the same validated payload.
+ * Re-scheduling replaces the previous schedule, so the worker can call this at every start.
+ */
+export async function scheduleQueue<TSchema extends z.ZodType>(
+  boss: PgBoss,
+  q: QueueDefinition<TSchema>,
+  cron: string,
+  payload: z.input<TSchema>,
+): Promise<void> {
+  await boss.schedule(
+    q.name,
+    cron,
+    { payload: parse(q, payload), traceparent: null },
+    { tz: "UTC" },
+  );
+}
+
 export interface JobContext {
   id: string;
   retryCount: number;

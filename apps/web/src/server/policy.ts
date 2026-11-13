@@ -1,4 +1,10 @@
-import { type Executor, findSpecimenById, type Specimen } from "@orrery/db";
+import {
+  type Executor,
+  type Footage,
+  findFootageById,
+  findSpecimenById,
+  type Specimen,
+} from "@orrery/db";
 import type { Actor } from "./actor.ts";
 import { DomainError, notFound } from "./domain-errors.ts";
 
@@ -31,6 +37,19 @@ export async function requireSpecimen(
   return specimen;
 }
 
+/** Loads footage and its specimen if the actor may act on the specimen, else NotFound. */
+export async function requireFootage(
+  ex: Executor,
+  actor: Actor,
+  action: SpecimenAction,
+  footageId: string,
+): Promise<{ footage: Footage; specimen: Specimen }> {
+  const footage = await findFootageById(ex, footageId);
+  const specimen = footage ? await findSpecimenById(ex, footage.specimenId) : undefined;
+  if (!footage || !specimen || !can(actor, action, specimen)) throw notFound("That footage");
+  return { footage, specimen };
+}
+
 export type UserActor = Extract<Actor, { kind: "user" }>;
 
 export function requireUser(actor: Actor): UserActor {
@@ -38,6 +57,18 @@ export function requireUser(actor: Actor): UserActor {
     throw new DomainError("Unauthenticated", "Sign in to continue.");
   }
   return actor;
+}
+
+/** A signed-in user whose email is confirmed. Uploads require one (requirement 4.2). */
+export function requireVerifiedUser(actor: Actor): UserActor {
+  const user = requireUser(actor);
+  if (!user.emailVerified) {
+    throw new DomainError(
+      "Forbidden",
+      "Confirm your email address before adding footage. Check your inbox for the link.",
+    );
+  }
+  return user;
 }
 
 export function requireAdmin(actor: Actor): UserActor {

@@ -44,5 +44,48 @@ export const emailSend = defineQueue({
   idempotencyKey: (p) => p.idempotencyKey,
 });
 
+/**
+ * Inspects uploaded footage with the engine and marks it ready or rejected. One job per footage
+ * item: completing an upload twice cannot probe it twice.
+ */
+export const footageProbe = defineQueue({
+  name: "footage.probe",
+  schema: z.object({ footageId: z.uuid() }),
+  retryLimit: 6,
+  retryDelaySeconds: 20,
+  retryBackoff: true,
+  // Downloading and hashing a 1 GB file on the engine takes well under this.
+  expireInSeconds: 15 * 60,
+  idempotencyKey: (p) => p.footageId,
+});
+
+/**
+ * Removes objects listed in `object_deletion` from storage, a batch per run. Runs every minute;
+ * rows that fail stay pending and are retried on the next run (requirement 6.5).
+ */
+export const objectsDelete = defineQueue({
+  name: "objects.delete",
+  schema: z.object({}),
+  retryLimit: 0,
+  retryDelaySeconds: 60,
+  retryBackoff: false,
+  expireInSeconds: 5 * 60,
+  idempotencyKey: () => undefined,
+});
+
+/**
+ * Cleans up uploads abandoned for more than 24 hours (requirement 6.6) and finishes ones whose
+ * browser closed between assembling the object and reporting it. Runs hourly.
+ */
+export const uploadsReap = defineQueue({
+  name: "uploads.reap",
+  schema: z.object({}),
+  retryLimit: 0,
+  retryDelaySeconds: 60,
+  retryBackoff: false,
+  expireInSeconds: 15 * 60,
+  idempotencyKey: () => undefined,
+});
+
 /** Every queue the worker serves. A queue is listed here only once its handler exists. */
-export const allQueues = [emailSend] as const;
+export const allQueues = [emailSend, footageProbe, objectsDelete, uploadsReap] as const;

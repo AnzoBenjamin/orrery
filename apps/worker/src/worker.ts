@@ -2,8 +2,24 @@ import { createServer, type Server } from "node:http";
 import type { WorkerEnv } from "@orrery/config/worker";
 import { assertMigrationsApplied, createDb } from "@orrery/db";
 import { createMailer } from "@orrery/email";
-import { allQueues, createWorkerBoss, emailSend, ensureQueues, work } from "@orrery/jobs";
+import {
+  allQueues,
+  createWorkerBoss,
+  emailSend,
+  enqueue,
+  ensureQueues,
+  footageProbe,
+  objectsDelete,
+  scheduleQueue,
+  uploadsReap,
+  work,
+} from "@orrery/jobs";
+import { Storage } from "@orrery/storage";
+import { createEngineClient } from "./engine.ts";
 import { emailSendHandler } from "./handlers/email-send.ts";
+import { footageProbeHandler } from "./handlers/footage-probe.ts";
+import { objectsDeleteHandler } from "./handlers/objects-delete.ts";
+import { uploadsReapHandler } from "./handlers/uploads-reap.ts";
 import type { Logger } from "./logger.ts";
 
 export interface RunningWorker {
@@ -30,11 +46,38 @@ export async function startWorker(env: WorkerEnv, log: Logger): Promise<RunningW
     from: env.MAIL_FROM,
   });
 
+  const storage = new Storage({
+    endpoint: env.S3_ENDPOINT,
+    publicEndpoint: env.S3_PUBLIC_ENDPOINT,
+    region: env.S3_REGION,
+    bucket: env.S3_BUCKET,
+    accessKeyId: env.S3_ACCESS_KEY_ID,
+    secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+  });
+  const engine = createEngineClient({ url: env.ENGINE_URL, token: env.ENGINE_SERVICE_TOKEN });
+
   const boss = createWorkerBoss(env.DATABASE_URL);
   boss.on("error", (error) => log.error({ err: error }, "pg-boss error"));
   await boss.start();
   await ensureQueues(boss, allQueues);
   await work(boss, emailSend, emailSendHandler({ mailer, log }), { concurrency: 2 });
+  // One probe at a time: the engine's analysis concurrency is 1 and probes share its CPU.
+  await work(boss, footageProbe, footageProbeHandler({ db: database.db, storage, engine, log }));
+  await work(boss, objectsDelete, objectsDeleteHandler({ db: database.db, storage, log }));
+  await work(
+    boss,
+    uploadsReap,
+    uploadsReapHandler({
+      db: database.db,
+      storage,
+      enqueue: async (footageId) => {
+        await enqueue(boss, footageProbe, { footageId });
+      },
+      log,
+    }),
+  );
+  await scheduleQueue(boss, objectsDelete, "* * * * *", {});
+  await scheduleQueue(boss, uploadsReap, "17 * * * *", {});
 
   let healthy = true;
   const health: Server = createServer((req, res) => {
@@ -64,6 +107,7 @@ export async function startWorker(env: WorkerEnv, log: Logger): Promise<RunningW
       healthy = false;
       await boss.stop({ graceful: true, timeout: 30_000 });
       mailer.close();
+      storage.destroy();
       await new Promise<void>((resolve) => health.close(() => resolve()));
       await database.close();
       log.info("worker stopped");

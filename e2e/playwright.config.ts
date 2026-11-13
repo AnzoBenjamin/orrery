@@ -12,7 +12,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : 4,
+  // Two workers, as in CI: with four, the dev server's on-demand compilation and the axe audit on
+  // every page load pushed tests past their timeout on a busy machine.
+  workers: 2,
   // Local runs share the machine with the dev server and other projects, so tests get twice the
   // CI budget there. Tests marked test.slow() get three times this.
   timeout: process.env.CI ? 60_000 : 120_000,

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use crate::constraint::{
     AngleRatio, BodySlot, CamContact, Constraint, DrivenCoordinate, Driver, FollowerShape,
-    PinInSlot, Prismatic, Revolute, Spring,
+    PinInSlot, Prismatic, RackMesh, Revolute, Spring,
 };
 use crate::curves::{CamProfile, Curve};
 use crate::error::SolverError;
@@ -406,6 +406,38 @@ impl Model {
         partners(a).into_iter().find(|c| of_b.contains(c))
     }
 
+    /// The body a pinion turns on (by a revolute joint) that its rack slides on (by a prismatic
+    /// joint).
+    fn rack_carrier(mechanism: &Mechanism, pinion: &str, rack: &str) -> Option<String> {
+        let partners = |body: &str, revolute: bool| -> Vec<String> {
+            mechanism
+                .joints
+                .iter()
+                .filter(|j| {
+                    if revolute {
+                        matches!(j, Joint::Revolute { .. })
+                    } else {
+                        matches!(j, Joint::Prismatic { .. })
+                    }
+                })
+                .filter_map(|j| {
+                    let c = joint_common(j);
+                    if c.body_a == body {
+                        Some(c.body_b.to_owned())
+                    } else if c.body_b == body {
+                        Some(c.body_a.to_owned())
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        };
+        let of_rack = partners(rack, false);
+        partners(pinion, true)
+            .into_iter()
+            .find(|c| of_rack.contains(c))
+    }
+
     /// A curve or profile cut in `body` must be in the joint's plane frame. A spatial ground has
     /// no 2D frame of its own, so such a body is refused.
     fn require_planar_frame(&self, body: usize, id: &str, path: &str) -> Result<(), SolverError> {
@@ -595,6 +627,41 @@ impl Model {
                     slot_body: self.bodies[slot_index].slot,
                     curve,
                     s_index: self.aux(),
+                })))
+            }
+            Joint::GearMesh {
+                ratio,
+                phase,
+                rack: Some(rack),
+                ..
+            } => {
+                let raw = arr(&rack.axis_local_b);
+                let axis = V2::new(raw[0], raw[1]);
+                let len = axis.norm();
+                if len < 1e-12 || raw[2].abs() > 1e-9 * dot3(raw, raw).sqrt() {
+                    return Err(SolverError::invalid(
+                        path,
+                        format!("Rack joint {id} needs a slide axis in the plane"),
+                    ));
+                }
+                let carrier = Self::rack_carrier(mechanism, &self.bodies[a].id, &self.bodies[b].id)
+                    .and_then(|c| self.body_index.get(&c).copied())
+                    .ok_or_else(|| {
+                        SolverError::invalid(
+                            &path,
+                            format!(
+                                "Rack joint {id} needs the pinion pinned by a revolute joint and the rack on a prismatic joint to one carrier body"
+                            ),
+                        )
+                    })?;
+                Ok(Compiled::Constraint(Box::new(RackMesh {
+                    id,
+                    pinion: slot_a,
+                    rack: slot_b,
+                    carrier: self.bodies[carrier].slot,
+                    axis: axis * (1.0 / len),
+                    ratio: *ratio,
+                    phase: *phase,
                 })))
             }
             Joint::GearMesh { ratio, phase, .. } => {

@@ -567,6 +567,13 @@
             },
             "phase": {
               "type": "number"
+            },
+            "rack": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/RackMesh"
+                }
+              ]
             }
           },
           "required": [
@@ -1000,6 +1007,17 @@
           ],
           "title": "CubicBsplineSlot"
         }
+      ]
+    },
+    "RackMesh": {
+      "type": "object",
+      "properties": {
+        "axisLocalB": {
+          "$ref": "#/definitions/Vec3"
+        }
+      },
+      "required": [
+        "axisLocalB"
       ]
     },
     "FollowerType": {

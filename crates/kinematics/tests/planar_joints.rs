@@ -278,6 +278,44 @@ fn a_slider_past_its_limits_is_an_assembly_failure() {
 }
 
 #[test]
+fn a_rack_moves_the_pinion_pitch_radius_per_radian() {
+    let m = model_of(&golden("rack-and-pinion.json"));
+    let mut seed: Option<Vec<f64>> = None;
+    for step in -12..=12 {
+        let angle = 0.3 * f64::from(step);
+        let a = m
+            .assemble(&[angle], seed.as_deref(), &AssemblyOptions::default())
+            .unwrap();
+        let pitch = world(&m, &a.q, "rack", "pitch");
+        // Counter-clockwise turns roll the pinion's bottom, and the rack under it, towards +x.
+        assert!((pitch.x - 0.02 * angle).abs() < 1e-12, "{angle}: {pitch:?}");
+        assert!((pitch.y + 0.02).abs() < 1e-12);
+        assert!(theta(&m, &a.q, "rack").abs() < 1e-12);
+        seed = Some(a.q);
+    }
+    // Past the guide's limits (±0.08 m, so ±4 rad) the rack cannot follow.
+    assert!(matches!(
+        m.assemble(&[4.2], seed.as_deref(), &AssemblyOptions::default()),
+        Err(SolverError::AssemblyFailed { .. })
+    ));
+}
+
+#[test]
+fn a_rack_needs_a_guide_on_the_pinion_carrier() {
+    let mut value = golden("rack-and-pinion.json");
+    value["joints"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|j| j["id"] != "j-guide");
+    match Model::new(&mechanism(&value)) {
+        Err(SolverError::InvalidGraph(issues)) => {
+            assert!(issues.iter().any(|i| i.message.contains("prismatic joint")));
+        }
+        other => panic!("expected InvalidGraph, got {other:?}"),
+    }
+}
+
+#[test]
 fn gears_need_a_shared_carrier() {
     let mut value = golden("gear-train-and-belts.json");
     // Unpin the wheel: the external mesh has no carrier left.
@@ -360,7 +398,12 @@ proptest! {
         seed in prop::collection::vec(-1.0..1.0_f64, 40),
         drive in -3.0..3.0_f64,
     ) {
-        for name in ["slots.json", "gear-train-and-belts.json", "cam-followers-and-spring.json"] {
+        for name in [
+            "slots.json",
+            "gear-train-and-belts.json",
+            "cam-followers-and-spring.json",
+            "rack-and-pinion.json",
+        ] {
             let m = model_of(&golden(name));
             let q: Vec<f64> = (0..m.n_vars).map(|i| seed[i % seed.len()] * 0.2 + 0.05 * (i as f64)).collect();
             finite_difference_matches(&m, &q, &vec![drive; m.drivers.len()])?;

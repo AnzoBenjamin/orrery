@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 1,
+  "id": "rack-and-pinion",
+  "name": "Rack and pinion",
+  "scale": {
+    "source": "user_measurement",
+    "metersPerUnit": 1
+  },
+  "planes": [
+    {
+      "id": "plane-main",
+      "originWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 0.0
+      },
+      "normalWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxisWorld": {
+        "x": 1,
+        "y": 0,
+        "z": 0.0
+      }
+    }
+  ],
+  "bodies": [
+    {
+      "id": "ground",
+      "label": "Frame",
+      "kind": "ground",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "axle",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "guide",
+          "local": {
+            "x": 0,
+            "y": -0.02,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "pinion",
+      "label": "A",
+      "kind": "gear",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "hub",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "mark",
+          "local": {
+            "x": 0.015,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "tracked"
+        }
+      ],
+      "gear": {
+        "teeth": 20,
+        "module": 0.002,
+        "internal": false
+      },
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "rack",
+      "label": "B",
+      "kind": "gear",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "pitch",
+          "local": {
+            "x": 0,
+            "y": -0.02,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "end",
+          "local": {
+            "x": 0.06,
+            "y": -0.026,
+            "z": 0.0
+          },
+          "role": "output"
+        }
+      ],
+      "gear": {
+        "teeth": 30,
+        "module": 0.002,
+        "internal": false
+      },
+      "outline": {
+        "polygonLocal": [
+          {
+            "x": -0.1,
+            "y": -0.03
+          },
+          {
+            "x": 0.1,
+            "y": -0.03
+          },
+          {
+            "x": 0.1,
+            "y": -0.02
+          },
+          {
+            "x": -0.1,
+            "y": -0.02
+          }
+        ],
+        "thickness": 0.006
+      },
+      "status": "observed",
+      "confidence": 1.0
+    }
+  ],
+  "joints": [
+    {
+      "id": "j-axle",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "pinion",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "axle"
+      },
+      "anchorB": {
+        "bodyId": "pinion",
+        "pointId": "hub"
+      },
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "j-guide",
+      "kind": "prismatic",
+      "bodyA": "ground",
+      "bodyB": "rack",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "guide"
+      },
+      "anchorB": {
+        "bodyId": "rack",
+        "pointId": "pitch"
+      },
+      "axisLocalA": {
+        "x": 1,
+        "y": 0,
+        "z": 0.0
+      },
+      "limits": [
+        -0.08,
+        0.08
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "mesh-rack",
+      "kind": "gear_mesh",
+      "bodyA": "pinion",
+      "bodyB": "rack",
+      "ratio": 0.02,
+      "phase": 0,
+      "rack": {
+        "axisLocalB": {
+          "x": 1,
+          "y": 0,
+          "z": 0.0
+        }
+      },
+      "status": "observed",
+      "confidence": 1.0
+    }
+  ],
+  "drivers": [
+    {
+      "id": "drive",
+      "jointId": "j-axle",
+      "coordinate": "angle",
+      "profile": {
+        "type": "samples",
+        "t": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "q": [
+          0,
+          2,
+          0,
+          -2,
+          0
+        ]
+      }
+    }
+  ],
+  "provenance": {
+    "createdBy": "user",
+    "footageIds": []
+  }
+}

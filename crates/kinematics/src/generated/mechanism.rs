@@ -569,6 +569,8 @@ pub enum Joint {
         confidence: f64,
         id: JointId,
         phase: f64,
+        #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+        rack: ::std::option::Option<RackMesh>,
         ratio: f64,
         status: Status,
     },
@@ -1309,6 +1311,12 @@ impl<'de> ::serde::Deserialize<'de> for ProvenanceFootageIdsItem {
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 pub struct PulleyData {
     pub radius: f64,
+}
+#[doc = "`RackMesh`"]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+pub struct RackMesh {
+    #[serde(rename = "axisLocalB")]
+    pub axis_local_b: Vec3,
 }
 #[doc = "`Scale`"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]

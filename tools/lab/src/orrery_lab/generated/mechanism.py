@@ -85,20 +85,6 @@ class Status(RootModel[Literal["observed", "inferred", "user", "candidate"]]):
     root: Literal["observed", "inferred", "user", "candidate"]
 
 
-class GearMeshJoint(BaseModel):
-    model_config = ConfigDict(
-        populate_by_name=True,
-    )
-    id: Annotated[str, Field(min_length=1)]
-    body_a: Annotated[str, Field(alias="bodyA", min_length=1)]
-    body_b: Annotated[str, Field(alias="bodyB", min_length=1)]
-    status: Status
-    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
-    kind: Literal["gear_mesh"]
-    ratio: float
-    phase: float
-
-
 class BeltJoint(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
@@ -152,6 +138,13 @@ class CubicBsplineSlot(BaseModel):
 
 class SlotCurve(RootModel[LineSegmentSlot | CircularArcSlot | CubicBsplineSlot]):
     root: LineSegmentSlot | CircularArcSlot | CubicBsplineSlot
+
+
+class RackMesh(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+    axis_local_b: Annotated[Vec3, Field(alias="axisLocalB")]
 
 
 class FollowerType(RootModel[Literal["knife", "roller", "flat"]]):
@@ -277,6 +270,21 @@ class PinInSlotJoint(BaseModel):
     kind: Literal["pin_in_slot"]
     pin: PointRef
     slot: SlotCurve
+
+
+class GearMeshJoint(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+    id: Annotated[str, Field(min_length=1)]
+    body_a: Annotated[str, Field(alias="bodyA", min_length=1)]
+    body_b: Annotated[str, Field(alias="bodyB", min_length=1)]
+    status: Status
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    kind: Literal["gear_mesh"]
+    ratio: float
+    phase: float
+    rack: RackMesh | None = None
 
 
 class CamFollowerJoint(BaseModel):

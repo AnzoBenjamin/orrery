@@ -396,6 +396,58 @@ impl Constraint for AngleRatio {
     }
 }
 
+/// Rack and pinion: the rack's displacement along its axis, relative to the carrier both ride on,
+/// is `ratio` (the pinion's pitch radius, meters per radian) times the pinion's angle relative to
+/// the carrier, plus `phase` (1 row, meters).
+#[derive(Debug, Clone)]
+pub struct RackMesh {
+    pub id: String,
+    pub pinion: BodySlot,
+    pub rack: BodySlot,
+    pub carrier: BodySlot,
+    /// Unit slide direction in the rack's frame.
+    pub axis: V2,
+    pub ratio: f64,
+    pub phase: f64,
+}
+
+impl RackMesh {
+    fn eval<T: Scalar>(&self, q: &[T], _: &[f64], out: &mut [T]) {
+        let (rack, carrier) = (self.rack.pose(q), self.carrier.pose(q));
+        let offset = V2::new(rack.x - carrier.x, rack.y - carrier.y);
+        let along = rack.rotate(self.axis.lift()).dot(offset);
+        let turned = self.pinion.pose(q).theta - carrier.theta;
+        out[0] = along - turned * self.ratio - self.phase;
+    }
+}
+
+impl Constraint for RackMesh {
+    residuals!();
+    fn source_id(&self) -> &str {
+        &self.id
+    }
+    fn dim(&self) -> usize {
+        1
+    }
+    fn jacobian(&self, q: &[f64], _: &[f64], row: usize, out: &mut Vec<Entry>) {
+        let (rack, carrier) = (self.rack.pose(q), self.carrier.pose(q));
+        let dir = rack.rotate(self.axis);
+        let offset = V2::new(rack.x - carrier.x, rack.y - carrier.y);
+        let zero = V2::new(0.0, 0.0);
+        push_point(out, row, self.rack, dir, zero, 1.0);
+        push_point(out, row, self.carrier, dir, zero, -1.0);
+        // The direction turns with the rack.
+        push_theta(
+            out,
+            row,
+            self.rack,
+            rack.rotate_derivative(self.axis).dot(offset),
+        );
+        push_theta(out, row, self.pinion, -self.ratio);
+        push_theta(out, row, self.carrier, self.ratio);
+    }
+}
+
 /// The follower's contact with a cam.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FollowerShape {

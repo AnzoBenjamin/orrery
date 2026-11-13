@@ -124,14 +124,27 @@ const pinInSlotJointSchema = jointBaseSchema
 /**
  * Gear mesh: (θA − θC) = ratio · (θB − θC) + phase, angles relative to the carrier C, the body both
  * gears are pinned to by revolute joints (the ground for fixed axles, the arm of a planetary set).
+ *
+ * Rack and pinion: with `rack` set, B is a rack sliding along `rack.axisLocalB` (B's frame) by a
+ * prismatic joint on the carrier the pinion A turns on, and B's displacement along that axis,
+ * relative to the carrier, is ratio · (θA − θC) + phase: `ratio` is the pinion's pitch radius in
+ * meters per radian (negative when the rack runs the other way) and `phase` is in meters.
  */
 const gearMeshJointSchema = jointBaseSchema
   .extend({
     kind: z.literal("gear_mesh"),
-    /** Gear ratio (teeth_B / teeth_A, negative for external mesh) */
+    /** Gear ratio (teeth_B / teeth_A, negative for external mesh), or meters per radian for a rack */
     ratio: z.number().finite(),
-    /** Phase offset (radians) */
+    /** Phase offset (radians, or meters for a rack) */
     phase: z.number().finite(),
+    /** Present when body B is a rack rather than a wheel */
+    rack: z
+      .object({
+        /** The rack's slide direction in B's local frame (unit vector) */
+        axisLocalB: vec3Schema,
+      })
+      .meta({ id: "RackMesh" })
+      .optional(),
   })
   .meta({ title: "GearMeshJoint" });
 

@@ -52,4 +52,8 @@ codexconfig.txt
 *.ai-scratch.*
 /scratch/
 
+# Local editor and agent tool state.
+/.codebuff-index/
+/debug/
+
 # The .kiro directory is committed and must never be ignored (Kiroween rule, checked in CI).

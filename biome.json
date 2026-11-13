@@ -10,6 +10,7 @@
       "**",
       "!**/generated",
       "!packages/engine-contract/schema",
+      "!packages/schema/schema",
       "!**/routeTree.gen.ts",
       "!.kiro",
       "!packages/db/migrations",
@@ -25,7 +26,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "suspicious": {
         "noExplicitAny": "error"
       },

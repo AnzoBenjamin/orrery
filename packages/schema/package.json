@@ -1,0 +1,23 @@
+{
+  "name": "@orrery/schema",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./json-schema": "./schema/mechanism.json"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json",
+    "codegen": "node src/emit-json-schema.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}

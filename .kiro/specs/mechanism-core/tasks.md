@@ -1,10 +1,11 @@
 # Tasks: Mechanism core
 
 - [ ] 1. Schema and code generation
-  - [ ] 1.1 Implement the Zod schema in `packages/schema` with refinements, version field, and migration registry.
+  - [x] 1.1 Implement the Zod schema in `packages/schema` with refinements, version field, and migration registry.
     - _Requirements: 1.1–1.6, 2.4_
   - [ ] 1.2 Emit JSON Schema, generate Rust types with `typify` and Pydantic models with `datamodel-code-generator`. Add to `pnpm codegen` and the stale check.
     - _Requirements: 2.1_
+    - Done: `schema/mechanism.json` emitted with Zod's `z.toJSONSchema` (draft 2020-12, structural shape only; the cross-reference refinements stay in Zod and the solver), in `pnpm codegen` and the stale check. Remaining: Rust types (lands with the first crate) and Pydantic models (lands with the first engine use).
   - [ ] 1.3 Author golden fixtures in `fixtures/golden/` covering every body and joint kind, including a spatial RSSR and a two-plane subsystem example. Add round-trip tests in all three languages (property 7) and invalid-graph tests (property 10).
     - _Requirements: 2.2, 2.3, 2.4_
 

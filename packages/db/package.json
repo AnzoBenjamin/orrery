@@ -20,6 +20,7 @@
     "@better-auth/drizzle-adapter": "1.7.22",
     "@better-auth/passkey": "1.7.22",
     "@orrery/config": "workspace:*",
+    "@orrery/schema": "workspace:*",
     "better-auth": "1.7.22",
     "drizzle-orm": "0.45.4",
     "pg": "8.23.1",

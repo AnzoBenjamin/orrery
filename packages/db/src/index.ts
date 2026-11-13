@@ -21,3 +21,12 @@ export {
 export { createListener, type Listener } from "./notify.ts";
 export * from "./queries/index.ts";
 export * as schema from "./schema/index.ts";
+export {
+  assertValidMechanism,
+  type MechanismValidationError,
+  type MechanismValidationResult,
+  type MechanismValidationSuccess,
+  parseMechanismFromJsonb,
+  prepareMechanismForJsonb,
+  validateMechanism,
+} from "./validate-mechanism.ts";

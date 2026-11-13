@@ -10,8 +10,9 @@
   - [x] 1.3 Implement gear train, rack and pinion, belt drive, Geneva drive, cam-follower families, and the sewing-machine needle bar and take-up lever family.
     - _Requirements: 1.1_
     - `families/drives.py`: gear trains of two to four spur gears (the last optionally an internal ring), rack and pinion (rocking), belt drives with open and crossed belts, the Geneva drive over one indexing (the locking disk's contact between indexings is outside the schema, so a sample covers the engaged arc), knife, roller, and flat-faced cam followers on convex Fourier cams with a return spring, and the sewing machine (needle bar slider-crank plus take-up lever on the same crank pin). Tests check tooth and radius ratios, rack travel per radian, the closed-form Geneva motion, follower contact against the profile, and the needle bar's straight stroke. Feasibility now also rejects a sample the solver assembles anywhere but where it was drawn. Two solver gaps surfaced and were fixed in mechanism-core: rack and pinion was missing, and slot and cam parameters started from a grid, so drawn poses on curves were not recognized and could flip branch.
-  - [ ] 1.4 Implement spatial RSSR and multi-plane samples.
+  - [x] 1.4 Implement spatial RSSR and multi-plane samples.
     - _Requirements: 1.1_
+    - `families/spatial.py`: RSSR on skew axles (spatial bodies drawn in world coordinates), and `two-plane-cardan`, two crank-rockers in different planes joined by a double-Cardan shaft with a slip joint. Tests: RSSR links stay rigid and the rocker's ball turns in the plane of its axle; between parallel planes the in-phase Cardan pair turns the output exactly with the input, and a tilted rear plane makes it lead and lag within a turn. The drawn-pose check maps each planar body's plane coordinates to the world.
   - [ ] 1.5 Implement appearance generation (outlines, involute gears, holes, decorations) and the compound-machine composer. Property test 1.
     - _Requirements: 1.3, 1.4_
 

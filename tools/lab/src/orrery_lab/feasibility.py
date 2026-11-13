@@ -23,7 +23,7 @@ from orrery_kinematics import (
 
 from orrery_lab.family import Built, Requirements
 from orrery_lab.generated.mechanism import Mechanism as MechanismModel
-from orrery_lab.graph import checked
+from orrery_lab.graph import Json, checked
 
 
 @dataclass(frozen=True)
@@ -51,13 +51,29 @@ def _covers(reachable: list[tuple[float, float]], start: float, end: float, step
     )
 
 
+def _drawn_world(document: Json) -> dict[tuple[str, str], tuple[float, float, float]]:
+    """Every named point where it was drawn, in world coordinates: a planar body's points are in
+    its plane's coordinates, a spatial body's in the world's."""
+    planes = {p["id"]: p for p in document["planes"]}
+
+    def vec(v: Json) -> npt.NDArray[np.float64]:
+        return np.array([v["x"], v["y"], v["z"]], dtype=np.float64)
+
+    out: dict[tuple[str, str], tuple[float, float, float]] = {}
+    for body in document["bodies"]:
+        plane = planes.get(body["planeId"]) if body["planeId"] is not None else None
+        for point in body["points"]:
+            local = vec(point["local"])
+            if plane is not None:
+                x, n = vec(plane["xAxisWorld"]), vec(plane["normalWorld"])
+                local = vec(plane["originWorld"]) + local[0] * x + local[1] * np.cross(n, x)
+            out[(body["id"], point["id"])] = (float(local[0]), float(local[1]), float(local[2]))
+    return out
+
+
 def _holds_drawn_pose(built: Built, solver: Solver, state: npt.NDArray[np.float64]) -> bool:
     """Whether the assembled points are where the family drew them (bodies drawn in place)."""
-    drawn = {
-        (body["id"], point["id"]): (point["local"]["x"], point["local"]["y"], point["local"]["z"])
-        for body in built.document["bodies"]
-        for point in body["points"]
-    }
+    drawn = _drawn_world(built.document)
     positions = solver.point_positions(state)
     expected = np.array([drawn[name] for name in solver.point_names])
     extent = float(np.ptp(expected, axis=0).max()) or 1.0

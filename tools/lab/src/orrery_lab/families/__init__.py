@@ -1,6 +1,6 @@
 """Every mechanism family, by name."""
 
-from orrery_lab.families import drives, four_bar, linkages, sliders
+from orrery_lab.families import drives, four_bar, linkages, sliders, spatial
 from orrery_lab.family import Family
 
 FAMILIES: dict[str, Family] = {
@@ -10,6 +10,7 @@ FAMILIES: dict[str, Family] = {
         *sliders.FAMILIES,
         *linkages.FAMILIES,
         *drives.FAMILIES,
+        *spatial.FAMILIES,
     )
 }
 

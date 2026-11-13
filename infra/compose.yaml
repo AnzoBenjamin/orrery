@@ -154,6 +154,7 @@ services:
       # browser and from the e2e container, which shares this container's network namespace.
       WEB_PORT: ${WEB_PORT:-53000}
       AUTH_RATE_LIMIT_SCALE: ${AUTH_RATE_LIMIT_SCALE:-50}
+      WATCH_POLLING: "1"
     ports:
       - 127.0.0.1:${WEB_PORT:-53000}:${WEB_PORT:-53000}
     mem_limit: 1536m

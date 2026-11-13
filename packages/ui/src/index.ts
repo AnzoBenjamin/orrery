@@ -1,5 +1,6 @@
 export { Banner, type BannerTone } from "./components/banner.tsx";
 export { Button, type ButtonVariant } from "./components/button.tsx";
+export { Dialog, DialogTrigger } from "./components/dialog.tsx";
 export { EngravedFourBar } from "./components/engraved-four-bar.tsx";
 export { Form, SubmitButton } from "./components/form.tsx";
 export { Plate } from "./components/plate.tsx";

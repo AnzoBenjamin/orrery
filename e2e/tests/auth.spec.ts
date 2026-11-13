@@ -5,8 +5,12 @@ import { linkIn, waitForEmail } from "../support/mailpit.ts";
 test.describe("email and password accounts", () => {
   test("sign-up sends a confirmation email whose link activates the account", async ({ page }) => {
     const { email, name } = await signUpAndVerify(page, "signup");
-    await page.getByRole("link", { name: "Continue to your account" }).click();
-    await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
+    await page.getByRole("link", { name: "Continue to your cabinet" }).click();
+    await expect(page.getByRole("heading", { name: "Cabinet of specimens" })).toBeVisible();
+    await page
+      .getByRole("navigation", { name: "Main" })
+      .getByRole("link", { name: "Account" })
+      .click();
     await expect(page.getByText(email)).toBeVisible();
     await expect(page.getByText("Email confirmed")).toBeVisible();
     await expect(page.getByRole("region", { name: "Account" })).toContainText(name);
@@ -28,7 +32,7 @@ test.describe("email and password accounts", () => {
 
   test("a wrong password is refused with guidance", async ({ page }) => {
     const { email } = await signUpAndVerify(page, "wrongpw");
-    await page.getByRole("link", { name: "Continue to your account" }).click();
+    await page.getByRole("link", { name: "Continue to your cabinet" }).click();
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/sign-in/);
 
@@ -73,7 +77,7 @@ test.describe("email and password accounts", () => {
     await signIn(page, email, PASSWORD);
     await expect(page.getByRole("alert")).toContainText("do not match an account");
     await signIn(page, email, newPassword);
-    await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Cabinet of specimens" })).toBeVisible();
   });
 
   test("password reset reveals nothing about unknown addresses", async ({ page }) => {

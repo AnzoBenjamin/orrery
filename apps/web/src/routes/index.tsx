@@ -8,6 +8,6 @@ import { getSession } from "../server/session.ts";
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
     const session = await getSession();
-    throw redirect({ to: session ? "/account" : "/sign-in" });
+    throw redirect({ to: session ? "/cabinet" : "/sign-in" });
   },
 });

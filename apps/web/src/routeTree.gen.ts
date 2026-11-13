@@ -10,13 +10,15 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AccountRouteImport } from './routes/account'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as CheckEmailRouteImport } from './routes/check-email'
 import { Route as EmailVerifiedRouteImport } from './routes/email-verified'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
+import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppCabinetRouteImport } from './routes/_app/cabinet'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
@@ -25,9 +27,8 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AccountRoute = AccountRouteImport.update({
-  id: '/account',
-  path: '/account',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CheckEmailRoute = CheckEmailRouteImport.update({
@@ -60,6 +61,16 @@ const SignUpRoute = SignUpRouteImport.update({
   path: '/sign-up',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppAccountRoute = AppAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCabinetRoute = AppCabinetRouteImport.update({
+  id: '/cabinet',
+  path: '/cabinet',
+  getParentRoute: () => AppRoute,
+} as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
@@ -73,38 +84,42 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/account': typeof AccountRoute
   '/check-email': typeof CheckEmailRoute
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/account': typeof AppAccountRoute
+  '/cabinet': typeof AppCabinetRoute
   '/api/health': typeof ApiHealthRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/account': typeof AccountRoute
   '/check-email': typeof CheckEmailRoute
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/account': typeof AppAccountRoute
+  '/cabinet': typeof AppCabinetRoute
   '/api/health': typeof ApiHealthRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/account': typeof AccountRoute
+  '/_app': typeof AppRouteWithChildren
   '/check-email': typeof CheckEmailRoute
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/_app/account': typeof AppAccountRoute
+  '/_app/cabinet': typeof AppCabinetRoute
   '/api/health': typeof ApiHealthRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -112,44 +127,48 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/account'
     | '/check-email'
     | '/email-verified'
     | '/forgot-password'
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
+    | '/account'
+    | '/cabinet'
     | '/api/health'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/account'
     | '/check-email'
     | '/email-verified'
     | '/forgot-password'
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
+    | '/account'
+    | '/cabinet'
     | '/api/health'
     | '/api/auth/$'
   id:
     | '__root__'
     | '/'
-    | '/account'
+    | '/_app'
     | '/check-email'
     | '/email-verified'
     | '/forgot-password'
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
+    | '/_app/account'
+    | '/_app/cabinet'
     | '/api/health'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AccountRoute: typeof AccountRoute
+  AppRoute: typeof AppRouteWithChildren
   CheckEmailRoute: typeof CheckEmailRoute
   EmailVerifiedRoute: typeof EmailVerifiedRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -169,11 +188,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/account': {
-      id: '/account'
-      path: '/account'
-      fullPath: '/account'
-      preLoaderRoute: typeof AccountRouteImport
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/check-email': {
@@ -218,6 +237,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignUpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/account': {
+      id: '/_app/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AppAccountRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cabinet': {
+      id: '/_app/cabinet'
+      path: '/cabinet'
+      fullPath: '/cabinet'
+      preLoaderRoute: typeof AppCabinetRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/api/health': {
       id: '/api/health'
       path: '/api/health'
@@ -235,9 +268,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppRouteChildren {
+  AppAccountRoute: typeof AppAccountRoute
+  AppCabinetRoute: typeof AppCabinetRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAccountRoute: AppAccountRoute,
+  AppCabinetRoute: AppCabinetRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AccountRoute: AccountRoute,
+  AppRoute: AppRouteWithChildren,
   CheckEmailRoute: CheckEmailRoute,
   EmailVerifiedRoute: EmailVerifiedRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,

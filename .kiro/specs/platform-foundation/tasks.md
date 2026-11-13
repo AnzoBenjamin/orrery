@@ -56,12 +56,14 @@ Task numbers are stable references (other specs cite them). Work them in this or
     - Done: sign-up with Mailpit verification, unverified sign-in refused, wrong password, sign-out, reset flow, reset privacy, invalid reset link. Remaining with 4.3 and 6.x: passkey via virtual authenticator, session revocation, account deletion, unverified upload.
 
 - [ ] 5. Authorization and sharing
-  - [ ] 5.1 Implement `policy.ts` and the `authed()` server-function wrapper with typed domain errors.
+  - [x] 5.1 Implement `policy.ts` and the `authed()` server-function wrapper with typed domain errors.
     - _Requirements: 5.1, 5.2, 12.2_
+    - Implemented as operations (`server/operations/`) invoked by thin server functions through `call()`: strict Zod input, actor resolution, policy, transaction, and typed `Result` errors. The cross-user test (5.3) runs over the operation registry.
   - [ ] 5.2 Implement share links (create, list, revoke, resolve) with hashed tokens and rate limiting, plus the share management UI.
     - _Requirements: 5.3, 12.3_
   - [ ] 5.3 Add a generated cross-user authorization test that enumerates every registered server function and route (property 1).
     - _Requirements: 5.4_
+    - Done for every registered operation (property 1, fast-check). Server routes join the registry as they are added.
 
 - [ ] 6. Uploads and storage
   - [ ] 6.1 Implement multipart server functions and the S3 client configured for Garage.

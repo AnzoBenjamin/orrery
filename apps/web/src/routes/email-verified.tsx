@@ -37,8 +37,8 @@ function EmailVerified() {
       <div className="flex flex-col gap-5">
         <Banner tone="success" title="Your email address is confirmed." />
         {session ? (
-          <Link to="/account" className="o-link">
-            Continue to your account
+          <Link to="/cabinet" className="o-link">
+            Continue to your cabinet
           </Link>
         ) : (
           <Link to="/sign-in" className="o-link">

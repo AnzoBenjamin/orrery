@@ -8,7 +8,7 @@ import { getSession } from "../server/session.ts";
 export const Route = createFileRoute("/sign-up")({
   head: () => ({ meta: [{ title: "Create an account · Orrery" }] }),
   beforeLoad: async () => {
-    if (await getSession()) throw redirect({ to: "/account" });
+    if (await getSession()) throw redirect({ to: "/cabinet" });
   },
   component: SignUp,
 });

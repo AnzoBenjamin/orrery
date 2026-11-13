@@ -17,7 +17,7 @@ export const Route = createFileRoute("/sign-in")({
   head: () => ({ meta: [{ title: "Sign in · Orrery" }] }),
   validateSearch: search,
   beforeLoad: async ({ search: s }) => {
-    if (await getSession()) throw redirect({ href: safeRedirect(s.redirect, "/account") });
+    if (await getSession()) throw redirect({ href: safeRedirect(s.redirect, "/cabinet") });
   },
   loader: () => getAuthMethods(),
   component: SignIn,
@@ -26,7 +26,7 @@ export const Route = createFileRoute("/sign-in")({
 function SignIn() {
   const methods = Route.useLoaderData();
   const { redirect: target, reset } = Route.useSearch();
-  const destination = safeRedirect(target, "/account");
+  const destination = safeRedirect(target, "/cabinet");
   const navigate = useNavigate();
   const [pending, setPending] = useState<"password" | "passkey" | "github" | "google" | null>(null);
   const [error, setError] = useState<string | null>(null);

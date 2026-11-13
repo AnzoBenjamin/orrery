@@ -433,3 +433,61 @@ proptest! {
         prop_assert!((numeric - curve.eval(s).1).norm() < 1e-5);
     }
 }
+
+/// A cam with a knife follower sliding on a vertical guide, drawn touching the profile at angle
+/// `psi` (on the side of the cam `psi` points to).
+fn knife_on_cam(psi: f64) -> Value {
+    let (base, a1) = (0.03, 0.004);
+    let r = base + a1 * psi.cos();
+    let (x, y) = (r * psi.cos(), r * psi.sin());
+    let p = |id: &str, x: f64, y: f64| serde_json::json!({"id": id, "local": {"x": x, "y": y, "z": 0.0}, "role": "joint_anchor"});
+    let body = |id: &str, kind: &str, points: Vec<Value>| {
+        serde_json::json!({"id": id, "label": id, "kind": kind, "planeId": "plane-main",
+            "points": points, "status": "observed", "confidence": 1.0})
+    };
+    let mut cam = body("cam", "cam", vec![p("bore", 0.0, 0.0)]);
+    cam["cam"] =
+        serde_json::json!({"baseRadius": base, "fourier": {"a": [0.0, a1], "b": [0.0, 0.0]}});
+    serde_json::json!({
+        "schemaVersion": 1, "id": "knife", "name": "knife",
+        "scale": {"source": "unscaled", "metersPerUnit": 1.0},
+        "planes": [{"id": "plane-main", "originWorld": {"x": 0, "y": 0, "z": 0},
+            "normalWorld": {"x": 0, "y": 0, "z": 1}, "xAxisWorld": {"x": 1, "y": 0, "z": 0}}],
+        "bodies": [
+            body("ground", "ground", vec![p("shaft", 0.0, 0.0), p("guide", x, 0.0)]),
+            cam,
+            body("follower", "slider_block", vec![p("edge", x, y)]),
+        ],
+        "joints": [
+            {"id": "j-shaft", "kind": "revolute", "bodyA": "ground", "bodyB": "cam",
+             "anchorA": {"bodyId": "ground", "pointId": "shaft"},
+             "anchorB": {"bodyId": "cam", "pointId": "bore"}, "status": "observed", "confidence": 1.0},
+            {"id": "j-guide", "kind": "prismatic", "bodyA": "ground", "bodyB": "follower",
+             "anchorA": {"bodyId": "ground", "pointId": "guide"},
+             "anchorB": {"bodyId": "follower", "pointId": "edge"},
+             "axisLocalA": {"x": 0, "y": 1, "z": 0}, "status": "observed", "confidence": 1.0},
+            {"id": "j-cam", "kind": "cam_follower", "bodyA": "cam", "bodyB": "follower",
+             "follower": "knife", "followerPoint": {"bodyId": "follower", "pointId": "edge"},
+             "status": "observed", "confidence": 1.0}
+        ],
+        "drivers": [{"id": "drive", "jointId": "j-shaft", "coordinate": "angle",
+            "profile": {"type": "constant_rate", "rate": 1.0, "phase0": 0.0}}],
+        "provenance": {"createdBy": "user", "footageIds": []}
+    })
+}
+
+#[test]
+fn a_follower_drawn_on_the_profile_stays_where_it_was_drawn() {
+    // The contact angle is between the 2° grid the curve parameter starts from. Before the start
+    // was refined, the drawn pose missed the 1e-9 test and assembly could pick the far side of
+    // the cam (found by the synthetic lab's cam families).
+    for psi in [1.0, -1.9, 2.71] {
+        let m = model_of(&knife_on_cam(psi));
+        let a = m
+            .assemble(&[0.0], None, &AssemblyOptions::default())
+            .unwrap();
+        let r = 0.03 + 0.004 * psi.cos();
+        let edge = world(&m, &a.q, "follower", "edge");
+        assert!((edge.y - r * psi.sin()).abs() < 1e-12, "{psi}: {edge:?}");
+    }
+}

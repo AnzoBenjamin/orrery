@@ -62,6 +62,29 @@ fn push_theta(out: &mut Vec<Entry>, row: usize, slot: BodySlot, value: f64) {
     }
 }
 
+/// Golden-section search for the least value of `f` on `[lo, hi]`, where it has one minimum (a
+/// grid point's neighborhood). Grid starts are within a step of the answer; a pose drawn exactly
+/// on a curve needs the parameter to rounding so it is recognized as already assembled.
+fn refine_minimum(mut lo: f64, mut hi: f64, mut f: impl FnMut(f64) -> f64) -> f64 {
+    let ratio = 0.5 * (5.0_f64.sqrt() - 1.0);
+    let (mut a, mut b) = (hi - ratio * (hi - lo), lo + ratio * (hi - lo));
+    let (mut fa, mut fb) = (f(a), f(b));
+    for _ in 0..80 {
+        if fa < fb {
+            hi = b;
+            (b, fb) = (a, fa);
+            a = hi - ratio * (hi - lo);
+            fa = f(a);
+        } else {
+            lo = a;
+            (a, fa) = (b, fb);
+            b = lo + ratio * (hi - lo);
+            fb = f(b);
+        }
+    }
+    0.5 * (lo + hi)
+}
+
 /// A joint's residual equations.
 pub trait Constraint: std::fmt::Debug + Send + Sync {
     /// The joint (or driver) these rows belong to, for diagnostics.
@@ -339,15 +362,13 @@ impl Constraint for PinInSlot {
         let pose = self.slot_body.pose(q);
         let (lo, hi) = self.curve.bounds();
         let samples = 64_u32;
+        let step = (hi - lo) / f64::from(samples);
+        let distance = |s: f64| (pose.apply(self.curve.eval(s).0) - target).norm();
         let best = (0..=samples)
-            .map(|i| lo + (hi - lo) * f64::from(i) / f64::from(samples))
-            .min_by(|a, b| {
-                let da = (pose.apply(self.curve.eval(*a).0) - target).norm();
-                let db = (pose.apply(self.curve.eval(*b).0) - target).norm();
-                da.total_cmp(&db)
-            })
+            .map(|i| lo + step * f64::from(i))
+            .min_by(|a, b| distance(*a).total_cmp(&distance(*b)))
             .unwrap_or(lo);
-        q[self.s_index] = best;
+        q[self.s_index] = refine_minimum((best - step).max(lo), (best + step).min(hi), distance);
     }
     fn violation(&self, q: &[f64]) -> Option<f64> {
         let s = q[self.s_index];
@@ -549,20 +570,19 @@ impl Constraint for CamContact {
     }
     fn init_aux(&self, q: &mut [f64]) {
         let samples = 180_u32;
+        let step = std::f64::consts::TAU / f64::from(samples);
         let mut residual = [0.0; 2];
         let mut trial = q.to_vec();
+        let mut cost = |psi: f64| {
+            trial[self.psi_index] = psi;
+            self.eval(&trial, &[], &mut residual);
+            residual[0].hypot(residual[1])
+        };
         let best = (0..samples)
-            .map(|i| std::f64::consts::TAU * f64::from(i) / f64::from(samples))
-            .min_by(|a, b| {
-                let mut cost = |psi: f64| {
-                    trial[self.psi_index] = psi;
-                    self.eval(&trial, &[], &mut residual);
-                    residual[0].hypot(residual[1])
-                };
-                cost(*a).total_cmp(&cost(*b))
-            })
+            .map(|i| step * f64::from(i))
+            .min_by(|a, b| cost(*a).total_cmp(&cost(*b)))
             .unwrap_or(0.0);
-        q[self.psi_index] = best;
+        q[self.psi_index] = refine_minimum(best - step, best + step, cost);
     }
 }
 

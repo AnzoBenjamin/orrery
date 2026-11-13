@@ -201,3 +201,38 @@ fn a_parallelogram_reports_its_change_point() {
         event.drive
     );
 }
+
+#[test]
+fn an_output_at_rest_reports_no_lockups() {
+    // The golden cam's output is the free end of a leaf the cam never touches. Its velocity is
+    // rounding noise, whose sign once flipped often enough to report lockups (found by the
+    // native versus WebAssembly parity test, where the two builds disagreed on how many).
+    let m = model(&golden("cam-followers-and-spring.json"));
+    let sim = m
+        .simulate(
+            0,
+            &[0.0],
+            (0.0, TAU, 0.05),
+            None,
+            &SimulationOptions::default(),
+        )
+        .unwrap();
+    let leaf = m.body("leaf").unwrap();
+    let ends: Vec<[f64; 3]> = sim
+        .samples
+        .iter()
+        .map(|s| m.point_world(leaf, "free-end", &s.q).unwrap())
+        .collect();
+    assert!(
+        ends.iter()
+            .all(|e| e.iter().zip(&ends[0]).all(|(a, b)| (a - b).abs() < 1e-12)),
+        "the leaf moved"
+    );
+    let lockups: Vec<f64> = sim
+        .singularities
+        .iter()
+        .filter(|s| s.kind == SingularityKind::Lockup)
+        .map(|s| s.drive)
+        .collect();
+    assert!(lockups.is_empty(), "{lockups:?}");
+}

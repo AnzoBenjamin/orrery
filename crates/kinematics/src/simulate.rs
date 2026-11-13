@@ -10,7 +10,10 @@
 //!   singular while the joints alone keep their rank, so the driver cannot move the mechanism on.
 //!   The reachable range ends there.
 //! - `lockup`: the output loses mobility. The velocity of the output points (role `output`) passes
-//!   through zero while the driver keeps moving, as at a rocker's extreme.
+//!   through zero while the driver keeps moving, as at a rocker's extreme. An output at rest (a
+//!   dwell, or a part the driver never reaches) has a velocity of rounding noise, whose sign means
+//!   nothing: only reversals between samples where it moves count, and a reversal across a dwell
+//!   is reported where the output came to rest.
 //! - `bifurcation`: the joints alone lose rank, so the null space grows and branches meet.
 
 use faer::Mat;
@@ -368,13 +371,23 @@ impl Model {
             tracker.recent.remove(0);
         }
         let v = self.output_velocity(&q, drive, k);
-        if let (Some(prev), Some(pd)) =
+        // Below this speed (meters per unit of the driver) the output is at rest, as in a cam
+        // dwell; the sign of a velocity that small is rounding noise, so it is not compared.
+        const STILL: f64 = 1e-9;
+        let moving = v.iter().map(|x| x * x).sum::<f64>().sqrt() > STILL;
+        if !moving {
+            tracker.still_since.get_or_insert(d);
+        } else if let (Some(prev), Some(pd)) =
             (tracker.output.as_ref(), sim.samples.last().map(|s| s.drive))
         {
             let turn: f64 = prev.iter().zip(&v).map(|(a, b)| a * b).sum();
-            if turn < 0.0 && !v.is_empty() {
-                // The output reversed between the two samples: locate where its speed is least.
-                let at = self.locate_reversal(sim, pd, d, drive, k);
+            if turn < 0.0 {
+                // The output reversed: where it came to rest when it dwelt in between, otherwise
+                // where its speed is least between the two samples.
+                let at = match tracker.still_since {
+                    Some(rest) => rest,
+                    None => self.locate_reversal(sim, pd, d, drive, k),
+                };
                 let joints = self.joints_moving(&self.velocity(&q, drive, k));
                 sim.singularities.push(Singularity {
                     drive: at,
@@ -383,7 +396,10 @@ impl Model {
                 });
             }
         }
-        tracker.output = Some(v);
+        if moving {
+            tracker.output = Some(v);
+            tracker.still_since = None;
+        }
         sim.samples.push(Sample { drive: d, q });
     }
 
@@ -490,8 +506,11 @@ impl Model {
 struct Tracker {
     /// The joint rows' rank at the first sample of the sweep.
     rank: Option<usize>,
-    /// The output velocity at the previous sample.
+    /// The output velocity at the last sample where the output moved.
     output: Option<Vec<f64>>,
+    /// The driver value of the first sample of the stretch where the output has been still since
+    /// it last moved (a cam dwell).
+    still_since: Option<f64>,
     /// The last two samples' driver values and rank indicators.
     recent: Vec<(f64, f64)>,
 }
@@ -500,6 +519,7 @@ impl Tracker {
     /// A new reachable range: no continuity with the previous one.
     fn restart(&mut self) {
         self.output = None;
+        self.still_since = None;
         self.recent.clear();
     }
 }

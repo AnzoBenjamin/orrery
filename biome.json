@@ -12,6 +12,7 @@
       "!packages/engine-contract/schema",
       "!packages/schema/schema",
       "!packages/kinematics-wasm/pkg",
+      "!fixtures/golden/parity",
       "!**/routeTree.gen.ts",
       "!.kiro",
       "!packages/db/migrations",

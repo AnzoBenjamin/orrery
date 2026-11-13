@@ -5,8 +5,15 @@ import { createAuthClient } from "better-auth/react";
 export const authClient = createAuthClient({ plugins: [passkeyClient()] });
 
 /** User-facing text for Better Auth error codes: what happened and what to do next. */
-export function authErrorMessage(error: { code?: string | undefined; status?: number }): string {
+export function authErrorMessage(error: {
+  code?: string | undefined;
+  status?: number;
+  message?: string | undefined;
+}): string {
   switch (error.code) {
+    case "ACCOUNT_RATE_LIMITED":
+      // The server's message says how long to wait (server/account-limits.ts).
+      return error.message ?? "Too many attempts for this account. Wait a while, then try again.";
     case "INVALID_EMAIL_OR_PASSWORD":
       return "That email and password do not match an account. Check both, or reset your password.";
     case "EMAIL_NOT_VERIFIED":

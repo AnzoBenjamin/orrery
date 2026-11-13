@@ -40,6 +40,36 @@ test.describe("email and password accounts", () => {
     await expect(page.getByRole("alert")).toContainText("do not match an account");
   });
 
+  test("repeated wrong passwords lock the account's password sign-in for a while", async ({
+    page,
+  }) => {
+    const { email } = await signUpAndVerify(page, "lockout");
+    await page.goto("/account");
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await expect(page).toHaveURL(/\/sign-in/);
+
+    // The per-account allowance (server/rate-limits.ts, "sign-in-account") is 10 per 15 minutes.
+    // The first attempt and the refused one go through the form. Attempts 2 to 10 post to the
+    // endpoint the form uses: loading the dev server's sign-in page eleven times, each audited
+    // with axe, takes longer than the test budget.
+    await signIn(page, email, "wrong guess 1");
+    await expect(page.getByRole("alert")).toContainText("do not match an account");
+    const origin = new URL(page.url()).origin;
+    for (let attempt = 2; attempt <= 10; attempt++) {
+      const response = await page.request.post("/api/auth/sign-in/email", {
+        headers: { origin },
+        data: { email, password: `wrong guess ${attempt}` },
+      });
+      expect(response.status(), `attempt ${attempt}`).toBe(401);
+    }
+    // Even the right password is refused until the window passes.
+    await signIn(page, email, PASSWORD);
+    await expect(page.getByRole("alert")).toContainText(
+      /Too many attempts for this account\. Wait \d+ (seconds?|minutes), then try again\./,
+    );
+    await expect(page).toHaveURL(/\/sign-in/);
+  });
+
   test("signing out ends the session and protects the account page", async ({ page }) => {
     await signUpAndVerify(page, "signout");
     await page.goto("/account");

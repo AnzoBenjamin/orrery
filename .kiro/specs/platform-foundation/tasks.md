@@ -46,9 +46,9 @@ Task numbers are stable references (other specs cite them). Work them in this or
     - `packages/db/src/validate-mechanism.ts` (`validateMechanism`, `assertValidMechanism`, `parseMechanismFromJsonb`, `prepareMechanismForJsonb`) over `@orrery/schema`. Query modules for mechanism revisions call it when their tables land (mechanism-core).
 
 - [ ] 4. Authentication and account
-  - [ ] 4.1 Configure Better Auth with the Drizzle adapter, email and password with verification, GitHub, Google, passkeys, database rate limiting, and the TanStack Start cookie plugin. Generate the auth schema and migration.
+  - [x] 4.1 Configure Better Auth with the Drizzle adapter, email and password with verification, GitHub, Google, passkeys, database rate limiting, and the TanStack Start cookie plugin. Generate the auth schema and migration.
     - _Requirements: 4.1, 4.2, 4.4, 4.5_
-    - Done: Better Auth with the Drizzle adapter, email and password with required verification, GitHub and Google (enabled when configured), passkeys, database rate limits, the TanStack Start cookie plugin, the generated schema. Remaining: per-account rate limits (Better Auth limits by IP and path).
+    - Better Auth with the Drizzle adapter, email and password with required verification, GitHub and Google (enabled when configured), passkeys, database rate limits per IP and path, the TanStack Start cookie plugin, and the generated schema. Per-account limits on sign-in, sign-up, password reset, and verification email run in a Better Auth `before` hook (`server/account-limits.ts`) on the shared `rate-limiter-flexible` store, keyed by a SHA-256 of the normalized address and counted whether or not the account exists.
   - [ ] 4.2 Build the email package with React Email templates (verification, reset, new sign-in alert, analysis complete) and the `email.send` queue.
     - _Requirements: 4.2, 4.3, 10.1, 10.2_
     - Done: `packages/email` (four templates, Nodemailer mailer, Mailpit delivery test) and the `email.send` queue with idempotent job ids. Remaining: the new-device sign-in alert hook, which needs a known-device table.

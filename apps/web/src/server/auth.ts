@@ -5,7 +5,10 @@ import { deleteSpecimensForOwner, schema } from "@orrery/db";
 import { authSchemaOptions } from "@orrery/db/auth-options";
 import { emailSend, enqueue } from "@orrery/jobs";
 import { betterAuth } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
+import { ACCOUNT_RATE_LIMITED, checkAccountLimit } from "./account-limits.ts";
+import { appLimits } from "./app-limits.ts";
 import { database } from "./db.ts";
 import { serverEnv } from "./env.ts";
 import { jobProducer } from "./jobs.ts";
@@ -92,6 +95,16 @@ function createAuth() {
         "/request-password-reset": { window: 3600, max: 3 * env.AUTH_RATE_LIMIT_SCALE },
         "/send-verification-email": { window: 3600, max: 3 * env.AUTH_RATE_LIMIT_SCALE },
       },
+    },
+
+    hooks: {
+      // Per-account limits (requirement 4.4). Better Auth's rateLimit above counts per IP.
+      before: createAuthMiddleware(async (ctx) => {
+        const refused = await checkAccountLimit(appLimits, ctx.path, ctx.body);
+        if (refused) {
+          throw new APIError("TOO_MANY_REQUESTS", { message: refused, code: ACCOUNT_RATE_LIMITED });
+        }
+      }),
     },
 
     plugins: [

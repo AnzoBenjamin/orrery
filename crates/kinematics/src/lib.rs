@@ -13,6 +13,7 @@ pub mod mobility;
 pub mod model;
 pub mod motion;
 pub mod planar;
+pub mod plausibility;
 pub mod schema;
 pub mod simulate;
 pub mod validate;

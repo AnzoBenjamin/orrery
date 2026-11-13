@@ -37,8 +37,9 @@
   - [x] 3.3 Implement Grübler and numerical mobility with redundant-constraint and free-motion reporting. Property test 4.
     - _Requirements: 6.1–6.3_
     - `kinematics::mobility`: Grübler–Kutzbach from unknowns minus joint equations (higher pairs counted once), numerical mobility from the SVD rank of the joint rows, redundant joints found by adding joints one at a time, and free motions from the null space of joints and drivers, given per body. Property 4 over generated linkages; a triple-crank parallelogram (Grübler 0, numerical 1, `top-3` redundant); free motions of an undriven four-bar and of the cam golden's unheld leaf.
-  - [ ] 3.4 Implement transmission angle, Grashof classification, swept collision detection with `parry2d`, and fabrication risk indicators.
+  - [x] 3.4 Implement transmission angle, Grashof classification, swept collision detection with `parry2d`, and fabrication risk indicators.
     - _Requirements: 8.1–8.4_
+    - `kinematics::plausibility`: four-bar loops found as revolute 4-cycles (frame, driven input, coupler, output), Grashof classes, least folded transmission angle at both floating joints, outline collisions with `parry2d-f64` (ear-clipped triangle compounds) between unjoined bodies in one plane or in parallel planes closer than their half thicknesses, located by subdividing each step and bisecting, slenderness from outlines, and quasi-static reaction reversals under springs and a unit load opposing each output point. Collisions are checked against a brute-force separating-axis test.
   - [ ] 3.5 Property test 3 (continuity).
     - _Requirements: 4.2, 5.2_
 

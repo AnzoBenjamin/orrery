@@ -110,6 +110,8 @@ pub struct BodyInfo {
     pub plane: Option<String>,
     /// Named points in the body's local frame.
     pub points: HashMap<String, [f64; 3]>,
+    /// The outline polygon in the local frame, and the thickness, in meters.
+    pub outline: Option<(Vec<V2>, f64)>,
 }
 
 /// A revolute or prismatic joint, kept for building initial guesses.
@@ -135,6 +137,8 @@ pub struct Model {
     pub drivers: Vec<Driver>,
     pub links: Vec<(usize, usize, Link)>,
     pub springs: Vec<Spring>,
+    /// Body pairs (lower index first) that some joint connects.
+    pub joined: std::collections::BTreeSet<(usize, usize)>,
     /// Points with the `output` role: (body index, point id).
     pub outputs: Vec<(usize, String)>,
     pub planes: HashMap<String, PlaneFrame>,
@@ -193,12 +197,19 @@ impl Model {
                 .iter()
                 .map(|p| (p.id.as_str().to_owned(), arr(&p.local)))
                 .collect();
+            let outline = body.outline.as_ref().map(|o| {
+                (
+                    o.polygon_local.iter().map(|p| V2::new(p.x, p.y)).collect(),
+                    o.thickness,
+                )
+            });
             bodies.push(BodyInfo {
                 id: body.id.as_str().to_owned(),
                 is_ground,
                 slot,
                 plane,
                 points,
+                outline,
             });
         }
         let body_index: HashMap<String, usize> = bodies
@@ -214,6 +225,7 @@ impl Model {
             drivers: Vec::new(),
             links: Vec::new(),
             springs: Vec::new(),
+            joined: std::collections::BTreeSet::new(),
             outputs: mechanism
                 .bodies
                 .iter()
@@ -235,6 +247,7 @@ impl Model {
                 model.body_index[common.body_a],
                 model.body_index[common.body_b],
             );
+            model.joined.insert((a.min(b), a.max(b)));
             match model.compile_joint(i, joint, mechanism)? {
                 Compiled::Link(link) => {
                     match &link {

@@ -75,7 +75,7 @@ The engine runs on CPU only. There is no GPU anywhere in the stack. See the visi
 
 ## Kinematics core (`crates/`)
 
-- `kinematics`: pure Rust. `faer` for dense and sparse linear algebra, `parry2d` / `parry3d` for collision, `serde` for I/O.
+- `kinematics`: pure Rust. `faer` for dense and sparse linear algebra, `parry2d` / `parry3d` for collision (the `-f64` builds, `parry2d-f64` and `parry3d-f64`, since the solver is double precision throughout), `serde` for I/O.
 - `kinematics-wasm`: `wasm-bindgen`, run inside a Web Worker. Typed-array I/O.
 - `kinematics-py`: PyO3 plus maturin, NumPy array I/O.
 - One solver implementation shared by browser and engine. No reimplementation in TypeScript or Python.

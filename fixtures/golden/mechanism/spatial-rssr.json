@@ -1,0 +1,245 @@
+{
+  "schemaVersion": 1,
+  "id": "spatial-rssr",
+  "name": "Spatial RSSR linkage",
+  "scale": {
+    "source": "user_measurement",
+    "metersPerUnit": 1,
+    "sigma": 0.0005
+  },
+  "planes": [
+    {
+      "id": "plane-main",
+      "originWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 0.0
+      },
+      "normalWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxisWorld": {
+        "x": 1,
+        "y": 0,
+        "z": 0.0
+      }
+    }
+  ],
+  "bodies": [
+    {
+      "id": "ground",
+      "label": "Frame",
+      "kind": "ground",
+      "planeId": null,
+      "points": [
+        {
+          "id": "input-axle",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "output-axle",
+          "local": {
+            "x": 0.3,
+            "y": 0.1,
+            "z": 0.05
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "crank",
+      "label": "A",
+      "kind": "link",
+      "planeId": null,
+      "points": [
+        {
+          "id": "axle",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "ball",
+          "local": {
+            "x": 0.06,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "coupler",
+      "label": "B",
+      "kind": "link",
+      "planeId": null,
+      "points": [
+        {
+          "id": "socket-a",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "socket-b",
+          "local": {
+            "x": 0.32,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "rocker",
+      "label": "C",
+      "kind": "link",
+      "planeId": null,
+      "points": [
+        {
+          "id": "axle",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "ball",
+          "local": {
+            "x": 0.12,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "tip",
+          "local": {
+            "x": 0.12,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "output"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    }
+  ],
+  "joints": [
+    {
+      "id": "r-input",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "crank",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "input-axle"
+      },
+      "anchorB": {
+        "bodyId": "crank",
+        "pointId": "axle"
+      },
+      "status": "observed",
+      "confidence": 0.98,
+      "axisLocalA": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    {
+      "id": "s-crank",
+      "kind": "spherical",
+      "bodyA": "crank",
+      "bodyB": "coupler",
+      "anchorA": {
+        "bodyId": "crank",
+        "pointId": "ball"
+      },
+      "anchorB": {
+        "bodyId": "coupler",
+        "pointId": "socket-a"
+      },
+      "status": "observed",
+      "confidence": 0.9
+    },
+    {
+      "id": "s-rocker",
+      "kind": "spherical",
+      "bodyA": "coupler",
+      "bodyB": "rocker",
+      "anchorA": {
+        "bodyId": "coupler",
+        "pointId": "socket-b"
+      },
+      "anchorB": {
+        "bodyId": "rocker",
+        "pointId": "ball"
+      },
+      "status": "inferred",
+      "confidence": 0.7
+    },
+    {
+      "id": "r-output",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "rocker",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "output-axle"
+      },
+      "anchorB": {
+        "bodyId": "rocker",
+        "pointId": "axle"
+      },
+      "status": "observed",
+      "confidence": 0.98,
+      "axisLocalA": {
+        "x": 0.7071067811865475,
+        "y": 0,
+        "z": 0.7071067811865475
+      }
+    }
+  ],
+  "drivers": [
+    {
+      "id": "drive",
+      "jointId": "r-input",
+      "coordinate": "angle",
+      "profile": {
+        "type": "constant_rate",
+        "rate": 6.283185307179586,
+        "phase0": 0
+      }
+    }
+  ],
+  "provenance": {
+    "createdBy": "lab",
+    "footageIds": []
+  }
+}

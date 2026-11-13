@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Mechanism",
   "description": "Orrery mechanism graph. Generated from packages/schema; do not edit.",
   "type": "object",
@@ -16,16 +16,63 @@
       "type": "string"
     },
     "scale": {
+      "$ref": "#/definitions/Scale"
+    },
+    "planes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Plane"
+      }
+    },
+    "bodies": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Body"
+      }
+    },
+    "joints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Joint"
+      }
+    },
+    "drivers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Driver"
+      }
+    },
+    "provenance": {
+      "$ref": "#/definitions/Provenance"
+    },
+    "uncertainty": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "scale",
+    "planes",
+    "bodies",
+    "joints",
+    "drivers",
+    "provenance"
+  ],
+  "definitions": {
+    "Scale": {
       "type": "object",
       "properties": {
         "source": {
-          "type": "string",
-          "enum": [
-            "user_measurement",
-            "reference_object",
-            "intrinsics",
-            "unscaled"
-          ]
+          "$ref": "#/definitions/ScaleSource"
         },
         "metersPerUnit": {
           "type": "number",
@@ -41,1372 +88,1015 @@
         "metersPerUnit"
       ]
     },
-    "planes": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "originWorld": {
-            "type": "object",
-            "properties": {
-              "x": {
-                "type": "number"
-              },
-              "y": {
-                "type": "number"
-              },
-              "z": {
-                "type": "number"
-              }
+    "ScaleSource": {
+      "type": "string",
+      "enum": [
+        "user_measurement",
+        "reference_object",
+        "intrinsics",
+        "unscaled"
+      ]
+    },
+    "Plane": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "originWorld": {
+          "$ref": "#/definitions/Vec3"
+        },
+        "normalWorld": {
+          "$ref": "#/definitions/Vec3"
+        },
+        "xAxisWorld": {
+          "$ref": "#/definitions/Vec3"
+        }
+      },
+      "required": [
+        "id",
+        "originWorld",
+        "normalWorld",
+        "xAxisWorld"
+      ]
+    },
+    "Vec3": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    "Body": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/BodyKind"
+        },
+        "planeId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
             },
-            "required": [
-              "x",
-              "y",
-              "z"
-            ]
-          },
-          "normalWorld": {
-            "type": "object",
-            "properties": {
-              "x": {
-                "type": "number"
-              },
-              "y": {
-                "type": "number"
-              },
-              "z": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "x",
-              "y",
-              "z"
-            ]
-          },
-          "xAxisWorld": {
-            "type": "object",
-            "properties": {
-              "x": {
-                "type": "number"
-              },
-              "y": {
-                "type": "number"
-              },
-              "z": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "x",
-              "y",
-              "z"
-            ]
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BodyPoint"
           }
         },
-        "required": [
-          "id",
-          "originWorld",
-          "normalWorld",
-          "xAxisWorld"
-        ]
-      }
+        "outline": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Outline"
+            }
+          ]
+        },
+        "gear": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GearData"
+            }
+          ]
+        },
+        "cam": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CamData"
+            }
+          ]
+        },
+        "pulley": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/PulleyData"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/definitions/Status"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "kind",
+        "planeId",
+        "points",
+        "status",
+        "confidence"
+      ]
     },
-    "bodies": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "label": {
-            "type": "string"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "ground",
-              "link",
-              "slider_block",
-              "gear",
-              "cam",
-              "pulley",
-              "compliant"
-            ]
-          },
-          "planeId": {
-            "anyOf": [
-              {
-                "type": "string",
-                "minLength": 1
-              },
-              {
-                "type": "null"
+    "BodyKind": {
+      "type": "string",
+      "enum": [
+        "ground",
+        "link",
+        "slider_block",
+        "gear",
+        "cam",
+        "pulley",
+        "compliant"
+      ]
+    },
+    "BodyPoint": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "local": {
+          "$ref": "#/definitions/Vec3"
+        },
+        "role": {
+          "$ref": "#/definitions/PointRole"
+        }
+      },
+      "required": [
+        "id",
+        "local",
+        "role"
+      ]
+    },
+    "PointRole": {
+      "type": "string",
+      "enum": [
+        "joint_anchor",
+        "tracked",
+        "output",
+        "hole"
+      ]
+    },
+    "Outline": {
+      "type": "object",
+      "properties": {
+        "polygonLocal": {
+          "minItems": 3,
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Vec2"
+          }
+        },
+        "thickness": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "polygonLocal",
+        "thickness"
+      ]
+    },
+    "Vec2": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ]
+    },
+    "GearData": {
+      "type": "object",
+      "properties": {
+        "teeth": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "module": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "internal": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "teeth",
+        "module",
+        "internal"
+      ]
+    },
+    "CamData": {
+      "type": "object",
+      "properties": {
+        "baseRadius": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "fourier": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "array",
+              "items": {
+                "type": "number"
               }
-            ]
+            },
+            "b": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
           },
-          "points": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "local": {
-                  "type": "object",
-                  "properties": {
-                    "x": {
-                      "type": "number"
-                    },
-                    "y": {
-                      "type": "number"
-                    },
-                    "z": {
-                      "type": "number"
-                    }
-                  },
-                  "required": [
-                    "x",
-                    "y",
-                    "z"
-                  ]
-                },
-                "role": {
-                  "type": "string",
-                  "enum": [
-                    "joint_anchor",
-                    "tracked",
-                    "output",
-                    "hole"
-                  ]
+          "required": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      "required": [
+        "baseRadius",
+        "fourier"
+      ]
+    },
+    "PulleyData": {
+      "type": "object",
+      "properties": {
+        "radius": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "radius"
+      ]
+    },
+    "Status": {
+      "type": "string",
+      "enum": [
+        "observed",
+        "inferred",
+        "user",
+        "candidate"
+      ]
+    },
+    "Joint": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyA": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyB": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "$ref": "#/definitions/Status"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "revolute"
+            },
+            "anchorA": {
+              "$ref": "#/definitions/PointRef"
+            },
+            "anchorB": {
+              "$ref": "#/definitions/PointRef"
+            },
+            "axisLocalA": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Vec3"
                 }
-              },
-              "required": [
-                "id",
-                "local",
-                "role"
               ]
             }
           },
-          "outline": {
-            "type": "object",
-            "properties": {
-              "polygonLocal": {
-                "minItems": 3,
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "x": {
-                      "type": "number"
-                    },
-                    "y": {
-                      "type": "number"
-                    }
-                  },
-                  "required": [
-                    "x",
-                    "y"
-                  ]
+          "required": [
+            "id",
+            "bodyA",
+            "bodyB",
+            "status",
+            "confidence",
+            "kind",
+            "anchorA",
+            "anchorB"
+          ],
+          "title": "RevoluteJoint"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyA": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyB": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "$ref": "#/definitions/Status"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "prismatic"
+            },
+            "anchorA": {
+              "$ref": "#/definitions/PointRef"
+            },
+            "anchorB": {
+              "$ref": "#/definitions/PointRef"
+            },
+            "axisLocalA": {
+              "$ref": "#/definitions/Vec3"
+            },
+            "limits": {
+              "type": "array",
+              "items": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
                 }
-              },
-              "thickness": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              }
-            },
-            "required": [
-              "polygonLocal",
-              "thickness"
-            ]
+              ],
+              "additionalItems": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
           },
-          "gear": {
-            "type": "object",
-            "properties": {
-              "teeth": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991
-              },
-              "module": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "internal": {
-                "type": "boolean"
-              }
-            },
-            "required": [
-              "teeth",
-              "module",
-              "internal"
-            ]
-          },
-          "cam": {
-            "type": "object",
-            "properties": {
-              "baseRadius": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "fourier": {
-                "type": "object",
-                "properties": {
-                  "a": {
-                    "type": "array",
-                    "items": {
-                      "type": "number"
-                    }
-                  },
-                  "b": {
-                    "type": "array",
-                    "items": {
-                      "type": "number"
-                    }
-                  }
-                },
-                "required": [
-                  "a",
-                  "b"
-                ]
-              }
-            },
-            "required": [
-              "baseRadius",
-              "fourier"
-            ]
-          },
-          "pulley": {
-            "type": "object",
-            "properties": {
-              "radius": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              }
-            },
-            "required": [
-              "radius"
-            ]
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "observed",
-              "inferred",
-              "user",
-              "candidate"
-            ]
-          },
-          "confidence": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          }
+          "required": [
+            "id",
+            "bodyA",
+            "bodyB",
+            "status",
+            "confidence",
+            "kind",
+            "anchorA",
+            "anchorB",
+            "axisLocalA"
+          ],
+          "title": "PrismaticJoint"
         },
-        "required": [
-          "id",
-          "label",
-          "kind",
-          "planeId",
-          "points",
-          "status",
-          "confidence"
-        ]
-      }
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyA": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyB": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "$ref": "#/definitions/Status"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "pin_in_slot"
+            },
+            "pin": {
+              "$ref": "#/definitions/PointRef"
+            },
+            "slot": {
+              "$ref": "#/definitions/SlotCurve"
+            }
+          },
+          "required": [
+            "id",
+            "bodyA",
+            "bodyB",
+            "status",
+            "confidence",
+            "kind",
+            "pin",
+            "slot"
+          ],
+          "title": "PinInSlotJoint"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyA": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyB": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "$ref": "#/definitions/Status"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "gear_mesh"
+            },
+            "ratio": {
+              "type": "number"
+            },
+            "phase": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "id",
+            "bodyA",
+            "bodyB",
+            "status",
+            "confidence",
+            "kind",
+            "ratio",
+            "phase"
+          ],
+          "title": "GearMeshJoint"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyA": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyB": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "$ref": "#/definitions/Status"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "belt"
+            },
+            "ratio": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "crossed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "id",
+            "bodyA",
+            "bodyB",
+            "status",
+            "confidence",
+            "kind",
+            "ratio",
+            "crossed"
+          ],
+          "title": "BeltJoint"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyA": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyB": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "$ref": "#/definitions/Status"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "cam_follower"
+            },
+            "follower": {
+              "$ref": "#/definitions/FollowerType"
+            },
+            "followerPoint": {
+              "$ref": "#/definitions/PointRef"
+            },
+            "rollerRadius": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "id",
+            "bodyA",
+            "bodyB",
+            "status",
+            "confidence",
+            "kind",
+            "follower",
+            "followerPoint"
+          ],
+          "title": "CamFollowerJoint"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyA": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyB": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "$ref": "#/definitions/Status"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "spring"
+            },
+            "anchorA": {
+              "$ref": "#/definitions/PointRef"
+            },
+            "anchorB": {
+              "$ref": "#/definitions/PointRef"
+            },
+            "stiffness": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "freeLength": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "id",
+            "bodyA",
+            "bodyB",
+            "status",
+            "confidence",
+            "kind",
+            "anchorA",
+            "anchorB",
+            "stiffness",
+            "freeLength"
+          ],
+          "title": "SpringJoint"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyA": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyB": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "$ref": "#/definitions/Status"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "spherical"
+            },
+            "anchorA": {
+              "$ref": "#/definitions/PointRef"
+            },
+            "anchorB": {
+              "$ref": "#/definitions/PointRef"
+            }
+          },
+          "required": [
+            "id",
+            "bodyA",
+            "bodyB",
+            "status",
+            "confidence",
+            "kind",
+            "anchorA",
+            "anchorB"
+          ],
+          "title": "SphericalJoint"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyA": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyB": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "$ref": "#/definitions/Status"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "universal"
+            },
+            "anchorA": {
+              "$ref": "#/definitions/PointRef"
+            },
+            "anchorB": {
+              "$ref": "#/definitions/PointRef"
+            },
+            "axesLocal": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Vec3"
+                },
+                {
+                  "$ref": "#/definitions/Vec3"
+                }
+              ],
+              "additionalItems": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "id",
+            "bodyA",
+            "bodyB",
+            "status",
+            "confidence",
+            "kind",
+            "anchorA",
+            "anchorB"
+          ],
+          "title": "UniversalJoint"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyA": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bodyB": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "$ref": "#/definitions/Status"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "cylindrical"
+            },
+            "anchorA": {
+              "$ref": "#/definitions/PointRef"
+            },
+            "anchorB": {
+              "$ref": "#/definitions/PointRef"
+            },
+            "axesLocal": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Vec3"
+                },
+                {
+                  "$ref": "#/definitions/Vec3"
+                }
+              ],
+              "additionalItems": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "id",
+            "bodyA",
+            "bodyB",
+            "status",
+            "confidence",
+            "kind",
+            "anchorA",
+            "anchorB"
+          ],
+          "title": "CylindricalJoint"
+        }
+      ]
     },
-    "joints": {
-      "type": "array",
-      "items": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyA": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyB": {
-                "type": "string",
-                "minLength": 1
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "observed",
-                  "inferred",
-                  "user",
-                  "candidate"
-                ]
-              },
-              "confidence": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1
-              },
-              "kind": {
-                "type": "string",
-                "const": "revolute"
-              },
-              "anchorA": {
-                "type": "object",
-                "properties": {
-                  "bodyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "pointId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "bodyId",
-                  "pointId"
-                ]
-              },
-              "anchorB": {
-                "type": "object",
-                "properties": {
-                  "bodyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "pointId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "bodyId",
-                  "pointId"
-                ]
-              },
-              "axisLocalA": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number"
-                  },
-                  "y": {
-                    "type": "number"
-                  },
-                  "z": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "x",
-                  "y",
-                  "z"
-                ]
+    "PointRef": {
+      "type": "object",
+      "properties": {
+        "bodyId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pointId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "bodyId",
+        "pointId"
+      ]
+    },
+    "SlotCurve": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "line_segment"
+            },
+            "start": {
+              "$ref": "#/definitions/Vec2"
+            },
+            "end": {
+              "$ref": "#/definitions/Vec2"
+            }
+          },
+          "required": [
+            "type",
+            "start",
+            "end"
+          ],
+          "title": "LineSegmentSlot"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "circular_arc"
+            },
+            "center": {
+              "$ref": "#/definitions/Vec2"
+            },
+            "radius": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "angleStart": {
+              "type": "number"
+            },
+            "angleEnd": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "center",
+            "radius",
+            "angleStart",
+            "angleEnd"
+          ],
+          "title": "CircularArcSlot"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "cubic_bspline"
+            },
+            "controlPoints": {
+              "minItems": 4,
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Vec2"
               }
             },
-            "required": [
-              "id",
-              "bodyA",
-              "bodyB",
-              "status",
-              "confidence",
-              "kind",
-              "anchorA",
-              "anchorB"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyA": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyB": {
-                "type": "string",
-                "minLength": 1
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "observed",
-                  "inferred",
-                  "user",
-                  "candidate"
-                ]
-              },
-              "confidence": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1
-              },
-              "kind": {
-                "type": "string",
-                "const": "prismatic"
-              },
-              "anchorA": {
-                "type": "object",
-                "properties": {
-                  "bodyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "pointId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "bodyId",
-                  "pointId"
-                ]
-              },
-              "anchorB": {
-                "type": "object",
-                "properties": {
-                  "bodyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "pointId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "bodyId",
-                  "pointId"
-                ]
-              },
-              "axisLocalA": {
-                "type": "object",
-                "properties": {
-                  "x": {
-                    "type": "number"
-                  },
-                  "y": {
-                    "type": "number"
-                  },
-                  "z": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "x",
-                  "y",
-                  "z"
-                ]
-              },
-              "limits": {
-                "type": "array",
-                "prefixItems": [
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "number"
-                  }
-                ],
-                "items": false,
-                "minItems": 2,
-                "maxItems": 2
-              }
-            },
-            "required": [
-              "id",
-              "bodyA",
-              "bodyB",
-              "status",
-              "confidence",
-              "kind",
-              "anchorA",
-              "anchorB",
-              "axisLocalA"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyA": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyB": {
-                "type": "string",
-                "minLength": 1
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "observed",
-                  "inferred",
-                  "user",
-                  "candidate"
-                ]
-              },
-              "confidence": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1
-              },
-              "kind": {
-                "type": "string",
-                "const": "pin_in_slot"
-              },
-              "pin": {
-                "type": "object",
-                "properties": {
-                  "bodyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "pointId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "bodyId",
-                  "pointId"
-                ]
-              },
-              "slot": {
-                "oneOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "type": {
-                        "type": "string",
-                        "const": "line_segment"
-                      },
-                      "start": {
-                        "type": "object",
-                        "properties": {
-                          "x": {
-                            "type": "number"
-                          },
-                          "y": {
-                            "type": "number"
-                          }
-                        },
-                        "required": [
-                          "x",
-                          "y"
-                        ]
-                      },
-                      "end": {
-                        "type": "object",
-                        "properties": {
-                          "x": {
-                            "type": "number"
-                          },
-                          "y": {
-                            "type": "number"
-                          }
-                        },
-                        "required": [
-                          "x",
-                          "y"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "type",
-                      "start",
-                      "end"
-                    ]
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "type": {
-                        "type": "string",
-                        "const": "circular_arc"
-                      },
-                      "center": {
-                        "type": "object",
-                        "properties": {
-                          "x": {
-                            "type": "number"
-                          },
-                          "y": {
-                            "type": "number"
-                          }
-                        },
-                        "required": [
-                          "x",
-                          "y"
-                        ]
-                      },
-                      "radius": {
-                        "type": "number",
-                        "exclusiveMinimum": 0
-                      },
-                      "angleStart": {
-                        "type": "number"
-                      },
-                      "angleEnd": {
-                        "type": "number"
-                      }
-                    },
-                    "required": [
-                      "type",
-                      "center",
-                      "radius",
-                      "angleStart",
-                      "angleEnd"
-                    ]
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "type": {
-                        "type": "string",
-                        "const": "cubic_bspline"
-                      },
-                      "controlPoints": {
-                        "minItems": 4,
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "x": {
-                              "type": "number"
-                            },
-                            "y": {
-                              "type": "number"
-                            }
-                          },
-                          "required": [
-                            "x",
-                            "y"
-                          ]
-                        }
-                      },
-                      "knots": {
-                        "type": "array",
-                        "items": {
-                          "type": "number"
-                        }
-                      }
-                    },
-                    "required": [
-                      "type",
-                      "controlPoints",
-                      "knots"
-                    ]
-                  }
-                ]
-              }
-            },
-            "required": [
-              "id",
-              "bodyA",
-              "bodyB",
-              "status",
-              "confidence",
-              "kind",
-              "pin",
-              "slot"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyA": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyB": {
-                "type": "string",
-                "minLength": 1
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "observed",
-                  "inferred",
-                  "user",
-                  "candidate"
-                ]
-              },
-              "confidence": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1
-              },
-              "kind": {
-                "type": "string",
-                "const": "gear_mesh"
-              },
-              "ratio": {
-                "type": "number"
-              },
-              "phase": {
+            "knots": {
+              "type": "array",
+              "items": {
                 "type": "number"
               }
-            },
-            "required": [
-              "id",
-              "bodyA",
-              "bodyB",
-              "status",
-              "confidence",
-              "kind",
-              "ratio",
-              "phase"
-            ]
+            }
           },
-          {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyA": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyB": {
-                "type": "string",
-                "minLength": 1
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "observed",
-                  "inferred",
-                  "user",
-                  "candidate"
-                ]
-              },
-              "confidence": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1
-              },
-              "kind": {
-                "type": "string",
-                "const": "belt"
-              },
-              "ratio": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "crossed": {
-                "type": "boolean"
-              }
-            },
-            "required": [
-              "id",
-              "bodyA",
-              "bodyB",
-              "status",
-              "confidence",
-              "kind",
-              "ratio",
-              "crossed"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyA": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyB": {
-                "type": "string",
-                "minLength": 1
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "observed",
-                  "inferred",
-                  "user",
-                  "candidate"
-                ]
-              },
-              "confidence": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1
-              },
-              "kind": {
-                "type": "string",
-                "const": "cam_follower"
-              },
-              "follower": {
-                "type": "string",
-                "enum": [
-                  "knife",
-                  "roller",
-                  "flat"
-                ]
-              },
-              "followerPoint": {
-                "type": "object",
-                "properties": {
-                  "bodyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "pointId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "bodyId",
-                  "pointId"
-                ]
-              },
-              "rollerRadius": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              }
-            },
-            "required": [
-              "id",
-              "bodyA",
-              "bodyB",
-              "status",
-              "confidence",
-              "kind",
-              "follower",
-              "followerPoint"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyA": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyB": {
-                "type": "string",
-                "minLength": 1
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "observed",
-                  "inferred",
-                  "user",
-                  "candidate"
-                ]
-              },
-              "confidence": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1
-              },
-              "kind": {
-                "type": "string",
-                "const": "spring"
-              },
-              "anchorA": {
-                "type": "object",
-                "properties": {
-                  "bodyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "pointId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "bodyId",
-                  "pointId"
-                ]
-              },
-              "anchorB": {
-                "type": "object",
-                "properties": {
-                  "bodyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "pointId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "bodyId",
-                  "pointId"
-                ]
-              },
-              "stiffness": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "freeLength": {
-                "type": "number",
-                "minimum": 0
-              }
-            },
-            "required": [
-              "id",
-              "bodyA",
-              "bodyB",
-              "status",
-              "confidence",
-              "kind",
-              "anchorA",
-              "anchorB",
-              "stiffness",
-              "freeLength"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyA": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyB": {
-                "type": "string",
-                "minLength": 1
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "observed",
-                  "inferred",
-                  "user",
-                  "candidate"
-                ]
-              },
-              "confidence": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1
-              },
-              "kind": {
-                "type": "string",
-                "const": "spherical"
-              },
-              "anchorA": {
-                "type": "object",
-                "properties": {
-                  "bodyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "pointId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "bodyId",
-                  "pointId"
-                ]
-              },
-              "anchorB": {
-                "type": "object",
-                "properties": {
-                  "bodyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "pointId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "bodyId",
-                  "pointId"
-                ]
-              }
-            },
-            "required": [
-              "id",
-              "bodyA",
-              "bodyB",
-              "status",
-              "confidence",
-              "kind",
-              "anchorA",
-              "anchorB"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyA": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyB": {
-                "type": "string",
-                "minLength": 1
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "observed",
-                  "inferred",
-                  "user",
-                  "candidate"
-                ]
-              },
-              "confidence": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1
-              },
-              "kind": {
-                "type": "string",
-                "const": "universal"
-              },
-              "anchorA": {
-                "type": "object",
-                "properties": {
-                  "bodyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "pointId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "bodyId",
-                  "pointId"
-                ]
-              },
-              "anchorB": {
-                "type": "object",
-                "properties": {
-                  "bodyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "pointId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "bodyId",
-                  "pointId"
-                ]
-              },
-              "axesLocal": {
-                "type": "array",
-                "prefixItems": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "x": {
-                        "type": "number"
-                      },
-                      "y": {
-                        "type": "number"
-                      },
-                      "z": {
-                        "type": "number"
-                      }
-                    },
-                    "required": [
-                      "x",
-                      "y",
-                      "z"
-                    ]
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "x": {
-                        "type": "number"
-                      },
-                      "y": {
-                        "type": "number"
-                      },
-                      "z": {
-                        "type": "number"
-                      }
-                    },
-                    "required": [
-                      "x",
-                      "y",
-                      "z"
-                    ]
-                  }
-                ],
-                "items": false,
-                "minItems": 2,
-                "maxItems": 2
-              }
-            },
-            "required": [
-              "id",
-              "bodyA",
-              "bodyB",
-              "status",
-              "confidence",
-              "kind",
-              "anchorA",
-              "anchorB"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyA": {
-                "type": "string",
-                "minLength": 1
-              },
-              "bodyB": {
-                "type": "string",
-                "minLength": 1
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "observed",
-                  "inferred",
-                  "user",
-                  "candidate"
-                ]
-              },
-              "confidence": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1
-              },
-              "kind": {
-                "type": "string",
-                "const": "cylindrical"
-              },
-              "anchorA": {
-                "type": "object",
-                "properties": {
-                  "bodyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "pointId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "bodyId",
-                  "pointId"
-                ]
-              },
-              "anchorB": {
-                "type": "object",
-                "properties": {
-                  "bodyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "pointId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "bodyId",
-                  "pointId"
-                ]
-              },
-              "axesLocal": {
-                "type": "array",
-                "prefixItems": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "x": {
-                        "type": "number"
-                      },
-                      "y": {
-                        "type": "number"
-                      },
-                      "z": {
-                        "type": "number"
-                      }
-                    },
-                    "required": [
-                      "x",
-                      "y",
-                      "z"
-                    ]
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "x": {
-                        "type": "number"
-                      },
-                      "y": {
-                        "type": "number"
-                      },
-                      "z": {
-                        "type": "number"
-                      }
-                    },
-                    "required": [
-                      "x",
-                      "y",
-                      "z"
-                    ]
-                  }
-                ],
-                "items": false,
-                "minItems": 2,
-                "maxItems": 2
-              }
-            },
-            "required": [
-              "id",
-              "bodyA",
-              "bodyB",
-              "status",
-              "confidence",
-              "kind",
-              "anchorA",
-              "anchorB"
-            ]
-          }
-        ]
-      }
+          "required": [
+            "type",
+            "controlPoints",
+            "knots"
+          ],
+          "title": "CubicBsplineSlot"
+        }
+      ]
     },
-    "drivers": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "jointId": {
-            "type": "string",
-            "minLength": 1
-          },
-          "coordinate": {
-            "type": "string",
-            "enum": [
-              "angle",
-              "displacement"
-            ]
-          },
-          "profile": {
-            "oneOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "const": "constant_rate"
-                  },
-                  "rate": {
-                    "type": "number"
-                  },
-                  "phase0": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "type",
-                  "rate",
-                  "phase0"
-                ]
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "const": "samples"
-                  },
-                  "t": {
-                    "minItems": 2,
-                    "type": "array",
-                    "items": {
-                      "type": "number"
-                    }
-                  },
-                  "q": {
-                    "minItems": 2,
-                    "type": "array",
-                    "items": {
-                      "type": "number"
-                    }
-                  }
-                },
-                "required": [
-                  "type",
-                  "t",
-                  "q"
-                ]
-              }
-            ]
-          }
+    "FollowerType": {
+      "type": "string",
+      "enum": [
+        "knife",
+        "roller",
+        "flat"
+      ]
+    },
+    "Driver": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
         },
-        "required": [
-          "id",
-          "jointId",
-          "coordinate",
-          "profile"
-        ]
-      }
+        "jointId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "coordinate": {
+          "$ref": "#/definitions/DriverCoordinate"
+        },
+        "profile": {
+          "$ref": "#/definitions/DriverProfile"
+        }
+      },
+      "required": [
+        "id",
+        "jointId",
+        "coordinate",
+        "profile"
+      ]
     },
-    "provenance": {
+    "DriverCoordinate": {
+      "type": "string",
+      "enum": [
+        "angle",
+        "displacement"
+      ]
+    },
+    "DriverProfile": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "constant_rate"
+            },
+            "rate": {
+              "type": "number"
+            },
+            "phase0": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "rate",
+            "phase0"
+          ],
+          "title": "ConstantRateProfile"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "samples"
+            },
+            "t": {
+              "minItems": 2,
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            "q": {
+              "minItems": 2,
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "t",
+            "q"
+          ],
+          "title": "SamplesProfile"
+        }
+      ]
+    },
+    "Provenance": {
       "type": "object",
       "properties": {
         "createdBy": {
@@ -1436,27 +1126,6 @@
         "createdBy",
         "footageIds"
       ]
-    },
-    "uncertainty": {
-      "type": "object",
-      "propertyNames": {
-        "type": "string"
-      },
-      "additionalProperties": {
-        "type": "number",
-        "minimum": 0
-      }
     }
-  },
-  "required": [
-    "schemaVersion",
-    "id",
-    "name",
-    "scale",
-    "planes",
-    "bodies",
-    "joints",
-    "drivers",
-    "provenance"
-  ]
+  }
 }

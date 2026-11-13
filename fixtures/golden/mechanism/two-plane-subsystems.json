@@ -1,0 +1,326 @@
+{
+  "schemaVersion": 1,
+  "id": "two-plane-subsystems",
+  "name": "Two planar subsystems joined by spatial joints",
+  "scale": {
+    "source": "user_measurement",
+    "metersPerUnit": 1,
+    "sigma": 0.0005
+  },
+  "planes": [
+    {
+      "id": "plane-main",
+      "originWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 0.0
+      },
+      "normalWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxisWorld": {
+        "x": 1,
+        "y": 0,
+        "z": 0.0
+      }
+    },
+    {
+      "id": "plane-side",
+      "originWorld": {
+        "x": 0.25,
+        "y": 0,
+        "z": 0
+      },
+      "normalWorld": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "xAxisWorld": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "bodies": [
+    {
+      "id": "ground",
+      "label": "Frame",
+      "kind": "ground",
+      "planeId": null,
+      "points": [
+        {
+          "id": "crank-axle",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "rail",
+          "local": {
+            "x": 0.25,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "bearing",
+          "local": {
+            "x": 0.12,
+            "y": 0,
+            "z": 0.04
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "crank",
+      "label": "A",
+      "kind": "link",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "axle",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "yoke",
+          "local": {
+            "x": 0.05,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "shaft",
+      "label": "B",
+      "kind": "link",
+      "planeId": null,
+      "points": [
+        {
+          "id": "yoke",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "sleeve",
+          "local": {
+            "x": 0.15,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "carriage",
+      "label": "C",
+      "kind": "slider_block",
+      "planeId": "plane-side",
+      "points": [
+        {
+          "id": "rail",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "sleeve",
+          "local": {
+            "x": 0,
+            "y": 0.03,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "arm",
+      "label": "D",
+      "kind": "link",
+      "planeId": "plane-side",
+      "points": [
+        {
+          "id": "pivot",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "tip",
+          "local": {
+            "x": 0.08,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "output"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    }
+  ],
+  "joints": [
+    {
+      "id": "j-crank",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "crank",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "crank-axle"
+      },
+      "anchorB": {
+        "bodyId": "crank",
+        "pointId": "axle"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "u-joint",
+      "kind": "universal",
+      "bodyA": "crank",
+      "bodyB": "shaft",
+      "anchorA": {
+        "bodyId": "crank",
+        "pointId": "yoke"
+      },
+      "anchorB": {
+        "bodyId": "shaft",
+        "pointId": "yoke"
+      },
+      "axesLocal": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      ],
+      "status": "observed",
+      "confidence": 0.85
+    },
+    {
+      "id": "c-joint",
+      "kind": "cylindrical",
+      "bodyA": "shaft",
+      "bodyB": "carriage",
+      "anchorA": {
+        "bodyId": "shaft",
+        "pointId": "sleeve"
+      },
+      "anchorB": {
+        "bodyId": "carriage",
+        "pointId": "sleeve"
+      },
+      "axesLocal": [
+        {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      ],
+      "status": "inferred",
+      "confidence": 0.6
+    },
+    {
+      "id": "rail",
+      "kind": "prismatic",
+      "bodyA": "ground",
+      "bodyB": "carriage",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "rail"
+      },
+      "anchorB": {
+        "bodyId": "carriage",
+        "pointId": "rail"
+      },
+      "axisLocalA": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "status": "observed",
+      "confidence": 0.97
+    },
+    {
+      "id": "j-arm",
+      "kind": "revolute",
+      "bodyA": "carriage",
+      "bodyB": "arm",
+      "anchorA": {
+        "bodyId": "carriage",
+        "pointId": "rail"
+      },
+      "anchorB": {
+        "bodyId": "arm",
+        "pointId": "pivot"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    }
+  ],
+  "drivers": [
+    {
+      "id": "drive",
+      "jointId": "j-crank",
+      "coordinate": "angle",
+      "profile": {
+        "type": "constant_rate",
+        "rate": 6.283185307179586,
+        "phase0": 0
+      }
+    }
+  ],
+  "provenance": {
+    "createdBy": "lab",
+    "footageIds": []
+  }
+}

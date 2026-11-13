@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 1,
+  "id": "slots",
+  "name": "Straight, arc, and spline slots",
+  "scale": {
+    "source": "user_measurement",
+    "metersPerUnit": 1,
+    "sigma": 0.0005
+  },
+  "planes": [
+    {
+      "id": "plane-main",
+      "originWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 0.0
+      },
+      "normalWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxisWorld": {
+        "x": 1,
+        "y": 0,
+        "z": 0.0
+      }
+    }
+  ],
+  "bodies": [
+    {
+      "id": "ground",
+      "label": "Frame",
+      "kind": "ground",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "crank-axle",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "yoke-guide",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "lever-axle",
+          "local": {
+            "x": 0.2,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "follower-axle",
+          "local": {
+            "x": 0.2,
+            "y": 0.2,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "crank",
+      "label": "A",
+      "kind": "link",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "axle",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "pin",
+          "local": {
+            "x": 0.04,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "yoke",
+      "label": "B",
+      "kind": "slider_block",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "guide",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "lever",
+      "label": "C",
+      "kind": "link",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "axle",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "follower",
+      "label": "D",
+      "kind": "link",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "axle",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "pin",
+          "local": {
+            "x": 0.05,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    }
+  ],
+  "joints": [
+    {
+      "id": "j-crank",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "crank",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "crank-axle"
+      },
+      "anchorB": {
+        "bodyId": "crank",
+        "pointId": "axle"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "yoke-guide",
+      "kind": "prismatic",
+      "bodyA": "ground",
+      "bodyB": "yoke",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "yoke-guide"
+      },
+      "anchorB": {
+        "bodyId": "yoke",
+        "pointId": "guide"
+      },
+      "axisLocalA": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "status": "observed",
+      "confidence": 0.99
+    },
+    {
+      "id": "slot-straight",
+      "kind": "pin_in_slot",
+      "bodyA": "crank",
+      "bodyB": "yoke",
+      "pin": {
+        "bodyId": "crank",
+        "pointId": "pin"
+      },
+      "slot": {
+        "type": "line_segment",
+        "start": {
+          "x": 0.04,
+          "y": -0.05
+        },
+        "end": {
+          "x": 0.04,
+          "y": 0.05
+        }
+      },
+      "status": "observed",
+      "confidence": 0.95
+    },
+    {
+      "id": "j-lever",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "lever",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "lever-axle"
+      },
+      "anchorB": {
+        "bodyId": "lever",
+        "pointId": "axle"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "slot-arc",
+      "kind": "pin_in_slot",
+      "bodyA": "crank",
+      "bodyB": "lever",
+      "pin": {
+        "bodyId": "crank",
+        "pointId": "pin"
+      },
+      "slot": {
+        "type": "circular_arc",
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "radius": 0.16,
+        "angleStart": 2.6,
+        "angleEnd": 3.6
+      },
+      "status": "inferred",
+      "confidence": 0.6
+    },
+    {
+      "id": "j-follower",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "follower",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "follower-axle"
+      },
+      "anchorB": {
+        "bodyId": "follower",
+        "pointId": "axle"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "slot-spline",
+      "kind": "pin_in_slot",
+      "bodyA": "follower",
+      "bodyB": "lever",
+      "pin": {
+        "bodyId": "follower",
+        "pointId": "pin"
+      },
+      "slot": {
+        "type": "cubic_bspline",
+        "controlPoints": [
+          {
+            "x": 0,
+            "y": 0.1
+          },
+          {
+            "x": 0.02,
+            "y": 0.14
+          },
+          {
+            "x": 0.05,
+            "y": 0.16
+          },
+          {
+            "x": 0.09,
+            "y": 0.15
+          },
+          {
+            "x": 0.12,
+            "y": 0.12
+          }
+        ],
+        "knots": [0, 0, 0, 0, 0.5, 1, 1, 1, 1]
+      },
+      "status": "candidate",
+      "confidence": 0.35
+    }
+  ],
+  "drivers": [
+    {
+      "id": "drive",
+      "jointId": "j-crank",
+      "coordinate": "angle",
+      "profile": {
+        "type": "constant_rate",
+        "rate": 6.283185307179586,
+        "phase0": 0
+      }
+    }
+  ],
+  "provenance": {
+    "createdBy": "lab",
+    "footageIds": []
+  }
+}

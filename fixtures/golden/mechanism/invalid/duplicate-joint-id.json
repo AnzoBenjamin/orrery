@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "id": "four-bar-crank-rocker",
+  "name": "Crank-rocker four-bar",
+  "scale": {
+    "source": "reference_object",
+    "metersPerUnit": 1,
+    "sigma": 0.0008
+  },
+  "planes": [
+    {
+      "id": "plane-main",
+      "originWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 0.0
+      },
+      "normalWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxisWorld": {
+        "x": 1,
+        "y": 0,
+        "z": 0.0
+      }
+    }
+  ],
+  "bodies": [
+    {
+      "id": "ground",
+      "label": "Frame",
+      "kind": "ground",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "o2",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "o4",
+          "local": {
+            "x": 0.3,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "crank",
+      "label": "A",
+      "kind": "link",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "a",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "b",
+          "local": {
+            "x": 0.1,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "coupler",
+      "label": "B",
+      "kind": "link",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "b",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "c",
+          "local": {
+            "x": 0.25,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "trace",
+          "local": {
+            "x": 0.125,
+            "y": 0.06,
+            "z": 0.0
+          },
+          "role": "tracked"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0,
+      "outline": {
+        "polygonLocal": [
+          {
+            "x": -0.01,
+            "y": -0.01
+          },
+          {
+            "x": 0.26,
+            "y": -0.01
+          },
+          {
+            "x": 0.26,
+            "y": 0.01
+          },
+          {
+            "x": -0.01,
+            "y": 0.01
+          }
+        ],
+        "thickness": 0.004
+      }
+    },
+    {
+      "id": "rocker",
+      "label": "C",
+      "kind": "link",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "d",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "c",
+          "local": {
+            "x": 0.2,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "tip",
+          "local": {
+            "x": 0.2,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "output"
+        }
+      ],
+      "status": "inferred",
+      "confidence": 0.81
+    }
+  ],
+  "joints": [
+    {
+      "id": "j-o2",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "crank",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "o2"
+      },
+      "anchorB": {
+        "bodyId": "crank",
+        "pointId": "a"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "j-b",
+      "kind": "revolute",
+      "bodyA": "crank",
+      "bodyB": "coupler",
+      "anchorA": {
+        "bodyId": "crank",
+        "pointId": "b"
+      },
+      "anchorB": {
+        "bodyId": "coupler",
+        "pointId": "b"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "j-b",
+      "kind": "revolute",
+      "bodyA": "coupler",
+      "bodyB": "rocker",
+      "anchorA": {
+        "bodyId": "coupler",
+        "pointId": "c"
+      },
+      "anchorB": {
+        "bodyId": "rocker",
+        "pointId": "c"
+      },
+      "status": "inferred",
+      "confidence": 0.74
+    },
+    {
+      "id": "j-o4",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "rocker",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "o4"
+      },
+      "anchorB": {
+        "bodyId": "rocker",
+        "pointId": "d"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    }
+  ],
+  "drivers": [
+    {
+      "id": "drive",
+      "jointId": "j-o2",
+      "coordinate": "angle",
+      "profile": {
+        "type": "constant_rate",
+        "rate": 6.283185307179586,
+        "phase0": 0
+      }
+    }
+  ],
+  "provenance": {
+    "createdBy": "engine",
+    "analysisId": "01936f2e-7c1a-7b3e-9d41-2f6a8c0b5e11",
+    "footageIds": ["01936f2e-7c1a-7b3e-9d41-2f6a8c0b5e12"],
+    "engineVersion": "0.1.0"
+  },
+  "uncertainty": {
+    "bodies.coupler.points.c.local.x": 0.0012,
+    "bodies.rocker.points.c.local.x": 0.0021,
+    "joints.j-c.confidence": 0.05
+  }
+}

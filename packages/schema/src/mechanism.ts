@@ -9,43 +9,44 @@ import { planeSchema } from "./plane.ts";
 import { idSchema } from "./primitives.ts";
 
 /** How scale was established */
-export const scaleSourceSchema = z.enum([
-  "user_measurement",
-  "reference_object",
-  "intrinsics",
-  "unscaled",
-]);
+export const scaleSourceSchema = z
+  .enum(["user_measurement", "reference_object", "intrinsics", "unscaled"])
+  .meta({ id: "ScaleSource" });
 
 export type ScaleSource = z.infer<typeof scaleSourceSchema>;
 
 /** Scale information */
-export const scaleSchema = z.object({
-  /** Method used to establish scale */
-  source: scaleSourceSchema,
+export const scaleSchema = z
+  .object({
+    /** Method used to establish scale */
+    source: scaleSourceSchema,
 
-  /** Conversion factor from mechanism units to meters */
-  metersPerUnit: z.number().positive(),
+    /** Conversion factor from mechanism units to meters */
+    metersPerUnit: z.number().positive(),
 
-  /** Optional standard deviation of scale estimate (meters) */
-  sigma: z.number().nonnegative().optional(),
-});
+    /** Optional standard deviation of scale estimate (meters) */
+    sigma: z.number().nonnegative().optional(),
+  })
+  .meta({ id: "Scale" });
 
 export type Scale = z.infer<typeof scaleSchema>;
 
 /** Provenance: how this mechanism was created */
-export const provenanceSchema = z.object({
-  /** Creator */
-  createdBy: z.enum(["engine", "user", "lab"]),
+export const provenanceSchema = z
+  .object({
+    /** Creator */
+    createdBy: z.enum(["engine", "user", "lab"]),
 
-  /** Optional analysis run ID */
-  analysisId: idSchema.optional(),
+    /** Optional analysis run ID */
+    analysisId: idSchema.optional(),
 
-  /** Source footage IDs */
-  footageIds: z.array(idSchema),
+    /** Source footage IDs */
+    footageIds: z.array(idSchema),
 
-  /** Engine version that created this (semantic version) */
-  engineVersion: z.string().optional(),
-});
+    /** Engine version that created this (semantic version) */
+    engineVersion: z.string().optional(),
+  })
+  .meta({ id: "Provenance" });
 
 export type Provenance = z.infer<typeof provenanceSchema>;
 
@@ -58,37 +59,39 @@ export const uncertaintySchema = z.record(z.string(), z.number().nonnegative());
 export type Uncertainty = z.infer<typeof uncertaintySchema>;
 
 /** Complete mechanism graph */
-export const mechanismSchemaBase = z.object({
-  /** Schema version for forward compatibility */
-  schemaVersion: z.literal(1),
+export const mechanismSchemaBase = z
+  .object({
+    /** Schema version for forward compatibility */
+    schemaVersion: z.literal(1),
 
-  /** Unique identifier for this mechanism */
-  id: idSchema,
+    /** Unique identifier for this mechanism */
+    id: idSchema,
 
-  /** Human-readable name */
-  name: z.string(),
+    /** Human-readable name */
+    name: z.string(),
 
-  /** Scale information */
-  scale: scaleSchema,
+    /** Scale information */
+    scale: scaleSchema,
 
-  /** Planes for planar subsystems */
-  planes: z.array(planeSchema),
+    /** Planes for planar subsystems */
+    planes: z.array(planeSchema),
 
-  /** Bodies in the mechanism */
-  bodies: z.array(bodySchema),
+    /** Bodies in the mechanism */
+    bodies: z.array(bodySchema),
 
-  /** Joints connecting bodies */
-  joints: z.array(jointSchema),
+    /** Joints connecting bodies */
+    joints: z.array(jointSchema),
 
-  /** Drivers (inputs) */
-  drivers: z.array(driverSchema),
+    /** Drivers (inputs) */
+    drivers: z.array(driverSchema),
 
-  /** Provenance information */
-  provenance: provenanceSchema,
+    /** Provenance information */
+    provenance: provenanceSchema,
 
-  /** Optional parameter uncertainties */
-  uncertainty: uncertaintySchema.optional(),
-});
+    /** Optional parameter uncertainties */
+    uncertainty: uncertaintySchema.optional(),
+  })
+  .meta({ id: "Mechanism" });
 
 /**
  * Mechanism schema with validation refinements.

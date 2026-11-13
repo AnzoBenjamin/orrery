@@ -1,0 +1,422 @@
+{
+  "schemaVersion": 1,
+  "id": "cam-followers-and-spring",
+  "name": "Cam with three followers",
+  "scale": {
+    "source": "unscaled",
+    "metersPerUnit": 0.001
+  },
+  "planes": [
+    {
+      "id": "plane-main",
+      "originWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 0.0
+      },
+      "normalWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxisWorld": {
+        "x": 1,
+        "y": 0,
+        "z": 0.0
+      }
+    }
+  ],
+  "bodies": [
+    {
+      "id": "ground",
+      "label": "Frame",
+      "kind": "ground",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "shaft",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "guide-1",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "guide-2",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "guide-3",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "spring-seat",
+          "local": {
+            "x": 0,
+            "y": 0.09,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "leaf-root",
+          "local": {
+            "x": -0.06,
+            "y": -0.08,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "cam",
+      "label": "A",
+      "kind": "cam",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "bore",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0,
+      "cam": {
+        "baseRadius": 0.03,
+        "fourier": {
+          "a": [0, 0.008, 0.002],
+          "b": [0, 0.004, 0]
+        }
+      }
+    },
+    {
+      "id": "roller-follower",
+      "label": "B",
+      "kind": "slider_block",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "guide",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "roller",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "spring-end",
+          "local": {
+            "x": 0,
+            "y": 0.03,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "knife-follower",
+      "label": "C",
+      "kind": "slider_block",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "guide",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "edge",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "flat-follower",
+      "label": "D",
+      "kind": "slider_block",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "guide",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "face",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "press",
+          "local": {
+            "x": 0,
+            "y": -0.01,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "leaf",
+      "label": "E",
+      "kind": "compliant",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "root",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "free-end",
+          "local": {
+            "x": 0.06,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "output"
+        }
+      ],
+      "status": "user",
+      "confidence": 1.0
+    }
+  ],
+  "joints": [
+    {
+      "id": "j-shaft",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "cam",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "shaft"
+      },
+      "anchorB": {
+        "bodyId": "cam",
+        "pointId": "bore"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "guide-roller",
+      "kind": "prismatic",
+      "bodyA": "ground",
+      "bodyB": "roller-follower",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "guide-1"
+      },
+      "anchorB": {
+        "bodyId": "roller-follower",
+        "pointId": "guide"
+      },
+      "axisLocalA": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "status": "observed",
+      "confidence": 0.99
+    },
+    {
+      "id": "guide-knife",
+      "kind": "prismatic",
+      "bodyA": "ground",
+      "bodyB": "knife-follower",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "guide-2"
+      },
+      "anchorB": {
+        "bodyId": "knife-follower",
+        "pointId": "guide"
+      },
+      "axisLocalA": {
+        "x": -1,
+        "y": 0,
+        "z": 0
+      },
+      "status": "observed",
+      "confidence": 0.99
+    },
+    {
+      "id": "guide-flat",
+      "kind": "prismatic",
+      "bodyA": "ground",
+      "bodyB": "flat-follower",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "guide-3"
+      },
+      "anchorB": {
+        "bodyId": "flat-follower",
+        "pointId": "guide"
+      },
+      "axisLocalA": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "status": "observed",
+      "confidence": 0.99
+    },
+    {
+      "id": "contact-roller",
+      "kind": "cam_follower",
+      "bodyA": "cam",
+      "bodyB": "roller-follower",
+      "follower": "roller",
+      "followerPoint": {
+        "bodyId": "roller-follower",
+        "pointId": "roller"
+      },
+      "rollerRadius": 0.008,
+      "status": "observed",
+      "confidence": 0.93
+    },
+    {
+      "id": "contact-knife",
+      "kind": "cam_follower",
+      "bodyA": "cam",
+      "bodyB": "knife-follower",
+      "follower": "knife",
+      "followerPoint": {
+        "bodyId": "knife-follower",
+        "pointId": "edge"
+      },
+      "status": "observed",
+      "confidence": 0.9
+    },
+    {
+      "id": "contact-flat",
+      "kind": "cam_follower",
+      "bodyA": "cam",
+      "bodyB": "flat-follower",
+      "follower": "flat",
+      "followerPoint": {
+        "bodyId": "flat-follower",
+        "pointId": "face"
+      },
+      "status": "inferred",
+      "confidence": 0.66
+    },
+    {
+      "id": "return-spring",
+      "kind": "spring",
+      "bodyA": "ground",
+      "bodyB": "roller-follower",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "spring-seat"
+      },
+      "anchorB": {
+        "bodyId": "roller-follower",
+        "pointId": "spring-end"
+      },
+      "stiffness": 450,
+      "freeLength": 0.03,
+      "status": "observed",
+      "confidence": 0.88
+    },
+    {
+      "id": "j-leaf",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "leaf",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "leaf-root"
+      },
+      "anchorB": {
+        "bodyId": "leaf",
+        "pointId": "root"
+      },
+      "status": "user",
+      "confidence": 1.0
+    }
+  ],
+  "drivers": [
+    {
+      "id": "drive",
+      "jointId": "j-shaft",
+      "coordinate": "angle",
+      "profile": {
+        "type": "constant_rate",
+        "rate": 3.141592653589793,
+        "phase0": 0
+      }
+    }
+  ],
+  "provenance": {
+    "createdBy": "lab",
+    "footageIds": []
+  }
+}

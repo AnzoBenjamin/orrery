@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 1,
+  "id": "slider-crank",
+  "name": "Slider-crank",
+  "scale": {
+    "source": "user_measurement",
+    "metersPerUnit": 1,
+    "sigma": 0.0005
+  },
+  "planes": [
+    {
+      "id": "plane-main",
+      "originWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 0.0
+      },
+      "normalWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxisWorld": {
+        "x": 1,
+        "y": 0,
+        "z": 0.0
+      }
+    }
+  ],
+  "bodies": [
+    {
+      "id": "ground",
+      "label": "Frame",
+      "kind": "ground",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "o",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "rail",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "crank",
+      "label": "A",
+      "kind": "link",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "a",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "b",
+          "local": {
+            "x": 0.05,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "rod",
+      "label": "B",
+      "kind": "link",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "b",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "c",
+          "local": {
+            "x": 0.18,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "slider",
+      "label": "C",
+      "kind": "slider_block",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "c",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "rail",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    }
+  ],
+  "joints": [
+    {
+      "id": "j-o",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "crank",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "o"
+      },
+      "anchorB": {
+        "bodyId": "crank",
+        "pointId": "a"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "j-b",
+      "kind": "revolute",
+      "bodyA": "crank",
+      "bodyB": "rod",
+      "anchorA": {
+        "bodyId": "crank",
+        "pointId": "b"
+      },
+      "anchorB": {
+        "bodyId": "rod",
+        "pointId": "b"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "j-c",
+      "kind": "revolute",
+      "bodyA": "rod",
+      "bodyB": "slider",
+      "anchorA": {
+        "bodyId": "rod",
+        "pointId": "c"
+      },
+      "anchorB": {
+        "bodyId": "slider",
+        "pointId": "c"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "j-rail",
+      "kind": "prismatic",
+      "bodyA": "ground",
+      "bodyB": "slider",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "rail"
+      },
+      "anchorB": {
+        "bodyId": "slider",
+        "pointId": "rail"
+      },
+      "axisLocalA": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "limits": [0.12, 0.24],
+      "status": "observed",
+      "confidence": 0.99
+    }
+  ],
+  "drivers": [
+    {
+      "id": "drive",
+      "jointId": "j-o",
+      "coordinate": "angle",
+      "profile": {
+        "type": "constant_rate",
+        "rate": 6.283185307179586,
+        "phase0": 0
+      }
+    }
+  ],
+  "provenance": {
+    "createdBy": "lab",
+    "footageIds": []
+  }
+}

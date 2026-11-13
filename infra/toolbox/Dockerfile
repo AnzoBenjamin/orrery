@@ -20,6 +20,7 @@ ARG RUST_VERSION=1.100.0
 ARG WASM_PACK_VERSION=0.15.1
 ARG PLAYWRIGHT_VERSION=1.65.0
 ARG OSV_SCANNER_VERSION=2.7.1
+ARG CARGO_TYPIFY_VERSION=0.8.0
 
 ENV DEBIAN_FRONTEND=noninteractive \
     RUSTUP_HOME=/opt/rustup \
@@ -74,6 +75,11 @@ RUN set -eux; \
     /tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain "${RUST_VERSION}" \
       --component rustfmt --component clippy --target wasm32-unknown-unknown; \
     rm /tmp/rustup-init
+
+# cargo-typify: Rust types from the mechanism JSON Schema (structure.md, "Contracts flow one way").
+# Built from crates.io with its own lockfile; the registry cache is dropped from the layer.
+RUN cargo install --locked --root /usr/local "cargo-typify@${CARGO_TYPIFY_VERSION}" \
+ && rm -rf /opt/cargo/registry /opt/cargo/git
 
 # wasm-pack
 RUN set -eux; \

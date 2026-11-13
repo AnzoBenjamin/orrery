@@ -10,6 +10,8 @@ artifacts=(
   packages/db/src/schema/auth.ts
   packages/engine-contract/schema/engine-contract.json
   packages/schema/schema/mechanism.json
+  crates/kinematics/src/generated/mechanism.rs
+  services/engine/src/orrery_engine/generated/mechanism.py
   services/engine/src/orrery_engine/generated/contract.py
   services/engine/src/orrery_engine/generated/__init__.py
 )

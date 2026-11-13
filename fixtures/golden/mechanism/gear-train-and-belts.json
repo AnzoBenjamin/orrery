@@ -1,0 +1,446 @@
+{
+  "schemaVersion": 1,
+  "id": "gear-train-and-belts",
+  "name": "Gear train and belts",
+  "scale": {
+    "source": "intrinsics",
+    "metersPerUnit": 1
+  },
+  "planes": [
+    {
+      "id": "plane-main",
+      "originWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 0.0
+      },
+      "normalWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxisWorld": {
+        "x": 1,
+        "y": 0,
+        "z": 0.0
+      }
+    }
+  ],
+  "bodies": [
+    {
+      "id": "ground",
+      "label": "Frame",
+      "kind": "ground",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "axle-pinion",
+          "local": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "axle-wheel",
+          "local": {
+            "x": 0.048,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "axle-ring",
+          "local": {
+            "x": 0.0,
+            "y": 0.2,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "axle-planet",
+          "local": {
+            "x": 0.04,
+            "y": 0.2,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "axle-p1",
+          "local": {
+            "x": 0.2,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "axle-p2",
+          "local": {
+            "x": 0.35,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "axle-p3",
+          "local": {
+            "x": 0.2,
+            "y": 0.15,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "pinion",
+      "label": "A",
+      "kind": "gear",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "hub",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0,
+      "gear": {
+        "teeth": 12,
+        "module": 0.002,
+        "internal": false
+      }
+    },
+    {
+      "id": "wheel",
+      "label": "B",
+      "kind": "gear",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "hub",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0,
+      "gear": {
+        "teeth": 36,
+        "module": 0.002,
+        "internal": false
+      }
+    },
+    {
+      "id": "ring",
+      "label": "C",
+      "kind": "gear",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "hub",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0,
+      "gear": {
+        "teeth": 60,
+        "module": 0.002,
+        "internal": true
+      }
+    },
+    {
+      "id": "planet",
+      "label": "D",
+      "kind": "gear",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "hub",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0,
+      "gear": {
+        "teeth": 20,
+        "module": 0.002,
+        "internal": false
+      }
+    },
+    {
+      "id": "p1",
+      "label": "E",
+      "kind": "pulley",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "hub",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0,
+      "pulley": {
+        "radius": 0.03
+      }
+    },
+    {
+      "id": "p2",
+      "label": "F",
+      "kind": "pulley",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "hub",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0,
+      "pulley": {
+        "radius": 0.06
+      }
+    },
+    {
+      "id": "p3",
+      "label": "G",
+      "kind": "pulley",
+      "planeId": "plane-main",
+      "points": [
+        {
+          "id": "hub",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0,
+      "pulley": {
+        "radius": 0.045
+      }
+    }
+  ],
+  "joints": [
+    {
+      "id": "j-pinion",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "pinion",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "axle-pinion"
+      },
+      "anchorB": {
+        "bodyId": "pinion",
+        "pointId": "hub"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "j-wheel",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "wheel",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "axle-wheel"
+      },
+      "anchorB": {
+        "bodyId": "wheel",
+        "pointId": "hub"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "j-ring",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "ring",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "axle-ring"
+      },
+      "anchorB": {
+        "bodyId": "ring",
+        "pointId": "hub"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "j-planet",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "planet",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "axle-planet"
+      },
+      "anchorB": {
+        "bodyId": "planet",
+        "pointId": "hub"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "j-p1",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "p1",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "axle-p1"
+      },
+      "anchorB": {
+        "bodyId": "p1",
+        "pointId": "hub"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "j-p2",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "p2",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "axle-p2"
+      },
+      "anchorB": {
+        "bodyId": "p2",
+        "pointId": "hub"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "j-p3",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "p3",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "axle-p3"
+      },
+      "anchorB": {
+        "bodyId": "p3",
+        "pointId": "hub"
+      },
+      "status": "observed",
+      "confidence": 0.98
+    },
+    {
+      "id": "mesh-external",
+      "kind": "gear_mesh",
+      "bodyA": "pinion",
+      "bodyB": "wheel",
+      "ratio": -3,
+      "phase": 0,
+      "status": "observed",
+      "confidence": 0.97
+    },
+    {
+      "id": "mesh-internal",
+      "kind": "gear_mesh",
+      "bodyA": "planet",
+      "bodyB": "ring",
+      "ratio": 3,
+      "phase": 0.05,
+      "status": "inferred",
+      "confidence": 0.7
+    },
+    {
+      "id": "belt-open",
+      "kind": "belt",
+      "bodyA": "p1",
+      "bodyB": "p2",
+      "ratio": 2,
+      "crossed": false,
+      "status": "observed",
+      "confidence": 0.95
+    },
+    {
+      "id": "belt-crossed",
+      "kind": "belt",
+      "bodyA": "p1",
+      "bodyB": "p3",
+      "ratio": 1.5,
+      "crossed": true,
+      "status": "candidate",
+      "confidence": 0.4
+    }
+  ],
+  "drivers": [
+    {
+      "id": "drive",
+      "jointId": "j-pinion",
+      "coordinate": "angle",
+      "profile": {
+        "type": "constant_rate",
+        "rate": 6.283185307179586,
+        "phase0": 0
+      }
+    },
+    {
+      "id": "drive-belt",
+      "jointId": "j-p1",
+      "coordinate": "angle",
+      "profile": {
+        "type": "samples",
+        "t": [0, 0.5, 1, 1.5],
+        "q": [0, 1.2, 2.5, 3.9]
+      }
+    }
+  ],
+  "provenance": {
+    "createdBy": "lab",
+    "footageIds": []
+  }
+}

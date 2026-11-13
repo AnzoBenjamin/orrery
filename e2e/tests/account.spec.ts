@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.ts";
 import { signIn, signUpAndVerify } from "../support/flows.ts";
+import { waitForEmail } from "../support/mailpit.ts";
 import { media } from "../support/media.ts";
 
 async function openAccount(page: Page) {
@@ -63,6 +64,45 @@ test.describe("account settings", () => {
       await expect(p).toHaveURL(/\/sign-in\?redirect=/);
       await context.close();
     }
+  });
+
+  test("a sign-in from a new device sends an alert, and a forgotten device alerts again", async ({
+    page,
+    browser,
+  }) => {
+    test.slow();
+    const ALERT = "New sign-in to your Orrery account";
+    // The sign-in after confirming the address is the first device: no alert for it.
+    const { email, password } = await signUpAndVerify(page, "alert");
+
+    const firefoxUserAgent =
+      "Mozilla/5.0 (X11; Linux x86_64; rv:141.0) Gecko/20100101 Firefox/141.0";
+    const other = await browser.newContext({ userAgent: firefoxUserAgent });
+    const otherPage = await other.newPage();
+    const firstSignIn = new Date(Date.now() - 1000);
+    await signIn(otherPage, email, password);
+    await expect(otherPage).toHaveURL(/\/cabinet/);
+
+    const alert = await waitForEmail(email, { subject: ALERT, after: firstSignIn });
+    expect(alert.text).toContain("Firefox on Linux");
+    expect(alert.text).toMatch(/Network \d+\.\d+\.x\.x/);
+    expect(alert.text).toContain("/account#sessions");
+
+    await openAccount(page);
+    const devices = page.getByRole("list", { name: "Recognized devices" });
+    await expect(devices.getByRole("listitem")).toHaveCount(2);
+    await devices.getByRole("button", { name: /^Forget Firefox on Linux/ }).click();
+    await expect(devices.getByRole("listitem")).toHaveCount(1);
+    await expect(devices.getByRole("listitem", { name: /^Firefox on Linux/ })).toHaveCount(0);
+
+    // Signing in from the forgotten device is news again.
+    await otherPage.getByRole("button", { name: "Sign out" }).click();
+    await expect(otherPage).toHaveURL(/\/sign-in/);
+    const secondSignIn = new Date();
+    await signIn(otherPage, email, password);
+    await expect(otherPage).toHaveURL(/\/cabinet/);
+    await waitForEmail(email, { subject: ALERT, after: secondSignIn });
+    await other.close();
   });
 
   test("turning off analysis emails is remembered", async ({ page }) => {

@@ -4,6 +4,7 @@ import { passkey } from "@better-auth/passkey";
 import { deleteSpecimensForOwner, schema } from "@orrery/db";
 import { authSchemaOptions } from "@orrery/db/auth-options";
 import { emailSend, enqueue } from "@orrery/jobs";
+import { reportError } from "@orrery/telemetry";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
@@ -12,6 +13,8 @@ import { appLimits } from "./app-limits.ts";
 import { database } from "./db.ts";
 import { serverEnv } from "./env.ts";
 import { jobProducer } from "./jobs.ts";
+import { log } from "./log.ts";
+import { noteSignIn } from "./sign-in-alerts.ts";
 
 const HOUR_S = 3600;
 
@@ -83,6 +86,30 @@ function createAuth() {
     session: {
       expiresIn: 30 * 24 * HOUR_S,
       updateAge: 24 * HOUR_S,
+    },
+    databaseHooks: {
+      session: {
+        create: {
+          // The new-device alert must never stop a sign-in, so failures are reported instead.
+          after: async (session) => {
+            try {
+              await noteSignIn(
+                {
+                  db: database().db,
+                  enqueue: async (queue, payload) => {
+                    await enqueue(await jobProducer(), queue, payload);
+                  },
+                  appUrl: env.BETTER_AUTH_URL,
+                },
+                session,
+              );
+            } catch (error) {
+              const reference = reportError(error, { hook: "sign-in-alert" });
+              log.error({ err: error, reference }, "sign-in alert failed");
+            }
+          },
+        },
+      },
     },
 
     rateLimit: {

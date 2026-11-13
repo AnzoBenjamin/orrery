@@ -2,12 +2,12 @@ import { randomBytes } from "node:crypto";
 import { schema } from "@orrery/db";
 import { describe, expect, it } from "vitest";
 import { anonymous } from "../../src/server/actor.ts";
+import { describeDevice } from "../../src/server/devices.ts";
 import {
   accountGet,
   accountPreferencesUpdate,
   accountSessionRevoke,
   accountSessionsRevokeOthers,
-  describeDevice,
 } from "../../src/server/operations/account.ts";
 import { invoke } from "../../src/server/operations/define.ts";
 import { userActor, withTestDatabase } from "./support.ts";

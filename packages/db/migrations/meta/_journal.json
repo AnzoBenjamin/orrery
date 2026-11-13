@@ -15,6 +15,13 @@
       "when": 1794547598201,
       "tag": "0001_request_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794569668728,
+      "tag": "0002_known_device",
+      "breakpoints": true
     }
   ]
 }

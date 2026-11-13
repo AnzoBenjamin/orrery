@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { createNotification, schema } from "@orrery/db";
+import { createNotification, listKnownDevices, noteSignInDevice, schema } from "@orrery/db";
 import { eq } from "drizzle-orm";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
@@ -28,6 +28,8 @@ interface Fixture {
   specimenId: string;
   /** A's footage with an open upload. */
   footageId: string;
+  /** A device A has signed in from. */
+  knownDeviceId: string;
 }
 
 /** How B attacks A's data through each operation. Operations without a resource get "own". */
@@ -49,6 +51,7 @@ const leaksNothingOf = (result: unknown, a: Fixture) => {
     a.footageId,
     a.shareLinkId,
     a.notificationId,
+    a.knownDeviceId,
   ]) {
     expect(json).not.toContain(id);
   }
@@ -76,6 +79,7 @@ const cases: Record<string, Case> = {
   },
   "account.session.revoke": { kind: "resource", input: (a) => ({ sessionId: a.sessionId }) },
   "account.sessions.revoke-others": { kind: "own", check: leaksNothingOf },
+  "account.device.forget": { kind: "resource", input: (a) => ({ deviceId: a.knownDeviceId }) },
   "footage.list": { kind: "resource", input: (a) => ({ specimenId: a.specimenId }) },
   "footage.usage": { kind: "own", check: leaksNothingOf },
   "footage.upload.create": {
@@ -151,6 +155,10 @@ async function snapshotOf(fixture: Fixture) {
     .select()
     .from(schema.notification)
     .where(eq(schema.notification.userId, fixture.userId));
+  const devices = await db
+    .select()
+    .from(schema.knownDevice)
+    .where(eq(schema.knownDevice.userId, fixture.userId));
   const shares = (await db.select().from(schema.shareLink)).map(({ lastUsedAt: _, ...l }) => l);
   const parts = (await database().storage.listMultipartUploads(`users/${fixture.userId}/`)).map(
     (u) => u.uploadId,
@@ -165,6 +173,7 @@ async function snapshotOf(fixture: Fixture) {
     deletions,
     sessions,
     preferences,
+    devices,
   });
 }
 
@@ -204,7 +213,15 @@ describe("cross-user authorization", () => {
           filename: "a.mp4",
         },
       });
+      await noteSignInDevice(database().db, {
+        userId: a.userId,
+        device: "Firefox on Linux",
+        ipPrefix: "203.0",
+      });
+      const [device] = await listKnownDevices(database().db, a.userId);
+      if (!device) throw new Error("fixture device was not recorded");
       const fixture: Fixture = {
+        knownDeviceId: device.id,
         notificationId: notice.id,
         shareLinkId: share.value.link.id,
         userId: a.userId,

@@ -229,3 +229,29 @@ export const requestLimit = pgTable(
   },
   (t) => [index("request_limit_expire_idx").on(t.expire)],
 );
+
+/**
+ * Devices and networks a user has signed in from (requirement 10.2). A sign-in whose browser
+ * family, operating system, and network prefix match no row sends the new sign-in alert.
+ * Neither the full user agent nor the full IP address is kept.
+ */
+export const knownDevice = pgTable(
+  "known_device",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** Browser and operating system without versions, such as "Firefox on Linux". */
+    device: text("device").notNull(),
+    /** First two octets of IPv4 or first three hextets of IPv6; empty when not known. */
+    ipPrefix: text("ip_prefix").notNull(),
+    firstSeenAt: timestamptz("first_seen_at").defaultNow().notNull(),
+    lastSeenAt: timestamptz("last_seen_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("known_device_user_device_network_idx").on(t.userId, t.device, t.ipPrefix),
+    check("known_device_device_length", sql`char_length(${t.device}) between 1 and 200`),
+    check("known_device_ip_prefix_length", sql`char_length(${t.ipPrefix}) <= 64`),
+  ],
+);

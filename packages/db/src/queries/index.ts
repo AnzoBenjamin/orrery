@@ -1,5 +1,6 @@
 export * from "./domain-events.ts";
 export * from "./footage.ts";
+export * from "./known-devices.ts";
 export * from "./notifications.ts";
 export * from "./object-deletions.ts";
 export type { Page, PageRequest } from "./page.ts";

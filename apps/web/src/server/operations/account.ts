@@ -1,6 +1,9 @@
 import {
+  forgetKnownDevice,
   getUserPreferences,
+  type KnownDeviceRecord,
   listActiveSessions,
+  listKnownDevices,
   listLinkedAccounts,
   listPasskeys,
   revokeOtherUserSessions,
@@ -9,8 +12,8 @@ import {
   type UserPreferences,
   updateUserPreferences,
 } from "@orrery/db";
-import { parse as parseUserAgent } from "bowser";
 import { z } from "zod";
+import { describeDevice, describeNetwork } from "../devices.ts";
 import { DomainError, notFound } from "../domain-errors.ts";
 import { requireUser } from "../policy.ts";
 import { defineOperation } from "./define.ts";
@@ -45,6 +48,16 @@ export interface PasskeyView {
   createdAt: string | null;
 }
 
+export interface KnownDeviceView {
+  id: string;
+  /** Browser and operating system without versions, such as "Firefox on Linux". */
+  device: string;
+  /** The network as shown after "Network": "203.0.x.x", or "not recorded". */
+  network: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
 export interface AccountView {
   preferences: PreferencesView;
   sessions: SessionView[];
@@ -53,17 +66,8 @@ export interface AccountView {
   /** Linked OAuth providers (`github`, `google`): the account record id and when it was linked. */
   providers: { id: string; providerId: string; linkedAt: string }[];
   passkeys: PasskeyView[];
-}
-
-/** "Chrome 140 on Linux" from a user agent string; null when nothing useful can be read. */
-export function describeDevice(userAgent: string | null): string | null {
-  if (!userAgent) return null;
-  const parsed = parseUserAgent(userAgent);
-  const major = parsed.browser.version?.split(".")[0];
-  const browser = parsed.browser.name ? [parsed.browser.name, major].filter(Boolean).join(" ") : "";
-  const os = parsed.os.name ?? "";
-  if (browser && os) return `${browser} on ${os}`;
-  return browser || os || null;
+  /** Devices and networks signed in from; a sign-in from any other sends an alert. */
+  knownDevices: KnownDeviceView[];
 }
 
 function sessionView(s: SessionRecord, currentId: string): SessionView {
@@ -74,6 +78,16 @@ function sessionView(s: SessionRecord, currentId: string): SessionView {
     ipAddress: s.ipAddress,
     signedInAt: s.createdAt.toISOString(),
     lastActiveAt: s.updatedAt.toISOString(),
+  };
+}
+
+function knownDeviceView(d: KnownDeviceRecord): KnownDeviceView {
+  return {
+    id: d.id,
+    device: d.device,
+    network: describeNetwork(d.ipPrefix),
+    firstSeenAt: d.firstSeenAt.toISOString(),
+    lastSeenAt: d.lastSeenAt.toISOString(),
   };
 }
 
@@ -91,6 +105,7 @@ export const accountGet = defineOperation({
     const sessions = await listActiveSessions(tx, user.userId);
     const accounts = await listLinkedAccounts(tx, user.userId);
     const passkeys = await listPasskeys(tx, user.userId);
+    const knownDevices = await listKnownDevices(tx, user.userId);
     return {
       preferences: preferencesView(preferences),
       // The current session first, then the most recently active.
@@ -107,6 +122,7 @@ export const accountGet = defineOperation({
         synced: p.backedUp,
         createdAt: p.createdAt?.toISOString() ?? null,
       })),
+      knownDevices: knownDevices.map(knownDeviceView),
     };
   },
 });
@@ -147,5 +163,18 @@ export const accountSessionsRevokeOthers = defineOperation({
   run: async ({ actor, tx }) => {
     const user = requireUser(actor);
     return { revoked: await revokeOtherUserSessions(tx, user.userId, user.sessionId) };
+  },
+});
+
+/** Forgets a device, so the next sign-in from it sends the new sign-in alert again. */
+export const accountDeviceForget = defineOperation({
+  name: "account.device.forget",
+  input: z.object({ deviceId: z.uuid("That device does not exist.") }),
+  run: async ({ actor, input, tx }) => {
+    const user = requireUser(actor);
+    if (!(await forgetKnownDevice(tx, user.userId, input.deviceId))) {
+      throw notFound("That device");
+    }
+    return { forgotten: true as const };
   },
 });

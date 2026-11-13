@@ -1,4 +1,5 @@
 import {
+  accountDeviceForget,
   accountGet,
   accountPreferencesUpdate,
   accountSessionRevoke,
@@ -47,6 +48,7 @@ export const operations: readonly AnyOperation[] = [
   accountPreferencesUpdate,
   accountSessionRevoke,
   accountSessionsRevokeOthers,
+  accountDeviceForget,
   footageList,
   footageUsage,
   footageUploadCreate,

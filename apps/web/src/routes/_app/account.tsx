@@ -2,6 +2,7 @@ import { Banner, Plate } from "@orrery/ui";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   DeleteAccountSection,
+  KnownDevicesSection,
   PreferencesSection,
   SectionHeading,
   SessionsSection,
@@ -51,6 +52,7 @@ function Account() {
             <>
               <SignInMethodsSection account={account.value} configured={methods} />
               <SessionsSection sessions={account.value.sessions} />
+              <KnownDevicesSection devices={account.value.knownDevices} />
               <StorageSection usage={usage} />
               <PreferencesSection preferences={account.value.preferences} />
               <DeleteAccountSection

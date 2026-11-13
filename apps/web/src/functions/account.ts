@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { call } from "../server/call.ts";
 import {
+  accountDeviceForget,
   accountGet,
   accountPreferencesUpdate,
   accountSessionRevoke,
@@ -23,3 +24,7 @@ export const revokeSessionFn = createServerFn({ method: "POST" })
 export const revokeOtherSessionsFn = createServerFn({ method: "POST" })
   .validator(typed(accountSessionsRevokeOthers.input))
   .handler(({ data }) => call(accountSessionsRevokeOthers, data));
+
+export const forgetDeviceFn = createServerFn({ method: "POST" })
+  .validator(typed(accountDeviceForget.input))
+  .handler(({ data }) => call(accountDeviceForget, data));

@@ -12,6 +12,7 @@ import { useNavigate, useRouter } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { Meter } from "react-aria-components";
 import {
+  forgetDeviceFn,
   revokeOtherSessionsFn,
   revokeSessionFn,
   updatePreferencesFn,
@@ -22,6 +23,7 @@ import { failureMessage } from "../lib/result.ts";
 import type { Result } from "../server/domain-errors.ts";
 import type {
   AccountView,
+  KnownDeviceView,
   PasskeyView,
   PreferencesView,
   SessionView,
@@ -391,6 +393,67 @@ export function SessionsSection(props: { sessions: SessionView[] }) {
           </div>
         ) : (
           <p className="o-description">This is the only place you are signed in.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Devices and networks the account has signed in from. A sign-in from anywhere else emails a
+ * new sign-in alert; forgetting an entry makes the next sign-in from it alert again.
+ */
+export function KnownDevicesSection(props: { devices: KnownDeviceView[] }) {
+  const { pending, error, run } = useAction();
+  return (
+    <section aria-labelledby="devices-title">
+      <SectionHeading id="devices-title">Devices we recognize</SectionHeading>
+      <div className="flex flex-col gap-4">
+        <p className="o-description">
+          When your account is used from a device or network not listed here, we email you. Forget
+          an entry to be told the next time it signs in.
+        </p>
+        {error ? <Banner tone="error" title={error} /> : null}
+        {props.devices.length > 0 ? (
+          <ul aria-label="Recognized devices">
+            {props.devices.map((d) => {
+              const label = `${d.device}, network ${d.network}`;
+              return (
+                <Row
+                  key={d.id}
+                  title={d.device}
+                  label={label}
+                  detail={
+                    <>
+                      <span className="font-instrument">Network {d.network}</span>
+                      {" · first seen "}
+                      <When iso={d.firstSeenAt} withTime />
+                      {" · last seen "}
+                      <When iso={d.lastSeenAt} withTime />
+                    </>
+                  }
+                  action={
+                    <Button
+                      variant="quiet"
+                      aria-label={`Forget ${label}`}
+                      isPending={pending === d.id}
+                      onPress={() =>
+                        run(d.id, async () =>
+                          failureMessage(await forgetDeviceFn({ data: { deviceId: d.id } })),
+                        )
+                      }
+                    >
+                      Forget
+                    </Button>
+                  }
+                />
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-lampblack">
+            No devices yet. The next place you sign in from is remembered without an email.
+          </p>
         )}
       </div>
     </section>

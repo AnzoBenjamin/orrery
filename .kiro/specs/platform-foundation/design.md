@@ -53,12 +53,14 @@ Core tables owned by this spec (domain tables for later specs are listed in thei
 | `domain_event` | id (bigserial), specimen_id, type, payload jsonb, created_at. Feeds SSE replay |
 | `notification` | id, user_id, kind, payload, read_at, created_at |
 | `object_deletion` | id, object_key, attempts, last_error, completed_at |
+| `known_device` | id, user_id, device (browser and OS, no versions), ip_prefix (first two IPv4 octets or three IPv6 hextets), first_seen_at, last_seen_at. A sign-in matching no row sends the new sign-in alert |
+| `request_limit` | key, points, expire. The `rate-limiter-flexible` Postgres store for application and per-account limits |
 
 ### Authentication (`apps/web/src/server/auth.ts`)
 
 - Better Auth with `drizzleAdapter(db, { provider: "pg" })`, plugins: `passkey`, `tanstackStartCookies` (last in the plugin list), rate limiting with database storage.
 - `emailAndPassword: { enabled: true, requireEmailVerification: true }`, social providers GitHub and Google.
-- Email callbacks call the email module. Sign-in alerts are sent from a Better Auth `databaseHooks.session.create.after` hook when the user agent and IP prefix are new for the user.
+- Email callbacks call the email module. Sign-in alerts are sent from a Better Auth `databaseHooks.session.create.after` hook when the device (browser and OS without versions) and IP prefix pair is new for the user, except on the account's first sign-in. Users see and can forget recognized devices in account settings.
 - Route guards: `beforeLoad` on authenticated route groups reads the session through a server function.
 
 ### Authorization (`apps/web/src/server/policy.ts`)

@@ -13,9 +13,7 @@
 //!   through zero while the driver keeps moving, as at a rocker's extreme.
 //! - `bifurcation`: the joints alone lose rank, so the null space grows and branches meet.
 
-use faer::Conj;
 use faer::Mat;
-use faer::linalg::solvers::SolveLstsqCore;
 
 use crate::assembly::AssemblyOptions;
 use crate::constraint::BodySlot;
@@ -91,62 +89,6 @@ impl Model {
     /// The rows that belong to joints (not drivers).
     fn joint_rows(&self) -> usize {
         self.n_rows() - self.drivers.len()
-    }
-
-    /// `dq/dd` for driver `k`: the solution of `J · dq/dd = −∂Φ/∂d`, where only driver `k`'s row
-    /// depends on `d` (with coefficient −1). Least squares, so free motions get no velocity.
-    #[must_use]
-    pub fn velocity(&self, q: &[f64], drive: &[f64], k: usize) -> Vec<f64> {
-        let (m, n) = (self.n_rows(), self.n_vars);
-        let mut a = Mat::<f64>::zeros(m, n);
-        for (i, j, v) in self.jacobian(q, drive) {
-            a[(i, j)] += v;
-        }
-        if m < n {
-            // Underdetermined: the minimum-norm solution through the transpose.
-            let at = a.transpose().to_owned();
-            let mut y = Mat::<f64>::zeros(m, 1);
-            y[(self.joint_rows() + k, 0)] = 1.0;
-            let gram = &a * &at;
-            gram.col_piv_qr()
-                .solve_lstsq_in_place_with_conj(Conj::No, y.as_mut());
-            let x = &at * &y;
-            return (0..n).map(|j| x[(j, 0)]).collect();
-        }
-        let mut rhs = Mat::<f64>::zeros(m, 1);
-        rhs[(self.joint_rows() + k, 0)] = 1.0;
-        a.col_piv_qr()
-            .solve_lstsq_in_place_with_conj(Conj::No, rhs.as_mut());
-        (0..n).map(|j| rhs[(j, 0)]).collect()
-    }
-
-    /// Velocity of every output point with respect to the swept driver, stacked.
-    fn output_velocity(&self, q: &[f64], drive: &[f64], k: usize) -> Vec<f64> {
-        let dq = self.velocity(q, drive, k);
-        let h = 1e-7;
-        let ahead: Vec<f64> = q.iter().zip(&dq).map(|(a, b)| a + h * b).collect();
-        let mut out = Vec::new();
-        for (i, body) in self.bodies.iter().enumerate() {
-            let mut names: Vec<&String> = body
-                .points
-                .keys()
-                .filter(|p| self.is_output(i, p))
-                .collect();
-            names.sort();
-            for name in names {
-                if let (Some(a), Some(b)) = (
-                    self.point_world(i, name, q),
-                    self.point_world(i, name, &ahead),
-                ) {
-                    out.extend((0..3).map(|c| (b[c] - a[c]) / h));
-                }
-            }
-        }
-        out
-    }
-
-    fn is_output(&self, body: usize, point: &str) -> bool {
-        self.outputs.iter().any(|(b, p)| *b == body && p == point)
     }
 
     /// Bodies that move in direction `v` of the state, and the joints touching them.

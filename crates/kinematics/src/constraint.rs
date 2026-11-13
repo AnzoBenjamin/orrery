@@ -1,8 +1,12 @@
 //! Joint constraints as residual equations with analytic Jacobians (mechanism-core design,
 //! "Constraints"). Each constraint reads body poses from the state vector `q` and writes its
 //! residual rows; driver values arrive separately so the same model serves every crank angle.
+//!
+//! Each residual is written once over [`Scalar`], so it gives values (`f64`) for solving and
+//! Taylor coefficients ([`Jet`]) for velocities and accelerations.
 
 use crate::curves::{CamProfile, Curve};
+use crate::dual::{Jet, Scalar};
 use crate::planar::{Pose2, V2};
 
 /// Where a body's pose comes from: fixed (the ground) or three unknowns in `q`.
@@ -15,9 +19,9 @@ pub enum BodySlot {
 
 impl BodySlot {
     #[must_use]
-    pub fn pose(self, q: &[f64]) -> Pose2 {
+    pub fn pose<T: Scalar>(self, q: &[T]) -> Pose2<T> {
         match self {
-            Self::Fixed(p) => p,
+            Self::Fixed(p) => p.lift(),
             Self::Var(i) => Pose2 {
                 x: q[i],
                 y: q[i + 1],
@@ -58,6 +62,8 @@ pub trait Constraint: std::fmt::Debug + Send + Sync {
     fn dim(&self) -> usize;
     /// Writes `dim()` residuals into `out`.
     fn residual(&self, q: &[f64], drive: &[f64], out: &mut [f64]);
+    /// The residuals along a Taylor series of the state.
+    fn residual_jet(&self, q: &[Jet], drive: &[f64], out: &mut [Jet]);
     /// Appends the Jacobian rows, starting at `row`, with respect to `q`.
     fn jacobian(&self, q: &[f64], drive: &[f64], row: usize, out: &mut Vec<Entry>);
     /// Sets this constraint's own unknowns (curve parameters) to a good start for the body
@@ -70,6 +76,18 @@ pub trait Constraint: std::fmt::Debug + Send + Sync {
     }
 }
 
+/// Implements the two residual methods through the constraint's generic `eval`.
+macro_rules! residuals {
+    () => {
+        fn residual(&self, q: &[f64], drive: &[f64], out: &mut [f64]) {
+            self.eval(q, drive, out);
+        }
+        fn residual_jet(&self, q: &[Jet], drive: &[f64], out: &mut [Jet]) {
+            self.eval(q, drive, out);
+        }
+    };
+}
+
 /// Planar revolute joint: the two anchors coincide (2 rows, meters).
 #[derive(Debug, Clone)]
 pub struct Revolute {
@@ -80,17 +98,22 @@ pub struct Revolute {
     pub anchor_b: V2,
 }
 
+impl Revolute {
+    fn eval<T: Scalar>(&self, q: &[T], _: &[f64], out: &mut [T]) {
+        let d =
+            self.a.pose(q).apply(self.anchor_a.lift()) - self.b.pose(q).apply(self.anchor_b.lift());
+        out[0] = d.x;
+        out[1] = d.y;
+    }
+}
+
 impl Constraint for Revolute {
+    residuals!();
     fn source_id(&self) -> &str {
         &self.id
     }
     fn dim(&self) -> usize {
         2
-    }
-    fn residual(&self, q: &[f64], _: &[f64], out: &mut [f64]) {
-        let d = self.a.pose(q).apply(self.anchor_a) - self.b.pose(q).apply(self.anchor_b);
-        out[0] = d.x;
-        out[1] = d.y;
     }
     fn jacobian(&self, q: &[f64], _: &[f64], row: usize, out: &mut Vec<Entry>) {
         let (pa, pb) = (self.a.pose(q), self.b.pose(q));
@@ -127,58 +150,60 @@ pub struct Prismatic {
 }
 
 impl Prismatic {
-    /// Offset of B's anchor from A's along the world direction `R(θA) dir`, with its derivative.
-    fn along(&self, q: &[f64], dir: V2, row: usize, out: Option<&mut Vec<Entry>>) -> f64 {
+    /// Offset of B's anchor from A's along the world direction `R(θA) dir`.
+    fn along<T: Scalar>(&self, q: &[T], dir: V2) -> T {
+        let (pa, pb) = (self.a.pose(q), self.b.pose(q));
+        let d = pb.apply(self.anchor_b.lift()) - pa.apply(self.anchor_a.lift());
+        pa.rotate(dir.lift()).dot(d)
+    }
+
+    /// The derivative of [`Self::along`], appended to row `row`.
+    fn along_jacobian(&self, q: &[f64], dir: V2, row: usize, out: &mut Vec<Entry>) {
         let (pa, pb) = (self.a.pose(q), self.b.pose(q));
         let dir_world = pa.rotate(dir);
         let d = pb.apply(self.anchor_b) - pa.apply(self.anchor_a);
-        if let Some(out) = out {
-            push_point(
-                out,
-                row,
-                self.b,
-                dir_world,
-                pb.rotate_derivative(self.anchor_b),
-                1.0,
-            );
-            push_point(
-                out,
-                row,
-                self.a,
-                dir_world,
-                pa.rotate_derivative(self.anchor_a),
-                -1.0,
-            );
-            // The direction turns with A as well.
-            push_theta(out, row, self.a, pa.rotate_derivative(dir).dot(d));
-        }
-        dir_world.dot(d)
+        push_point(
+            out,
+            row,
+            self.b,
+            dir_world,
+            pb.rotate_derivative(self.anchor_b),
+            1.0,
+        );
+        push_point(
+            out,
+            row,
+            self.a,
+            dir_world,
+            pa.rotate_derivative(self.anchor_a),
+            -1.0,
+        );
+        // The direction turns with A as well.
+        push_theta(out, row, self.a, pa.rotate_derivative(dir).dot(d));
     }
 
     /// The slide coordinate: B's anchor's offset from A's along the axis (meters).
     #[must_use]
-    pub fn displacement(&self, q: &[f64]) -> f64 {
-        self.along(q, self.axis, 0, None)
+    pub fn displacement<T: Scalar>(&self, q: &[T]) -> T {
+        self.along(q, self.axis)
     }
 
-    fn displacement_jacobian(&self, q: &[f64], row: usize, out: &mut Vec<Entry>) {
-        self.along(q, self.axis, row, Some(out));
+    fn eval<T: Scalar>(&self, q: &[T], _: &[f64], out: &mut [T]) {
+        out[0] = self.along(q, self.axis.perp());
+        out[1] = self.b.pose(q).theta - self.a.pose(q).theta;
     }
 }
 
 impl Constraint for Prismatic {
+    residuals!();
     fn source_id(&self) -> &str {
         &self.id
     }
     fn dim(&self) -> usize {
         2
     }
-    fn residual(&self, q: &[f64], _: &[f64], out: &mut [f64]) {
-        out[0] = self.along(q, self.axis.perp(), 0, None);
-        out[1] = self.b.pose(q).theta - self.a.pose(q).theta;
-    }
     fn jacobian(&self, q: &[f64], _: &[f64], row: usize, out: &mut Vec<Entry>) {
-        self.along(q, self.axis.perp(), row, Some(out));
+        self.along_jacobian(q, self.axis.perp(), row, out);
         push_theta(out, row + 1, self.b, 1.0);
         push_theta(out, row + 1, self.a, -1.0);
     }
@@ -213,23 +238,25 @@ pub struct Driver {
 impl Driver {
     /// The joint coordinate the driver sets, at `q`.
     #[must_use]
-    pub fn coordinate_value(&self, q: &[f64]) -> f64 {
+    pub fn coordinate_value<T: Scalar>(&self, q: &[T]) -> T {
         match &self.coordinate {
             DrivenCoordinate::Angle { a, b } => b.pose(q).theta - a.pose(q).theta,
             DrivenCoordinate::Displacement(p) => p.displacement(q),
         }
     }
+
+    fn eval<T: Scalar>(&self, q: &[T], drive: &[f64], out: &mut [T]) {
+        out[0] = self.coordinate_value(q) - drive[self.index];
+    }
 }
 
 impl Constraint for Driver {
+    residuals!();
     fn source_id(&self) -> &str {
         &self.id
     }
     fn dim(&self) -> usize {
         1
-    }
-    fn residual(&self, q: &[f64], drive: &[f64], out: &mut [f64]) {
-        out[0] = self.coordinate_value(q) - drive[self.index];
     }
     fn jacobian(&self, q: &[f64], _: &[f64], row: usize, out: &mut Vec<Entry>) {
         match &self.coordinate {
@@ -237,7 +264,7 @@ impl Constraint for Driver {
                 push_theta(out, row, *b, 1.0);
                 push_theta(out, row, *a, -1.0);
             }
-            DrivenCoordinate::Displacement(p) => p.displacement_jacobian(q, row, out),
+            DrivenCoordinate::Displacement(p) => p.along_jacobian(q, p.axis, row, out),
         }
     }
 }
@@ -256,18 +283,22 @@ pub struct PinInSlot {
     pub s_index: usize,
 }
 
+impl PinInSlot {
+    fn eval<T: Scalar>(&self, q: &[T], _: &[f64], out: &mut [T]) {
+        let (c, _) = self.curve.eval(q[self.s_index]);
+        let d = self.pin_body.pose(q).apply(self.pin.lift()) - self.slot_body.pose(q).apply(c);
+        out[0] = d.x;
+        out[1] = d.y;
+    }
+}
+
 impl Constraint for PinInSlot {
+    residuals!();
     fn source_id(&self) -> &str {
         &self.id
     }
     fn dim(&self) -> usize {
         2
-    }
-    fn residual(&self, q: &[f64], _: &[f64], out: &mut [f64]) {
-        let (c, _) = self.curve.eval(q[self.s_index]);
-        let d = self.pin_body.pose(q).apply(self.pin) - self.slot_body.pose(q).apply(c);
-        out[0] = d.x;
-        out[1] = d.y;
     }
     fn jacobian(&self, q: &[f64], _: &[f64], row: usize, out: &mut Vec<Entry>) {
         let (pp, ps) = (self.pin_body.pose(q), self.slot_body.pose(q));
@@ -322,17 +353,21 @@ pub struct AngleRatio {
     pub phase: f64,
 }
 
+impl AngleRatio {
+    fn eval<T: Scalar>(&self, q: &[T], _: &[f64], out: &mut [T]) {
+        let c = self.carrier.pose(q).theta;
+        let (ta, tb) = (self.a.pose(q).theta - c, self.b.pose(q).theta - c);
+        out[0] = ta - tb * self.ratio - self.phase;
+    }
+}
+
 impl Constraint for AngleRatio {
+    residuals!();
     fn source_id(&self) -> &str {
         &self.id
     }
     fn dim(&self) -> usize {
         1
-    }
-    fn residual(&self, q: &[f64], _: &[f64], out: &mut [f64]) {
-        let c = self.carrier.pose(q).theta;
-        let (ta, tb) = (self.a.pose(q).theta - c, self.b.pose(q).theta - c);
-        out[0] = self.ratio.mul_add(-tb, ta) - self.phase;
     }
     fn jacobian(&self, _: &[f64], _: &[f64], row: usize, out: &mut Vec<Entry>) {
         push_theta(out, row, self.a, 1.0);
@@ -367,7 +402,7 @@ pub struct CamContact {
 
 impl CamContact {
     /// The cam-frame point the follower point must reach, and its derivative in ψ.
-    fn target(&self, psi: f64) -> (V2, V2) {
+    fn target<T: Scalar>(&self, psi: T) -> (V2<T>, V2<T>) {
         match self.shape {
             FollowerShape::Roller(r) => self.profile.roller_center(psi, r),
             FollowerShape::Knife | FollowerShape::Flat => {
@@ -376,22 +411,14 @@ impl CamContact {
             }
         }
     }
-}
 
-impl Constraint for CamContact {
-    fn source_id(&self) -> &str {
-        &self.id
-    }
-    fn dim(&self) -> usize {
-        2
-    }
-    fn residual(&self, q: &[f64], _: &[f64], out: &mut [f64]) {
+    fn eval<T: Scalar>(&self, q: &[T], _: &[f64], out: &mut [T]) {
         let (pc, pf) = (self.cam.pose(q), self.follower.pose(q));
         let psi = q[self.psi_index];
-        let follower = pf.apply(self.point);
+        let follower = pf.apply(self.point.lift());
         if self.shape == FollowerShape::Flat {
             let (c, c1, _) = self.profile.point(psi);
-            let normal = pf.rotate(V2::new(0.0, 1.0));
+            let normal = pf.rotate(V2::new(T::cst(0.0), T::cst(1.0)));
             out[0] = normal.dot(pc.apply(c) - follower);
             out[1] = normal.dot(pc.rotate(c1));
         } else {
@@ -399,6 +426,16 @@ impl Constraint for CamContact {
             out[0] = d.x;
             out[1] = d.y;
         }
+    }
+}
+
+impl Constraint for CamContact {
+    residuals!();
+    fn source_id(&self) -> &str {
+        &self.id
+    }
+    fn dim(&self) -> usize {
+        2
     }
     fn jacobian(&self, q: &[f64], _: &[f64], row: usize, out: &mut Vec<Entry>) {
         let (pc, pf) = (self.cam.pose(q), self.follower.pose(q));
@@ -447,7 +484,7 @@ impl Constraint for CamContact {
             .min_by(|a, b| {
                 let mut cost = |psi: f64| {
                     trial[self.psi_index] = psi;
-                    self.residual(&trial, &[], &mut residual);
+                    self.eval(&trial, &[], &mut residual);
                     residual[0].hypot(residual[1])
                 };
                 cost(*a).total_cmp(&cost(*b))

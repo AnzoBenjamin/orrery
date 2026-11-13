@@ -3,6 +3,7 @@
 
 use std::f64::consts::TAU;
 
+use crate::dual::Scalar;
 use crate::planar::V2;
 
 /// A slot curve, parameterized on `[lo, hi]`.
@@ -53,15 +54,16 @@ impl Curve {
 
     /// The point and its derivative with respect to the parameter.
     #[must_use]
-    pub fn eval(&self, s: f64) -> (V2, V2) {
+    pub fn eval<T: Scalar>(&self, s: T) -> (V2<T>, V2<T>) {
         match self {
-            Self::Line { start, end } => (*start + (*end - *start) * s, *end - *start),
+            Self::Line { start, end } => {
+                let d = (*end - *start).lift::<T>();
+                (start.lift::<T>() + d.scale(s), d)
+            }
             Self::Arc { center, radius, .. } => {
                 let (sin, cos) = s.sin_cos();
-                (
-                    *center + V2::new(cos, sin) * *radius,
-                    V2::new(-sin, cos) * *radius,
-                )
+                let u = V2::new(cos, sin);
+                (center.lift::<T>() + u * *radius, u.perp() * *radius)
             }
             Self::BSpline { control, knots } => de_boor(control, knots, s),
         }
@@ -70,41 +72,48 @@ impl Curve {
 
 /// Cubic B-spline point and derivative by de Boor's algorithm. Outside the range the end
 /// polynomial pieces are extended, so the solver sees a smooth function everywhere.
-fn de_boor(control: &[V2], knots: &[f64], s: f64) -> (V2, V2) {
+fn de_boor<T: Scalar>(control: &[V2], knots: &[f64], s: T) -> (V2<T>, V2<T>) {
     let n = control.len();
     // The span k with knots[k] <= s < knots[k + 1], clamped to the valid spans [3, n − 1].
     let mut k = 3;
-    while k < n - 1 && s >= knots[k + 1] {
+    while k < n - 1 && s.value() >= knots[k + 1] {
         k += 1;
     }
-    let d: [V2; 4] = std::array::from_fn(|j| control[k - 3 + j]);
+    let d: [V2<T>; 4] = std::array::from_fn(|j| control[k - 3 + j].lift());
     // Derivative control points of the degree-2 spline.
-    let dd: [V2; 3] = std::array::from_fn(|j| {
+    let dd: [V2<T>; 3] = std::array::from_fn(|j| {
         let i = k - 3 + j + 1;
         let span = knots[i + 3] - knots[i];
-        if span > 0.0 {
+        let v = if span > 0.0 {
             (control[i] - control[i - 1]) * (3.0 / span)
         } else {
             V2::default()
-        }
+        };
+        v.lift()
     });
     let point = de_boor_level(&d, knots, k, s, 3);
     let derivative = de_boor_level(&dd, &knots[1..], k - 1, s, 2);
     (point, derivative)
 }
 
-fn de_boor_level<const N: usize>(pts: &[V2; N], knots: &[f64], k: usize, s: f64, p: usize) -> V2 {
+fn de_boor_level<T: Scalar, const N: usize>(
+    pts: &[V2<T>; N],
+    knots: &[f64],
+    k: usize,
+    s: T,
+    p: usize,
+) -> V2<T> {
     let mut d = *pts;
     for r in 1..=p {
         for j in (r..=p).rev() {
             let i = k + j - p;
             let span = knots[i + 1 + p - r] - knots[i];
             let alpha = if span > 0.0 {
-                (s - knots[i]) / span
+                (s - knots[i]) * (1.0 / span)
             } else {
-                0.0
+                T::cst(0.0)
             };
-            d[j] = d[j - 1] * (1.0 - alpha) + d[j] * alpha;
+            d[j] = d[j - 1] + (d[j] - d[j - 1]).scale(alpha);
         }
     }
     d[p]
@@ -122,8 +131,8 @@ pub struct CamProfile {
 impl CamProfile {
     /// `ρ`, `ρ'`, and `ρ''` at angle `psi`.
     #[must_use]
-    pub fn radius(&self, psi: f64) -> (f64, f64, f64) {
-        let mut r = (self.base, 0.0, 0.0);
+    pub fn radius<T: Scalar>(&self, psi: T) -> (T, T, T) {
+        let mut r = (T::cst(self.base), T::cst(0.0), T::cst(0.0));
         for n in 0..self.a.len().max(self.b.len()) {
             let a = self.a.get(n).copied().unwrap_or(0.0);
             let b = if n == 0 {
@@ -133,36 +142,37 @@ impl CamProfile {
             };
             #[allow(clippy::cast_precision_loss, reason = "harmonic numbers are small")]
             let k = n as f64;
-            let (sin, cos) = (k * psi).sin_cos();
-            r.0 += a.mul_add(cos, b * sin);
-            r.1 += k * b.mul_add(cos, -a * sin);
-            r.2 -= k * k * a.mul_add(cos, b * sin);
+            let (sin, cos) = (psi * k).sin_cos();
+            r.0 = r.0 + cos * a + sin * b;
+            r.1 = r.1 + (cos * b - sin * a) * k;
+            r.2 = r.2 - (cos * a + sin * b) * (k * k);
         }
         r
     }
 
     /// The profile point `c(ψ) = ρ(ψ) (cos ψ, sin ψ)` and its first two derivatives.
     #[must_use]
-    pub fn point(&self, psi: f64) -> (V2, V2, V2) {
+    pub fn point<T: Scalar>(&self, psi: T) -> (V2<T>, V2<T>, V2<T>) {
         let (r, r1, r2) = self.radius(psi);
         let (sin, cos) = psi.sin_cos();
         let u = V2::new(cos, sin);
         let up = u.perp();
-        let c = u * r;
-        let c1 = u * r1 + up * r;
-        let c2 = u * (r2 - r) + up * (2.0 * r1);
+        let c = u.scale(r);
+        let c1 = u.scale(r1) + up.scale(r);
+        let c2 = u.scale(r2 - r) + up.scale(r1 * 2.0);
         (c, c1, c2)
     }
 
     /// The point a roller of radius `roller` centers on when touching the profile at `psi`:
     /// `c + roller · n`, with `n` the outward unit normal, and its derivative in `psi`.
     #[must_use]
-    pub fn roller_center(&self, psi: f64, roller: f64) -> (V2, V2) {
+    pub fn roller_center<T: Scalar>(&self, psi: T, roller: f64) -> (V2<T>, V2<T>) {
         let (c, t, t1) = self.point(psi);
         let len = t.norm();
+        let inv = T::cst(1.0) / len;
         // Outward normal of a counter-clockwise curve: the tangent turned clockwise.
-        let n = V2::new(t.y, -t.x) * (1.0 / len);
-        let dt_unit = (t1 * (1.0 / len)) - t * (t.dot(t1) / (len * len * len));
+        let n = V2::new(t.y, -t.x).scale(inv);
+        let dt_unit = t1.scale(inv) - t.scale(t.dot(t1) * inv * inv * inv);
         let dn = V2::new(dt_unit.y, -dt_unit.x);
         (c + n * roller, t + dn * roller)
     }

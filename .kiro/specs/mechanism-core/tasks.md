@@ -31,9 +31,9 @@
   - [x] 3.1 Implement continuation with adaptive steps, reachable sub-ranges, and singularity detection and classification.
     - _Requirements: 5.1–5.4_
     - `kinematics::simulate`: continuation with a secant predictor, step halving on non-convergence or a body turning more than 0.3 rad, reachable sub-ranges with re-acquisition past a gap, and trajectories of every named point. Dead centers at range ends (full Jacobian singular, joints full rank), lockups where the output points' velocity reverses (located by bisection), and bifurcations where the joint rows lose rank (located by golden-section search). Tested on a crank-rocker (two lockups at the collinear positions), a rocker-driven four-bar (dead center at the swing limit), a non-Grashof crank (two reachable ranges), and a parallelogram (change point at π).
-  - [ ] 3.2 Implement velocities and accelerations with forward-mode dual numbers.
+  - [x] 3.2 Implement velocities and accelerations with forward-mode dual numbers.
     - _Requirements: 5.5_
-    - Done: velocities `dq/dd` from the constraint Jacobian (`Model::velocity`), used by the lockup detector. Remaining: accelerations with dual numbers.
+    - `kinematics::dual`: second-order Taylor numbers (`Jet`); every residual is written once over a `Scalar` trait. `kinematics::motion`: `J q′ = e_k`, `J q″ = −γ` with `γ` from one Jet pass, and `point_motion` for every named point. Tested against the closed-form slider-crank, finite differences on the goldens, and a property that the Jet's first-order term equals the analytic Jacobian product for every joint kind.
   - [ ] 3.3 Implement Grübler and numerical mobility with redundant-constraint and free-motion reporting. Property test 4.
     - _Requirements: 6.1–6.3_
   - [ ] 3.4 Implement transmission angle, Grashof classification, swept collision detection with `parry2d`, and fabrication risk indicators.

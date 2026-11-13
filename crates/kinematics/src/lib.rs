@@ -6,9 +6,11 @@
 pub mod assembly;
 pub mod constraint;
 pub mod curves;
+pub mod dual;
 pub mod energy;
 pub mod error;
 pub mod model;
+pub mod motion;
 pub mod planar;
 pub mod schema;
 pub mod simulate;

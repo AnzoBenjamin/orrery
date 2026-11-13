@@ -7,6 +7,7 @@ import type { PgBoss } from "pg-boss";
 import { afterAll, beforeAll, inject } from "vitest";
 import type { Actor } from "../../src/server/actor.ts";
 import type { Deps } from "../../src/server/operations/define.ts";
+import { createLimits } from "../../src/server/rate-limits.ts";
 
 export interface TestEnv extends TestDatabase {
   /** What operations run against: this database, the test Garage, and pg-boss on this database. */
@@ -40,6 +41,7 @@ export function withTestDatabase(): () => TestEnv {
           enqueue: async (queue, payload) => {
             await enqueue(boss, queue, payload);
           },
+          limit: createLimits(database.pool),
         },
       },
     };

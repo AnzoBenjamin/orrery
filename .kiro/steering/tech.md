@@ -91,8 +91,9 @@ The engine runs on CPU only. There is no GPU anywhere in the stack. See the visi
 - Internal TypeScript packages are source-only: `exports` point at `.ts` files, Vite bundles them for the web app, and Node 26 runs them directly through type stripping (so `erasableSyntaxOnly` is on). There is no package build step.
 - Testcontainers in the toolbox reaches Docker through `tecnativa/docker-socket-proxy` (Apache-2.0) on the Compose network, with only the container, image, network, volume, and exec APIs enabled. Mounting the socket and joining its group was rejected: on Docker Desktop the group is GID 0, and that left processes unkillable.
 - Rust: clippy, rustfmt, proptest, criterion for benchmarks.
+- Application rate limits (share-link access, upload signing): `rate-limiter-flexible` (ISC) with its Postgres store on the migrated `request_limit` table (`tableCreated: true`, so it never alters the schema). Better Auth keeps its own limits for auth routes.
 - Device names in account settings: `bowser` (MIT) parses user agents. `ua-parser-js` 2.x was rejected for its AGPL-3.0 license.
-- End-to-end browser and object store: presigned URLs name `http://localhost:<GARAGE_S3_PORT>`. The e2e container shares the web container's network namespace, so an `alpine/socat` sidecar (`s3-loopback`) forwards that port to Garage there, keeping the signed Host header valid.
+- End-to-end browser and object store: presigned URLs name `http://localhost:<GARAGE_S3_PORT>`. The e2e container shares the web container's network namespace, so Playwright's global setup forwards that port to Garage there (`e2e/support/s3-loopback.ts`), keeping the signed Host header valid. A sidecar container was rejected: it kept the old network namespace whenever the web container restarted.
 - Observability: OpenTelemetry traces, metrics, and logs propagated web → worker → engine via `traceparent`, exported to OpenObserve. Errors go to self-hosted GlitchTip (MIT) through the MIT-licensed Sentry SDKs, which GlitchTip accepts. `pino` logs in Node.
 
 ## Deployment (one CPU-only VPS, all free and open-source software)

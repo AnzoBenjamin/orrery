@@ -60,8 +60,9 @@ Task numbers are stable references (other specs cite them). Work them in this or
   - [x] 5.1 Implement `policy.ts` and the `authed()` server-function wrapper with typed domain errors.
     - _Requirements: 5.1, 5.2, 12.2_
     - Implemented as operations (`server/operations/`) invoked by thin server functions through `call()`: strict Zod input, actor resolution, policy, transaction, and typed `Result` errors. The cross-user test (5.3) runs over the operation registry.
-  - [ ] 5.2 Implement share links (create, list, revoke, resolve) with hashed tokens and rate limiting, plus the share management UI.
+  - [x] 5.2 Implement share links (create, list, revoke, resolve) with hashed tokens and rate limiting, plus the share management UI.
     - _Requirements: 5.3, 12.3_
+    - Tokens are 32 random bytes, stored as SHA-256. Opening a link makes a `share` actor for that specimen, so reads still pass through policy.ts. Share access (per IP) and upload signing (per user) are rate-limited through `rate-limiter-flexible` on the migrated `request_limit` table, pruned hourly by `limits.prune`. The shared page shows the specimen and its checked footage until the read-only workbench exists (workbench 11.1).
   - [ ] 5.3 Add a generated cross-user authorization test that enumerates every registered server function and route (property 1).
     - _Requirements: 5.4_
     - Done for every registered operation (property 1, fast-check). Server routes join the registry as they are added.

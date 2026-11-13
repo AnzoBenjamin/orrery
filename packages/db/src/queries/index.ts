@@ -4,6 +4,7 @@ export * from "./notifications.ts";
 export * from "./object-deletions.ts";
 export type { Page, PageRequest } from "./page.ts";
 export { MAX_PAGE_SIZE } from "./page.ts";
+export * from "./request-limits.ts";
 export * from "./share-links.ts";
 export * from "./sign-in-records.ts";
 export * from "./specimens.ts";

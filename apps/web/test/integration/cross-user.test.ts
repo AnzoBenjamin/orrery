@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { schema } from "@orrery/db";
 import { eq } from "drizzle-orm";
 import fc from "fast-check";
@@ -6,6 +7,7 @@ import type { Actor } from "../../src/server/actor.ts";
 import { type AnyOperation, invoke } from "../../src/server/operations/define.ts";
 import { footageUploadCreate } from "../../src/server/operations/footage.ts";
 import { operations } from "../../src/server/operations/registry.ts";
+import { shareCreate } from "../../src/server/operations/shares.ts";
 import { userActor, withTestDatabase } from "./support.ts";
 
 /**
@@ -17,6 +19,8 @@ import { userActor, withTestDatabase } from "./support.ts";
 const database = withTestDatabase();
 
 interface Fixture {
+  /** A's share link for the specimen. */
+  shareLinkId: string;
   userId: string;
   sessionId: string;
   specimenId: string;
@@ -36,7 +40,7 @@ type Case =
 /** B's own results never mention any of A's identifiers. */
 const leaksNothingOf = (result: unknown, a: Fixture) => {
   const json = JSON.stringify(result);
-  for (const id of [a.userId, a.sessionId, a.specimenId, a.footageId]) {
+  for (const id of [a.userId, a.sessionId, a.specimenId, a.footageId, a.shareLinkId]) {
     expect(json).not.toContain(id);
   }
 };
@@ -84,7 +88,20 @@ const cases: Record<string, Case> = {
   "footage.upload.abort": { kind: "resource", input: (a) => ({ footageId: a.footageId }) },
   "footage.delete": { kind: "resource", input: (a) => ({ footageId: a.footageId }) },
   "footage.playback": { kind: "resource", input: (a) => ({ footageId: a.footageId }) },
+  "share.list": { kind: "resource", input: (a) => ({ specimenId: a.specimenId }) },
+  "share.create": { kind: "resource", input: (a) => ({ specimenId: a.specimenId }) },
+  "share.revoke": { kind: "resource", input: (a) => ({ shareLinkId: a.shareLinkId }) },
+  // A share link is the only grant; without A's token B gets nothing.
+  "share.open": { kind: "resource", input: () => ({ token: randomToken() }) },
+  "share.playback": {
+    kind: "resource",
+    input: (a) => ({ token: randomToken(), footageId: a.footageId }),
+  },
 };
+
+function randomToken() {
+  return randomBytes(32).toString("base64url");
+}
 
 async function snapshotOf(fixture: Fixture) {
   const db = database().db;
@@ -103,6 +120,7 @@ async function snapshotOf(fixture: Fixture) {
     .from(schema.footage)
     .where(eq(schema.footage.specimenId, fixture.specimenId));
   const uploads = await db.select().from(schema.uploadSession);
+  const shares = (await db.select().from(schema.shareLink)).map(({ lastUsedAt: _, ...l }) => l);
   const parts = (await database().storage.listMultipartUploads(`users/${fixture.userId}/`)).map(
     (u) => u.uploadId,
   );
@@ -110,6 +128,7 @@ async function snapshotOf(fixture: Fixture) {
     a: specimens.find((s) => s.id === fixture.specimenId),
     footage,
     uploads,
+    shares,
     parts,
     deletions,
     sessions,
@@ -141,7 +160,10 @@ describe("cross-user authorization", () => {
         byteSize: 1000,
       });
       if (!upload.ok) throw new Error(`fixture upload failed: ${upload.error.message}`);
+      const share = await invoke(database().deps, shareCreate, a, { specimenId });
+      if (!share.ok) throw new Error(`fixture share failed: ${share.error.message}`);
       const fixture: Fixture = {
+        shareLinkId: share.value.link.id,
         userId: a.userId,
         sessionId: a.sessionId,
         specimenId,

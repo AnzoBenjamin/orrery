@@ -4,6 +4,7 @@ import type { Storage } from "@orrery/storage";
 import type { z } from "zod";
 import type { Actor } from "../actor.ts";
 import { DomainError, type Result } from "../domain-errors.ts";
+import type { Limit } from "../rate-limits.ts";
 
 /** The outside systems operations use besides the database. Tests pass real instances. */
 export interface Services {
@@ -11,6 +12,14 @@ export interface Services {
   /** Footage bytes one user may store. */
   quotaBytes: number;
   enqueue: <S extends z.ZodType>(queue: QueueDefinition<S>, payload: z.input<S>) => Promise<void>;
+  /** Counts one request against a rate limit; throws RateLimited past it. */
+  limit: Limit;
+}
+
+/** Facts about the HTTP request an operation runs for. */
+export interface RequestInfo {
+  /** The client's address as reported by the proxy, or null when unknown. */
+  ip: string | null;
 }
 
 export interface Deps {
@@ -24,6 +33,7 @@ export interface OperationContext<TInput> {
   /** An open transaction; the operation commits only if `run` resolves. */
   tx: Executor;
   services: Services;
+  request: RequestInfo;
   /**
    * Runs `effect` once the transaction has committed, such as publishing a job about rows the
    * transaction wrote. Effects must be safe to lose: a failure is reported, not returned, and a
@@ -55,6 +65,7 @@ export type AnyOperation = Operation<z.ZodObject, any>;
 export interface InvokeOptions {
   /** Called with unexpected errors so they reach GlitchTip; returns a reference for the user. */
   report?: (error: unknown) => string;
+  request?: RequestInfo;
 }
 
 /** Validates input, runs the operation in a transaction, and maps errors to a Result. */
@@ -86,6 +97,7 @@ export async function invoke<TSchema extends z.ZodObject, TOutput>(
         input: parsed.data,
         tx,
         services: deps.services,
+        request: options.request ?? { ip: null },
         afterCommit: (effect) => effects.push(effect),
       }),
     );

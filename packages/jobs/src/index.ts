@@ -18,6 +18,7 @@ export {
   emailMessage,
   emailSend,
   footageProbe,
+  limitsPrune,
   objectsDelete,
   uploadsReap,
 } from "./queues.ts";

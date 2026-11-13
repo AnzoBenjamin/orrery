@@ -1,6 +1,6 @@
 import { createServer, type Server } from "node:http";
 import type { WorkerEnv } from "@orrery/config/worker";
-import { assertMigrationsApplied, createDb } from "@orrery/db";
+import { assertMigrationsApplied, createDb, deleteExpiredRequestLimits } from "@orrery/db";
 import { createMailer } from "@orrery/email";
 import {
   allQueues,
@@ -9,6 +9,7 @@ import {
   enqueue,
   ensureQueues,
   footageProbe,
+  limitsPrune,
   objectsDelete,
   scheduleQueue,
   uploadsReap,
@@ -76,7 +77,12 @@ export async function startWorker(env: WorkerEnv, log: Logger): Promise<RunningW
       log,
     }),
   );
+  await work(boss, limitsPrune, async () => {
+    const removed = await deleteExpiredRequestLimits(database.db, Date.now());
+    if (removed > 0) log.info({ removed }, "expired rate-limit counters removed");
+  });
   await scheduleQueue(boss, objectsDelete, "* * * * *", {});
+  await scheduleQueue(boss, limitsPrune, "41 * * * *", {});
   await scheduleQueue(boss, uploadsReap, "17 * * * *", {});
 
   let healthy = true;

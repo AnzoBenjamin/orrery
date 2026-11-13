@@ -87,5 +87,22 @@ export const uploadsReap = defineQueue({
   idempotencyKey: () => undefined,
 });
 
+/** Deletes expired rate-limit counters. Runs hourly. */
+export const limitsPrune = defineQueue({
+  name: "limits.prune",
+  schema: z.object({}),
+  retryLimit: 0,
+  retryDelaySeconds: 60,
+  retryBackoff: false,
+  expireInSeconds: 5 * 60,
+  idempotencyKey: () => undefined,
+});
+
 /** Every queue the worker serves. A queue is listed here only once its handler exists. */
-export const allQueues = [emailSend, footageProbe, objectsDelete, uploadsReap] as const;
+export const allQueues = [
+  emailSend,
+  footageProbe,
+  objectsDelete,
+  uploadsReap,
+  limitsPrune,
+] as const;

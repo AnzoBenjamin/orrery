@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
+  deleteExpiredRequestLimits,
   listActiveSessions,
   listLinkedAccounts,
   listPasskeys,
@@ -8,7 +9,7 @@ import {
   revokeOtherUserSessions,
   revokeUserSession,
 } from "../src/index.ts";
-import { account, passkey, session } from "../src/schema/index.ts";
+import { account, passkey, requestLimit, session } from "../src/schema/index.ts";
 import type { TestDatabase } from "../src/testing/index.ts";
 import { insertUser, useTestDatabase } from "./support.ts";
 
@@ -111,5 +112,21 @@ describe("sign-in records", () => {
     const passkeys = await listPasskeys(database().db, u.id);
     expect(passkeys).toMatchObject([{ name: "Workshop laptop", backedUp: true }]);
     expect(JSON.stringify(passkeys)).not.toContain("public-key-material");
+  });
+});
+
+describe("request limits", () => {
+  it("prunes only counters whose window has ended", async () => {
+    const now = Date.now();
+    await database()
+      .db.insert(requestLimit)
+      .values([
+        { key: `old-${now}`, points: 3, expire: now - 1000 },
+        { key: `live-${now}`, points: 1, expire: now + 60_000 },
+      ]);
+    expect(await deleteExpiredRequestLimits(database().db, now)).toBeGreaterThanOrEqual(1);
+    const left = await database().db.select().from(requestLimit);
+    expect(left.map((r) => r.key)).toContain(`live-${now}`);
+    expect(left.map((r) => r.key)).not.toContain(`old-${now}`);
   });
 });

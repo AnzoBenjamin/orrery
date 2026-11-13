@@ -61,7 +61,7 @@ export interface FootageView {
   createdAt: string;
 }
 
-function view(f: Footage): FootageView {
+export function footageView(f: Footage): FootageView {
   return {
     id: f.id,
     specimenId: f.specimenId,
@@ -88,7 +88,7 @@ export const footageList = defineOperation({
   input: z.object({ specimenId }),
   run: async ({ actor, input, tx }) => {
     await requireSpecimen(tx, actor, "read", input.specimenId);
-    return (await listFootageForSpecimen(tx, input.specimenId)).map(view);
+    return (await listFootageForSpecimen(tx, input.specimenId)).map(footageView);
   },
 });
 
@@ -192,6 +192,7 @@ export const footageUploadSign = defineOperation({
   input: z.object({ footageId, request: s3Request }),
   run: async (ctx) => {
     const { footage, session, expiresAt } = await uploading(ctx, ctx.input.footageId);
+    await ctx.services.limit("upload-sign", requireUser(ctx.actor).userId);
     const { storage } = ctx.services;
     const request = ctx.input.request;
     const key = footage.objectKey;
@@ -280,11 +281,11 @@ export const footageUploadComplete = defineOperation({
         footage.id,
         "The upload arrived incomplete. Remove it and add the file again.",
       );
-      return view(rejected ?? footage);
+      return footageView(rejected ?? footage);
     }
     const probing = await markFootageProbing(ctx.tx, footage.id);
     ctx.afterCommit(() => ctx.services.enqueue(footageProbe, { footageId: footage.id }));
-    return view(probing ?? footage);
+    return footageView(probing ?? footage);
   },
 });
 

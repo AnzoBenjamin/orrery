@@ -16,6 +16,12 @@ export async function createShareLink(
   return row;
 }
 
+/** Loads a link by id regardless of owner. Only operations that then check the specimen use it. */
+export async function findShareLinkById(ex: Executor, id: string): Promise<ShareLink | undefined> {
+  const [row] = await ex.select().from(shareLink).where(eq(shareLink.id, id));
+  return row;
+}
+
 /** Every link of a specimen, including revoked and expired ones, newest first. */
 export async function listShareLinks(ex: Executor, specimenId: string): Promise<ShareLink[]> {
   return ex

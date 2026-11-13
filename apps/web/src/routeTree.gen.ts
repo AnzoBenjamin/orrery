@@ -20,6 +20,7 @@ import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
 import { Route as AppCabinetRouteImport } from './routes/_app/cabinet'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as STokenRouteImport } from './routes/s/$token'
 import { Route as AppSpecimensSpecimenIdRouteImport } from './routes/_app/specimens/$specimenId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
@@ -77,6 +78,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const STokenRoute = STokenRouteImport.update({
+  id: '/s/$token',
+  path: '/s/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppSpecimensSpecimenIdRoute = AppSpecimensSpecimenIdRouteImport.update({
   id: '/specimens/$specimenId',
   path: '/specimens/$specimenId',
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AppAccountRoute
   '/cabinet': typeof AppCabinetRoute
   '/api/health': typeof ApiHealthRoute
+  '/s/$token': typeof STokenRoute
   '/specimens/$specimenId': typeof AppSpecimensSpecimenIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/account': typeof AppAccountRoute
   '/cabinet': typeof AppCabinetRoute
   '/api/health': typeof ApiHealthRoute
+  '/s/$token': typeof STokenRoute
   '/specimens/$specimenId': typeof AppSpecimensSpecimenIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/_app/account': typeof AppAccountRoute
   '/_app/cabinet': typeof AppCabinetRoute
   '/api/health': typeof ApiHealthRoute
+  '/s/$token': typeof STokenRoute
   '/_app/specimens/$specimenId': typeof AppSpecimensSpecimenIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/cabinet'
     | '/api/health'
+    | '/s/$token'
     | '/specimens/$specimenId'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/cabinet'
     | '/api/health'
+    | '/s/$token'
     | '/specimens/$specimenId'
     | '/api/auth/$'
   id:
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/_app/account'
     | '/_app/cabinet'
     | '/api/health'
+    | '/s/$token'
     | '/_app/specimens/$specimenId'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
@@ -188,6 +200,7 @@ export interface RootRouteChildren {
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  STokenRoute: typeof STokenRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -270,6 +283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/s/$token': {
+      id: '/s/$token'
+      path: '/s/$token'
+      fullPath: '/s/$token'
+      preLoaderRoute: typeof STokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/specimens/$specimenId': {
       id: '/_app/specimens/$specimenId'
       path: '/specimens/$specimenId'
@@ -311,6 +331,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
   ApiHealthRoute: ApiHealthRoute,
+  STokenRoute: STokenRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

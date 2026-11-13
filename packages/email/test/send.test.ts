@@ -15,7 +15,7 @@ beforeAll(async () => {
     .withWaitStrategy(Wait.forHttp("/readyz", 8025))
     .start();
   api = `http://${mailpit.getHost()}:${mailpit.getMappedPort(8025)}/api/v1`;
-}, 120_000);
+});
 
 afterAll(async () => {
   await mailpit?.stop();

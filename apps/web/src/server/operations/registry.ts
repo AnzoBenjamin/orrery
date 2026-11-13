@@ -15,6 +15,7 @@ import {
   footageUploadSign,
   footageUsage,
 } from "./footage.ts";
+import { shareCreate, shareList, shareOpen, sharePlayback, shareRevoke } from "./shares.ts";
 import {
   specimenCreate,
   specimenDelete,
@@ -45,4 +46,9 @@ export const operations: readonly AnyOperation[] = [
   footageUploadAbort,
   footageDelete,
   footagePlayback,
+  shareList,
+  shareCreate,
+  shareRevoke,
+  shareOpen,
+  sharePlayback,
 ];

@@ -2,6 +2,7 @@ import { Banner, Button, Dialog, DialogTrigger } from "@orrery/ui";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { FootageUploader } from "../../../components/footage-uploader.tsx";
+import { ShareButton } from "../../../components/share-dialog.tsx";
 import { deleteFootageFn, listFootageFn, playbackUrlFn } from "../../../functions/footage.ts";
 import { getSpecimenFn } from "../../../functions/specimens.ts";
 import { footageRoles } from "../../../lib/footage-roles.ts";
@@ -70,14 +71,17 @@ function SpecimenPage() {
           ← Cabinet of specimens
         </Link>
       </nav>
-      <header className="mb-10 border-umber border-b pb-6">
-        <p className="font-display-sc text-parchment text-sm tracking-[0.22em]">Specimen</p>
-        <h1 className="mt-1 font-display text-5xl text-bone">{s.title}</h1>
-        {s.description ? (
-          <p className="mt-3 max-w-2xl whitespace-pre-line font-display text-lg text-parchment italic">
-            {s.description}
-          </p>
-        ) : null}
+      <header className="mb-10 flex flex-wrap items-end justify-between gap-6 border-umber border-b pb-6">
+        <div>
+          <p className="font-display-sc text-parchment text-sm tracking-[0.22em]">Specimen</p>
+          <h1 className="mt-1 font-display text-5xl text-bone">{s.title}</h1>
+          {s.description ? (
+            <p className="mt-3 max-w-2xl whitespace-pre-line font-display text-lg text-parchment italic">
+              {s.description}
+            </p>
+          ) : null}
+        </div>
+        {s.isOwner ? <ShareButton specimenId={s.id} title={s.title} /> : null}
       </header>
 
       <div className="grid gap-12 lg:grid-cols-[1fr_22rem]">

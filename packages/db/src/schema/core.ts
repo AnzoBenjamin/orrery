@@ -14,6 +14,7 @@ import {
   text,
   uniqueIndex,
   uuid,
+  varchar,
 } from "drizzle-orm/pg-core";
 import { user } from "./auth.ts";
 import { createdAt, id, timestamptz, updatedAt } from "./columns.ts";
@@ -212,4 +213,19 @@ export const objectDeletion = pgTable(
     index("object_deletion_pending_idx").on(t.createdAt).where(sql`${t.completedAt} is null`),
     check("object_deletion_attempts", sql`${t.attempts} >= 0`),
   ],
+);
+
+/**
+ * Request counters for application rate limits (share-link access, upload signing). The layout
+ * is the one `rate-limiter-flexible`'s Postgres store reads and writes; the migration creates it,
+ * so the library never alters the schema. `expire` is a Unix time in milliseconds.
+ */
+export const requestLimit = pgTable(
+  "request_limit",
+  {
+    key: varchar("key", { length: 255 }).primaryKey(),
+    points: integer("points").default(0).notNull(),
+    expire: bigint("expire", { mode: "number" }),
+  },
+  (t) => [index("request_limit_expire_idx").on(t.expire)],
 );

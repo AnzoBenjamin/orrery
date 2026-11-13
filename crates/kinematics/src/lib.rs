@@ -3,5 +3,14 @@
 //!
 //! All quantities are SI: meters, radians, seconds.
 
+pub mod assembly;
+pub mod constraint;
+pub mod error;
+pub mod model;
+pub mod planar;
 pub mod schema;
 pub mod validate;
+
+pub use assembly::{Assembly, AssemblyOptions, LinearPath};
+pub use error::SolverError;
+pub use model::Model;

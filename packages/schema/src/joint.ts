@@ -86,7 +86,10 @@ const revoluteJointSchema = jointBaseSchema
   })
   .meta({ title: "RevoluteJoint" });
 
-/** Prismatic joint (slider) */
+/**
+ * Prismatic joint (slider). B's anchor stays on the line through A's anchor along `axisLocalA`,
+ * and B keeps A's orientation: B's local frame is parallel to A's, so draw slider frames that way.
+ */
 const prismaticJointSchema = jointBaseSchema
   .extend({
     kind: z.literal("prismatic"),

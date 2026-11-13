@@ -11,10 +11,12 @@
     - Done: seven files in `fixtures/golden/mechanism` cover every body kind, joint kind, follower, slot curve, driver profile, external and internal meshes, open and crossed belts, a spatial RSSR, and two planar subsystems in perpendicular planes; eight files in `invalid/` each break one rule. Round trips pass in TypeScript, Rust, and Python, and invalid graphs fail in TypeScript and Rust. Remaining: the Python invalid-graph test, which calls `kinematics::validate` through `kinematics-py` (6.3) so the rules are not written a third time.
 
 - [ ] 2. Planar solver
-  - [ ] 2.1 Implement state layout, the `Constraint` trait, and revolute, prismatic, and driver constraints with analytic Jacobians.
+  - [x] 2.1 Implement state layout, the `Constraint` trait, and revolute, prismatic, and driver constraints with analytic Jacobians.
     - _Requirements: 3.2, 4.1_
-  - [ ] 2.2 Implement Levenberg–Marquardt assembly with `faer` sparse and dense paths, seeded branch continuity, and `AssemblyFailed` diagnostics.
+    - `kinematics::model` compiles a graph into `(x, y, θ)` per moving planar body (the ground fixed, a spatial ground projected into each plane), and `kinematics::constraint` implements revolute, prismatic, and angle and displacement drivers with analytic Jacobians, checked against finite differences by `proptest`. A prismatic joint holds B parallel to A (documented on the Zod schema). Joint kinds and spatial bodies beyond this build are refused with `InvalidGraph` naming the joint; 2.3 and 4.1 add them.
+  - [x] 2.2 Implement Levenberg–Marquardt assembly with `faer` sparse and dense paths, seeded branch continuity, and `AssemblyFailed` diagnostics.
     - _Requirements: 4.1, 4.2, 4.3_
+    - `kinematics::assembly`: Levenberg–Marquardt with Marquardt scaling, each step a damped least-squares QR (`faer` dense below 30 unknowns, sparse QR above, selectable for tests). A seed keeps the branch; without one, deterministic starting poses are built outward from the ground. Failures return `AssemblyFailed` with the three worst joints. Tested against closed-form four-bar and slider-crank positions through a full turn, with the branch held.
   - [ ] 2.3 Implement pin-in-slot, gear mesh (external, internal, rack and pinion), belt, and cam-follower constraints, plus cam Fourier profiles and slot curves.
     - _Requirements: 3.1, 3.2, 3.5, 3.6_
   - [ ] 2.4 Implement spring energy terms and constrained energy minimization.

@@ -1,0 +1,415 @@
+//! A mechanism graph compiled into the solver's form: one pose per moving body in the state
+//! vector, and the joints and drivers as residual equations (mechanism-core design, "State").
+
+use std::collections::HashMap;
+
+use crate::constraint::{BodySlot, Constraint, DrivenCoordinate, Driver, Prismatic, Revolute};
+use crate::error::SolverError;
+use crate::planar::{Pose2, V2};
+use crate::schema::{self, BodyKind, DriverCoordinate, Joint, Mechanism, PointRef, Vec3};
+use crate::validate::{joint_common, joint_kind, validate};
+
+/// A plane's frame in world coordinates: `world = origin + x·u + y·v + z·normal`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PlaneFrame {
+    pub origin: [f64; 3],
+    pub u: [f64; 3],
+    pub v: [f64; 3],
+    pub normal: [f64; 3],
+}
+
+fn arr(v: &Vec3) -> [f64; 3] {
+    [v.x, v.y, v.z]
+}
+fn dot3(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0].mul_add(b[0], a[1].mul_add(b[1], a[2] * b[2]))
+}
+fn cross3(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+fn unit3(a: [f64; 3]) -> Option<[f64; 3]> {
+    let n = dot3(a, a).sqrt();
+    (n > 1e-12 && n.is_finite()).then(|| [a[0] / n, a[1] / n, a[2] / n])
+}
+
+impl PlaneFrame {
+    fn new(plane: &schema::Plane) -> Result<Self, SolverError> {
+        let path = || format!("planes.{}", plane.id.as_str());
+        let normal = unit3(arr(&plane.normal_world))
+            .ok_or_else(|| SolverError::invalid(path(), "The plane normal has zero length"))?;
+        let x = arr(&plane.x_axis_world);
+        // Remove any component along the normal, so a slightly tilted x-axis still works.
+        let along = dot3(x, normal);
+        let u = unit3([
+            x[0] - along * normal[0],
+            x[1] - along * normal[1],
+            x[2] - along * normal[2],
+        ])
+        .ok_or_else(|| {
+            SolverError::invalid(path(), "The plane x-axis is parallel to its normal")
+        })?;
+        Ok(Self {
+            origin: arr(&plane.origin_world),
+            u,
+            v: cross3(normal, u),
+            normal,
+        })
+    }
+
+    /// The world frame as a plane, for planar mechanisms whose ground is spatial.
+    const WORLD_XY: Self = Self {
+        origin: [0.0, 0.0, 0.0],
+        u: [1.0, 0.0, 0.0],
+        v: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+    };
+
+    /// A world point in this plane's 2D coordinates (its offset along the normal is dropped).
+    #[must_use]
+    pub fn project_point(&self, p: [f64; 3]) -> V2 {
+        let d = [
+            p[0] - self.origin[0],
+            p[1] - self.origin[1],
+            p[2] - self.origin[2],
+        ];
+        V2::new(dot3(d, self.u), dot3(d, self.v))
+    }
+
+    /// A world direction in this plane's 2D coordinates.
+    #[must_use]
+    pub fn project_direction(&self, d: [f64; 3]) -> V2 {
+        V2::new(dot3(d, self.u), dot3(d, self.v))
+    }
+
+    /// A point in plane coordinates, at `height` along the normal, in world coordinates.
+    #[must_use]
+    pub fn to_world(&self, p: V2, height: f64) -> [f64; 3] {
+        std::array::from_fn(|k| {
+            self.origin[k] + p.x * self.u[k] + p.y * self.v[k] + height * self.normal[k]
+        })
+    }
+}
+
+/// One body as the solver sees it.
+#[derive(Debug, Clone)]
+pub struct BodyInfo {
+    pub id: String,
+    pub is_ground: bool,
+    pub slot: BodySlot,
+    /// The plane the body moves in. The ground of a planar mechanism may be spatial (`None`).
+    pub plane: Option<String>,
+    /// Named points in the body's local frame.
+    pub points: HashMap<String, [f64; 3]>,
+}
+
+/// A revolute or prismatic joint, kept for building initial guesses.
+#[derive(Debug, Clone)]
+pub enum Link {
+    Revolute(Revolute),
+    Prismatic(Prismatic),
+}
+
+/// The compiled mechanism.
+#[derive(Debug)]
+pub struct Model {
+    pub bodies: Vec<BodyInfo>,
+    pub n_vars: usize,
+    pub constraints: Vec<Box<dyn Constraint>>,
+    pub drivers: Vec<Driver>,
+    pub links: Vec<(usize, usize, Link)>,
+    pub planes: HashMap<String, PlaneFrame>,
+    body_index: HashMap<String, usize>,
+}
+
+/// What a body's local point means in a given plane's coordinates.
+fn local_in_plane(
+    body: &BodyInfo,
+    plane_id: &str,
+    point: [f64; 3],
+    planes: &HashMap<String, PlaneFrame>,
+) -> V2 {
+    match (&body.plane, body.is_ground) {
+        // A spatial ground's local frame is the world frame.
+        (None, true) => planes.get(plane_id).map_or_else(
+            || PlaneFrame::WORLD_XY.project_point(point),
+            |f| f.project_point(point),
+        ),
+        _ => V2::new(point[0], point[1]),
+    }
+}
+
+impl Model {
+    /// Builds the solver model. Fails with `InvalidGraph` when the graph breaks a schema rule or
+    /// uses a joint the planar solver does not implement.
+    pub fn new(mechanism: &Mechanism) -> Result<Self, SolverError> {
+        validate(mechanism).map_err(SolverError::InvalidGraph)?;
+
+        let mut planes = HashMap::new();
+        for plane in &mechanism.planes {
+            planes.insert(plane.id.as_str().to_owned(), PlaneFrame::new(plane)?);
+        }
+
+        let mut bodies = Vec::with_capacity(mechanism.bodies.len());
+        let mut n_vars = 0;
+        for (i, body) in mechanism.bodies.iter().enumerate() {
+            let is_ground = body.kind == BodyKind::Ground;
+            let plane = body.plane_id.as_ref().map(|p| p.as_str().to_owned());
+            let slot = if is_ground {
+                BodySlot::Fixed(Pose2::default())
+            } else if plane.is_some() {
+                n_vars += 3;
+                BodySlot::Var(n_vars - 3)
+            } else {
+                return Err(SolverError::invalid(
+                    format!("bodies[{i}]"),
+                    format!(
+                        "Body {} is spatial; this solver build handles planar bodies only",
+                        body.id.as_str()
+                    ),
+                ));
+            };
+            let points = body
+                .points
+                .iter()
+                .map(|p| (p.id.as_str().to_owned(), arr(&p.local)))
+                .collect();
+            bodies.push(BodyInfo {
+                id: body.id.as_str().to_owned(),
+                is_ground,
+                slot,
+                plane,
+                points,
+            });
+        }
+        let body_index: HashMap<String, usize> = bodies
+            .iter()
+            .enumerate()
+            .map(|(i, b)| (b.id.clone(), i))
+            .collect();
+
+        let mut model = Self {
+            bodies,
+            n_vars,
+            constraints: Vec::new(),
+            drivers: Vec::new(),
+            links: Vec::new(),
+            planes,
+            body_index,
+        };
+        let mut by_joint: HashMap<String, Link> = HashMap::new();
+        for (i, joint) in mechanism.joints.iter().enumerate() {
+            let link = model.compile_joint(i, joint)?;
+            let common = joint_common(joint);
+            let (a, b) = (
+                model.body_index[common.body_a],
+                model.body_index[common.body_b],
+            );
+            match &link {
+                Link::Revolute(r) => model.constraints.push(Box::new(r.clone())),
+                Link::Prismatic(p) => model.constraints.push(Box::new(p.clone())),
+            }
+            by_joint.insert(common.id.to_owned(), link.clone());
+            model.links.push((a, b, link));
+        }
+        for (index, driver) in mechanism.drivers.iter().enumerate() {
+            let path = format!("drivers[{index}]");
+            let joint = driver.joint_id.as_str();
+            let coordinate = match (by_joint.get(joint), driver.coordinate) {
+                (Some(Link::Revolute(r)), DriverCoordinate::Angle) => {
+                    DrivenCoordinate::Angle { a: r.a, b: r.b }
+                }
+                (Some(Link::Prismatic(p)), DriverCoordinate::Displacement) => {
+                    DrivenCoordinate::Displacement(p.clone())
+                }
+                _ => {
+                    return Err(SolverError::invalid(
+                        path,
+                        format!(
+                            "Driver {} sets the {} of joint {joint}, which has no such coordinate",
+                            driver.id.as_str(),
+                            match driver.coordinate {
+                                DriverCoordinate::Angle => "angle",
+                                DriverCoordinate::Displacement => "displacement",
+                            }
+                        ),
+                    ));
+                }
+            };
+            let compiled = Driver {
+                id: driver.id.as_str().to_owned(),
+                joint_id: joint.to_owned(),
+                index,
+                coordinate,
+            };
+            model.constraints.push(Box::new(compiled.clone()));
+            model.drivers.push(compiled);
+        }
+        Ok(model)
+    }
+
+    /// The plane a planar joint between `a` and `b` acts in.
+    fn joint_plane(&self, a: usize, b: usize) -> String {
+        let (ba, bb) = (&self.bodies[a], &self.bodies[b]);
+        let moving = if ba.is_ground { bb } else { ba };
+        moving
+            .plane
+            .clone()
+            .or_else(|| ba.plane.clone())
+            .unwrap_or_default()
+    }
+
+    fn anchor(&self, plane: &str, point: &PointRef, path: &str) -> Result<V2, SolverError> {
+        let body = &self.bodies[self.body_index[point.body_id.as_str()]];
+        let local = body
+            .points
+            .get(point.point_id.as_str())
+            .copied()
+            .ok_or_else(|| {
+                SolverError::invalid(path, format!("Point {} not found", point.point_id.as_str()))
+            })?;
+        Ok(local_in_plane(body, plane, local, &self.planes))
+    }
+
+    fn compile_joint(&self, i: usize, joint: &Joint) -> Result<Link, SolverError> {
+        let path = format!("joints[{i}]");
+        let common = joint_common(joint);
+        let (a, b) = (
+            self.body_index[common.body_a],
+            self.body_index[common.body_b],
+        );
+        let plane = self.joint_plane(a, b);
+        let id = common.id.to_owned();
+        let (slot_a, slot_b) = (self.bodies[a].slot, self.bodies[b].slot);
+        match joint {
+            Joint::Revolute {
+                anchor_a,
+                anchor_b,
+                axis_local_a,
+                ..
+            } => {
+                if let Some(axis) = axis_local_a {
+                    // A planar revolute turns about the plane normal: local z.
+                    if axis.x.abs() > 1e-9 || axis.y.abs() > 1e-9 || axis.z.abs() < 1e-12 {
+                        return Err(SolverError::invalid(
+                            path,
+                            format!(
+                                "Revolute joint {id} has a tilted axis; planar bodies turn about the plane normal"
+                            ),
+                        ));
+                    }
+                }
+                Ok(Link::Revolute(Revolute {
+                    id,
+                    a: slot_a,
+                    anchor_a: self.anchor(&plane, anchor_a, &path)?,
+                    b: slot_b,
+                    anchor_b: self.anchor(&plane, anchor_b, &path)?,
+                }))
+            }
+            Joint::Prismatic {
+                anchor_a,
+                anchor_b,
+                axis_local_a,
+                ..
+            } => {
+                let body_a = &self.bodies[a];
+                let raw = arr(axis_local_a);
+                let spatial_ground = body_a.is_ground && body_a.plane.is_none();
+                let axis = if spatial_ground {
+                    self.planes
+                        .get(&plane)
+                        .unwrap_or(&PlaneFrame::WORLD_XY)
+                        .project_direction(raw)
+                } else {
+                    V2::new(raw[0], raw[1])
+                };
+                let len = axis.norm();
+                // In a planar body's frame the axis must lie in the plane (no local z).
+                let tilted = !spatial_ground && raw[2].abs() > 1e-9 * dot3(raw, raw).sqrt();
+                if len < 1e-12 || tilted {
+                    return Err(SolverError::invalid(
+                        path,
+                        format!("Prismatic joint {id} needs a slide axis in the plane"),
+                    ));
+                }
+                Ok(Link::Prismatic(Prismatic {
+                    id,
+                    a: slot_a,
+                    anchor_a: self.anchor(&plane, anchor_a, &path)?,
+                    axis: axis * (1.0 / len),
+                    b: slot_b,
+                    anchor_b: self.anchor(&plane, anchor_b, &path)?,
+                }))
+            }
+            other => Err(SolverError::invalid(
+                path,
+                format!(
+                    "Joint {id} is a {} joint; this solver build handles revolute and prismatic joints only",
+                    joint_kind(other)
+                ),
+            )),
+        }
+    }
+
+    /// Number of residual rows.
+    #[must_use]
+    pub fn n_rows(&self) -> usize {
+        self.constraints.iter().map(|c| c.dim()).sum()
+    }
+
+    /// All residuals at `q` for the driver values `drive`.
+    #[must_use]
+    pub fn residuals(&self, q: &[f64], drive: &[f64]) -> Vec<f64> {
+        let mut out = vec![0.0; self.n_rows()];
+        let mut row = 0;
+        for c in &self.constraints {
+            let d = c.dim();
+            c.residual(q, drive, &mut out[row..row + d]);
+            row += d;
+        }
+        out
+    }
+
+    /// The constraint Jacobian at `q` as (row, column, value) entries.
+    #[must_use]
+    pub fn jacobian(&self, q: &[f64], drive: &[f64]) -> Vec<(usize, usize, f64)> {
+        let mut out = Vec::new();
+        let mut row = 0;
+        for c in &self.constraints {
+            c.jacobian(q, drive, row, &mut out);
+            row += c.dim();
+        }
+        out
+    }
+
+    /// Index of a body by id.
+    #[must_use]
+    pub fn body(&self, id: &str) -> Option<usize> {
+        self.body_index.get(id).copied()
+    }
+
+    /// A body's pose in its plane frame.
+    #[must_use]
+    pub fn pose(&self, body: usize, q: &[f64]) -> Pose2 {
+        self.bodies[body].slot.pose(q)
+    }
+
+    /// A named point of a body in world coordinates.
+    #[must_use]
+    pub fn point_world(&self, body: usize, point: &str, q: &[f64]) -> Option<[f64; 3]> {
+        let info = &self.bodies[body];
+        let local = *info.points.get(point)?;
+        match &info.plane {
+            None => Some(local),
+            Some(plane) => {
+                let frame = self.planes.get(plane)?;
+                let p = info.slot.pose(q).apply(V2::new(local[0], local[1]));
+                Some(frame.to_world(p, local[2]))
+            }
+        }
+    }
+}

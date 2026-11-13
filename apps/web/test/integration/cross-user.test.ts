@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { createNotification, schema } from "@orrery/db";
 import { eq } from "drizzle-orm";
 import fc from "fast-check";
@@ -109,6 +109,16 @@ const cases: Record<string, Case> = {
     input: (a) => ({ notificationId: a.notificationId }),
   },
   "notification.mark-all-read": { kind: "own", check: leaksNothingOf },
+  // B is not an admin: the operator operations do not exist for B.
+  "admin.overview": { kind: "resource", input: () => ({}) },
+  "admin.job.retry": {
+    kind: "resource",
+    input: () => ({ queue: "email.send", jobId: randomUUID() }),
+  },
+  "admin.job.cancel": {
+    kind: "resource",
+    input: () => ({ queue: "email.send", jobId: randomUUID() }),
+  },
   "share.playback": {
     kind: "resource",
     input: (a) => ({ token: randomToken(), footageId: a.footageId }),

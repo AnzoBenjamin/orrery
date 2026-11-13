@@ -5,6 +5,7 @@ import type { z } from "zod";
 import { database, databaseReady } from "./db.ts";
 import type { Result } from "./domain-errors.ts";
 import { serverEnv } from "./env.ts";
+import { createJobAdmin } from "./job-admin.ts";
 import { jobProducer } from "./jobs.ts";
 import { invoke, type Operation, type Services } from "./operations/define.ts";
 import { createLimits, type Limit } from "./rate-limits.ts";
@@ -21,6 +22,7 @@ const services: Services = {
   enqueue: async (queue, payload) => {
     await enqueue(await jobProducer(), queue, payload);
   },
+  jobAdmin: createJobAdmin(jobProducer),
   limit: (name, key) => {
     limits ??= createLimits(database().pool);
     return limits(name, key);

@@ -10,3 +10,4 @@ export * from "./sign-in-records.ts";
 export * from "./specimens.ts";
 export * from "./upload-sessions.ts";
 export * from "./user-preferences.ts";
+export * from "./users.ts";

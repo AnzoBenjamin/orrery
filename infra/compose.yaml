@@ -224,6 +224,8 @@ services:
       # Presigned URLs point at the host's Garage port; e2e/support/s3-loopback.ts forwards it.
       E2E_S3_PUBLIC_URL: http://localhost:${GARAGE_S3_PORT:-53900}
       E2E_S3_TARGET: garage:3900
+      # For the operator CLI (`make admin`), which the operator-page test uses to grant the role.
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     volumes:
       - ..:/workspace
       - pnpm-store:/home/dev/.local/share/pnpm

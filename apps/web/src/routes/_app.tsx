@@ -22,7 +22,11 @@ function AppLayout() {
   const { session } = Route.useRouteContext();
   const { unreadNotices } = Route.useLoaderData();
   return (
-    <AppShell userName={session.user.name} unreadNotices={unreadNotices}>
+    <AppShell
+      userName={session.user.name}
+      isAdmin={session.user.isAdmin}
+      unreadNotices={unreadNotices}
+    >
       <Outlet />
     </AppShell>
   );

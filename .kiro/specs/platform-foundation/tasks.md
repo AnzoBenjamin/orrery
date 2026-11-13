@@ -87,8 +87,9 @@ Task numbers are stable references (other specs cite them). Work them in this or
   - [x] 7.2 Implement failure handling that marks domain records failed and creates notifications. Build the notification tray UI.
     - _Requirements: 7.3_
     - Notification kinds are a Zod union in `packages/db` (validated on write and read). The probe handler marks footage and notifies the owner in one transaction, including when retries run out. The tray in the app shell lists notices, marks them read, and links to the specimen. Analysis kinds join with the vision pipeline.
-  - [ ] 7.3 Build the admin operator page (queue depth, running, failures, retry, cancel) with an admin role check.
+  - [x] 7.3 Build the admin operator page (queue depth, running, failures, retry, cancel) with an admin role check.
     - _Requirements: 7.4_
+    - `packages/jobs/src/operator.ts` reads counts and recent jobs from pg-boss's table through its own adapter (its API cannot list by state, and its counts lag). The role is granted only by the operator CLI, `make admin email=…`.
   - [ ] 7.4 Implement `domain_event` writes with `NOTIFY`, the SSE route with replay and heartbeats, and the `useSpecimenEvents` client hook. Integration test for property 4.
     - _Requirements: 8.1, 8.2, 8.3, 8.4_
   - [ ] 7.5 Define `packages/engine-contract`, generate Pydantic models, implement HMAC signing in the engine and verification plus idempotent ingestion in the web app. Property tests 2 and 3.

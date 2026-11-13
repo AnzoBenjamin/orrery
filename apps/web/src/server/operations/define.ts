@@ -1,5 +1,5 @@
 import type { Db, Executor } from "@orrery/db";
-import type { QueueDefinition } from "@orrery/jobs";
+import type { JobState, JobSummary, QueueDefinition, QueueSummary } from "@orrery/jobs";
 import type { Storage } from "@orrery/storage";
 import type { z } from "zod";
 import type { Actor } from "../actor.ts";
@@ -14,6 +14,15 @@ export interface Services {
   enqueue: <S extends z.ZodType>(queue: QueueDefinition<S>, payload: z.input<S>) => Promise<void>;
   /** Counts one request against a rate limit; throws RateLimited past it. */
   limit: Limit;
+  /** Queue inspection and control for the operator page. */
+  jobAdmin: JobAdmin;
+}
+
+export interface JobAdmin {
+  summarize(): Promise<QueueSummary[]>;
+  recent(states: readonly JobState[], limit: number): Promise<JobSummary[]>;
+  retry(queue: string, id: string): Promise<boolean>;
+  cancel(queue: string, id: string): Promise<boolean>;
 }
 
 /** Facts about the HTTP request an operation runs for. */

@@ -54,6 +54,8 @@ All ports bind to `127.0.0.1` and use non-default numbers so they do not collide
 
 `make down` stops the stack and keeps data. `make reset` deletes and recreates the Postgres and Garage volumes after a typed confirmation (`CONFIRM=1 make reset` skips it). Dependency caches survive a reset.
 
+`make admin email=<address>` gives an existing account the operator role, which adds an Operator page (queue depth, running jobs, recent failures, retry and cancel). `make admin email=<address> revoke=1` takes it away. Roles can be changed only this way.
+
 Files written inside the toolbox belong to your host user, because the image is built with your UID and GID. Rebuild with `make toolbox` after changing `infra/toolbox/Dockerfile`.
 
 The repository also includes `.devcontainer/devcontainer.json`, which attaches an editor to the same toolbox container.

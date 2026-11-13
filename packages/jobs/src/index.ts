@@ -1,5 +1,14 @@
 export { createProducer, createWorkerBoss, migrateJobSchema, PG_BOSS_SCHEMA } from "./boss.ts";
 export {
+  cancelJob,
+  type JobState,
+  type JobSummary,
+  type QueueSummary,
+  recentJobs,
+  retryJob,
+  summarizeQueues,
+} from "./operator.ts";
+export {
   type AnyQueue,
   defineQueue,
   enqueue,

@@ -6,6 +6,7 @@ import { Storage } from "@orrery/storage";
 import type { PgBoss } from "pg-boss";
 import { afterAll, beforeAll, inject } from "vitest";
 import type { Actor } from "../../src/server/actor.ts";
+import { createJobAdmin } from "../../src/server/job-admin.ts";
 import type { Deps } from "../../src/server/operations/define.ts";
 import { createLimits } from "../../src/server/rate-limits.ts";
 
@@ -42,6 +43,7 @@ export function withTestDatabase(): () => TestEnv {
             await enqueue(boss, queue, payload);
           },
           limit: createLimits(database.pool),
+          jobAdmin: createJobAdmin(async () => boss),
         },
       },
     };

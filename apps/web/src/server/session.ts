@@ -14,6 +14,7 @@ export const getSession = createServerFn({ method: "GET" }).handler(async () => 
       name: session.user.name,
       email: session.user.email,
       emailVerified: session.user.emailVerified,
+      isAdmin: (session.user as { role?: string }).role === "admin",
     },
     session: { id: session.session.id, expiresAt: session.session.expiresAt.toISOString() },
   };

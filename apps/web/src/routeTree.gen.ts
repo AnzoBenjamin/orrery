@@ -18,6 +18,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppCabinetRouteImport } from './routes/_app/cabinet'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as STokenRouteImport } from './routes/s/$token'
@@ -68,6 +69,11 @@ const AppAccountRoute = AppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCabinetRoute = AppCabinetRouteImport.update({
   id: '/cabinet',
   path: '/cabinet',
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/account': typeof AppAccountRoute
+  '/admin': typeof AppAdminRoute
   '/cabinet': typeof AppCabinetRoute
   '/api/health': typeof ApiHealthRoute
   '/s/$token': typeof STokenRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/account': typeof AppAccountRoute
+  '/admin': typeof AppAdminRoute
   '/cabinet': typeof AppCabinetRoute
   '/api/health': typeof ApiHealthRoute
   '/s/$token': typeof STokenRoute
@@ -135,6 +143,7 @@ export interface FileRoutesById {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/_app/account': typeof AppAccountRoute
+  '/_app/admin': typeof AppAdminRoute
   '/_app/cabinet': typeof AppCabinetRoute
   '/api/health': typeof ApiHealthRoute
   '/s/$token': typeof STokenRoute
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/account'
+    | '/admin'
     | '/cabinet'
     | '/api/health'
     | '/s/$token'
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/account'
+    | '/admin'
     | '/cabinet'
     | '/api/health'
     | '/s/$token'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/_app/account'
+    | '/_app/admin'
     | '/_app/cabinet'
     | '/api/health'
     | '/s/$token'
@@ -269,6 +281,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/cabinet': {
       id: '/_app/cabinet'
       path: '/cabinet'
@@ -309,12 +328,14 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
+  AppAdminRoute: typeof AppAdminRoute
   AppCabinetRoute: typeof AppCabinetRoute
   AppSpecimensSpecimenIdRoute: typeof AppSpecimensSpecimenIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
+  AppAdminRoute: AppAdminRoute,
   AppCabinetRoute: AppCabinetRoute,
   AppSpecimensSpecimenIdRoute: AppSpecimensSpecimenIdRoute,
 }

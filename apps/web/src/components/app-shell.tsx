@@ -5,7 +5,12 @@ import { authClient } from "../lib/auth-client.ts";
 import { NotificationTray } from "./notification-tray.tsx";
 
 /** Signed-in frame: wordmark, the two places a user goes, notices, and sign-out, over the desk. */
-export function AppShell(props: { userName: string; unreadNotices: number; children: ReactNode }) {
+export function AppShell(props: {
+  userName: string;
+  isAdmin: boolean;
+  unreadNotices: number;
+  children: ReactNode;
+}) {
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -40,6 +45,11 @@ export function AppShell(props: { userName: string; unreadNotices: number; child
           <Link to="/account" className={nav}>
             Account
           </Link>
+          {props.isAdmin ? (
+            <Link to="/admin" className={nav}>
+              Operator
+            </Link>
+          ) : null}
         </nav>
         <div className="ml-auto flex items-center gap-6">
           <NotificationTray unread={props.unreadNotices} />

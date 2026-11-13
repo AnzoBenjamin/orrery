@@ -4,6 +4,7 @@ import {
   accountSessionRevoke,
   accountSessionsRevokeOthers,
 } from "./account.ts";
+import { adminJobCancel, adminJobRetry, adminOverview } from "./admin.ts";
 import type { AnyOperation } from "./define.ts";
 import {
   footageDelete,
@@ -61,4 +62,7 @@ export const operations: readonly AnyOperation[] = [
   notificationUnreadCount,
   notificationMarkRead,
   notificationMarkAllRead,
+  adminOverview,
+  adminJobRetry,
+  adminJobCancel,
 ];

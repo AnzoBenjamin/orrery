@@ -138,8 +138,8 @@ Task numbers are stable references (other specs cite them). Work them in this or
     - _Requirements: 14.7_
   - [ ] 10.6 Add the contention load test: run an analysis at full engine quota while k6 drives page loads and server functions, and fail CI if p95 exceeds 300 ms.
     - _Requirements: 14.9, 14.10_
-  - [ ] 10.7 Implement the per-user storage quota check at upload creation and show usage in account settings. Integration and end-to-end tests.
-    - Done: the quota check (`STORAGE_QUOTA_BYTES`, default 5 GB) and its integration test, and usage in account settings. Remaining: an end-to-end test of a refused upload.
+  - [x] 10.7 Implement the per-user storage quota check at upload creation and show usage in account settings. Integration and end-to-end tests.
+    - The quota check (`STORAGE_QUOTA_BYTES`, default 5 GB) with its integration test, usage in account settings, and an end-to-end test of a refused upload. The local stack runs with a 200 MB quota so the test reaches it with a file under the 1 GB size limit.
     - _Requirements: 6.7_
 
 - [ ] 11. Kiro hooks

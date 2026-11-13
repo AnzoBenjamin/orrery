@@ -111,4 +111,30 @@ test.describe("footage", () => {
     await expect(item).toContainText("Ready", { timeout: 120_000 });
     await expect(upload).toHaveCount(0);
   });
+
+  test("refuses an upload that would pass the storage quota and shows usage", async ({ page }) => {
+    test.slow();
+    const quotaBytes = Number(process.env.E2E_STORAGE_QUOTA_BYTES ?? 200_000_000);
+    await signUpAndVerify(page, "quota");
+    await newSpecimen(page, "Orchestrion");
+    await choose(page, media.shortClip());
+    const footage = page.getByRole("list", { name: "Footage" });
+    await expect(footage.getByRole("listitem", { name: "short.mp4" })).toContainText("Ready", {
+      timeout: 60_000,
+    });
+
+    // With the clip stored, a file the size of the whole quota no longer fits.
+    const tooBig = media.sized(quotaBytes);
+    await choose(page, tooBig);
+    await expect(page.getByText(/would take you past your [\d.]+ GB of storage/)).toBeVisible();
+    await expect(page.getByText("Delete footage you no longer need, then try again.")).toBeVisible();
+    await expect(page.getByRole("list", { name: "Uploads" })).toHaveCount(0);
+    await expect(footage.getByRole("listitem")).toHaveCount(1);
+
+    await page.goto("/account");
+    const meter = page.getByRole("meter", { name: "Footage storage used" });
+    await expect(meter).toBeVisible();
+    await expect(meter).toHaveAttribute("aria-valuemax", String(quotaBytes));
+    await expect(meter).not.toHaveAttribute("aria-valuenow", "0");
+  });
 });

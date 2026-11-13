@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, truncateSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -34,6 +34,17 @@ export const media = {
       "-f", "lavfi", "-i", "nullsrc=size=640x360:rate=25,geq=random(1)*255:128:128", "-t", "4",
       "-c:v", "libx264", "-preset", "ultrafast", "-crf", "0", "-pix_fmt", "yuv420p",
     ]),
+  /**
+   * A sparse file of exactly `bytes`, for limits the server checks from the declared size before
+   * any byte is uploaded. It takes no disk space and is never read.
+   */
+  sized: (bytes: number) => {
+    const path = join(dir, `sized-${bytes}.mp4`);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path, "");
+    truncateSync(path, bytes);
+    return path;
+  },
   /** A text file named like a video. */
   disguised: () => {
     const path = join(dir, "notes.mp4");

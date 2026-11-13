@@ -155,6 +155,7 @@ services:
       # browser and from the e2e container, which shares this container's network namespace.
       WEB_PORT: ${WEB_PORT:-53000}
       AUTH_RATE_LIMIT_SCALE: ${AUTH_RATE_LIMIT_SCALE:-50}
+      STORAGE_QUOTA_BYTES: ${STORAGE_QUOTA_BYTES:-200000000}
       WATCH_POLLING: "1"
     ports:
       - 127.0.0.1:${WEB_PORT:-53000}:${WEB_PORT:-53000}
@@ -234,6 +235,8 @@ services:
       CI: ${CI:-}
       E2E_BASE_URL: http://localhost:${WEB_PORT:-53000}
       E2E_MAILPIT_URL: http://mailpit:8025
+      # The web app's storage quota, so the quota test can choose a file just past it.
+      E2E_STORAGE_QUOTA_BYTES: ${STORAGE_QUOTA_BYTES:-200000000}
       # Presigned URLs point at the host's Garage port; e2e/support/s3-loopback.ts forwards it.
       E2E_S3_PUBLIC_URL: http://localhost:${GARAGE_S3_PORT:-53900}
       E2E_S3_TARGET: garage:3900

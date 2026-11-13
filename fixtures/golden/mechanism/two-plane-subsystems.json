@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "two-plane-subsystems",
-  "name": "Two planar subsystems joined by spatial joints",
+  "name": "Double Cardan driveshaft between two planar yokes",
   "scale": {
     "source": "user_measurement",
     "metersPerUnit": 1,
@@ -9,38 +9,38 @@
   },
   "planes": [
     {
-      "id": "plane-main",
+      "id": "plane-input",
       "originWorld": {
         "x": 0,
         "y": 0,
         "z": 0.0
       },
       "normalWorld": {
-        "x": 0,
-        "y": 0,
-        "z": 1
-      },
-      "xAxisWorld": {
         "x": 1,
-        "y": 0,
-        "z": 0.0
-      }
-    },
-    {
-      "id": "plane-side",
-      "originWorld": {
-        "x": 0.25,
         "y": 0,
         "z": 0
       },
-      "normalWorld": {
+      "xAxisWorld": {
         "x": 0,
         "y": 1,
         "z": 0
+      }
+    },
+    {
+      "id": "plane-output",
+      "originWorld": {
+        "x": 0.4,
+        "y": 0.1,
+        "z": 0.0
       },
-      "xAxisWorld": {
+      "normalWorld": {
         "x": 1,
         "y": 0,
+        "z": 0
+      },
+      "xAxisWorld": {
+        "x": 0,
+        "y": 1,
         "z": 0
       }
     }
@@ -53,7 +53,7 @@
       "planeId": null,
       "points": [
         {
-          "id": "crank-axle",
+          "id": "input-bearing",
           "local": {
             "x": 0,
             "y": 0,
@@ -62,20 +62,11 @@
           "role": "joint_anchor"
         },
         {
-          "id": "rail",
+          "id": "output-bearing",
           "local": {
-            "x": 0.25,
-            "y": 0,
+            "x": 0.4,
+            "y": 0.1,
             "z": 0.0
-          },
-          "role": "joint_anchor"
-        },
-        {
-          "id": "bearing",
-          "local": {
-            "x": 0.12,
-            "y": 0,
-            "z": 0.04
           },
           "role": "joint_anchor"
         }
@@ -84,13 +75,13 @@
       "confidence": 1.0
     },
     {
-      "id": "crank",
+      "id": "input-yoke",
       "label": "A",
       "kind": "link",
-      "planeId": "plane-main",
+      "planeId": "plane-input",
       "points": [
         {
-          "id": "axle",
+          "id": "hub",
           "local": {
             "x": 0,
             "y": 0,
@@ -99,26 +90,35 @@
           "role": "joint_anchor"
         },
         {
-          "id": "yoke",
+          "id": "cross",
           "local": {
-            "x": 0.05,
+            "x": 0,
             "y": 0,
             "z": 0.0
           },
           "role": "joint_anchor"
+        },
+        {
+          "id": "rim",
+          "local": {
+            "x": 0.03,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "tracked"
         }
       ],
       "status": "observed",
       "confidence": 1.0
     },
     {
-      "id": "shaft",
+      "id": "shaft-front",
       "label": "B",
       "kind": "link",
       "planeId": null,
       "points": [
         {
-          "id": "yoke",
+          "id": "cross",
           "local": {
             "x": 0,
             "y": 0,
@@ -127,10 +127,10 @@
           "role": "joint_anchor"
         },
         {
-          "id": "sleeve",
+          "id": "slip",
           "local": {
-            "x": 0.15,
-            "y": 0,
+            "x": 0.2,
+            "y": 0.05,
             "z": 0.0
           },
           "role": "joint_anchor"
@@ -140,13 +140,13 @@
       "confidence": 1.0
     },
     {
-      "id": "carriage",
+      "id": "shaft-rear",
       "label": "C",
-      "kind": "slider_block",
-      "planeId": "plane-side",
+      "kind": "link",
+      "planeId": null,
       "points": [
         {
-          "id": "rail",
+          "id": "cross",
           "local": {
             "x": 0,
             "y": 0,
@@ -155,10 +155,10 @@
           "role": "joint_anchor"
         },
         {
-          "id": "sleeve",
+          "id": "slip",
           "local": {
-            "x": 0,
-            "y": 0.03,
+            "x": -0.2,
+            "y": -0.05,
             "z": 0.0
           },
           "role": "joint_anchor"
@@ -168,13 +168,13 @@
       "confidence": 1.0
     },
     {
-      "id": "arm",
+      "id": "output-yoke",
       "label": "D",
       "kind": "link",
-      "planeId": "plane-side",
+      "planeId": "plane-output",
       "points": [
         {
-          "id": "pivot",
+          "id": "hub",
           "local": {
             "x": 0,
             "y": 0,
@@ -183,9 +183,18 @@
           "role": "joint_anchor"
         },
         {
-          "id": "tip",
+          "id": "cross",
           "local": {
-            "x": 0.08,
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "rim",
+          "local": {
+            "x": 0.03,
             "y": 0,
             "z": 0.0
           },
@@ -198,33 +207,82 @@
   ],
   "joints": [
     {
-      "id": "j-crank",
+      "id": "j-input",
       "kind": "revolute",
       "bodyA": "ground",
-      "bodyB": "crank",
+      "bodyB": "input-yoke",
       "anchorA": {
         "bodyId": "ground",
-        "pointId": "crank-axle"
+        "pointId": "input-bearing"
       },
       "anchorB": {
-        "bodyId": "crank",
-        "pointId": "axle"
+        "bodyId": "input-yoke",
+        "pointId": "hub"
       },
       "status": "observed",
       "confidence": 0.98
     },
     {
-      "id": "u-joint",
+      "id": "u-front",
       "kind": "universal",
-      "bodyA": "crank",
-      "bodyB": "shaft",
+      "bodyA": "input-yoke",
+      "bodyB": "shaft-front",
       "anchorA": {
-        "bodyId": "crank",
-        "pointId": "yoke"
+        "bodyId": "input-yoke",
+        "pointId": "cross"
       },
       "anchorB": {
-        "bodyId": "shaft",
-        "pointId": "yoke"
+        "bodyId": "shaft-front",
+        "pointId": "cross"
+      },
+      "axesLocal": [
+        {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      ],
+      "status": "observed",
+      "confidence": 0.85
+    },
+    {
+      "id": "slip",
+      "kind": "prismatic",
+      "bodyA": "shaft-front",
+      "bodyB": "shaft-rear",
+      "anchorA": {
+        "bodyId": "shaft-front",
+        "pointId": "slip"
+      },
+      "anchorB": {
+        "bodyId": "shaft-rear",
+        "pointId": "slip"
+      },
+      "axisLocalA": {
+        "x": 0.9701425001453319,
+        "y": 0.24253562503633297,
+        "z": 0
+      },
+      "status": "inferred",
+      "confidence": 0.6
+    },
+    {
+      "id": "u-rear",
+      "kind": "universal",
+      "bodyA": "shaft-rear",
+      "bodyB": "output-yoke",
+      "anchorA": {
+        "bodyId": "shaft-rear",
+        "pointId": "cross"
+      },
+      "anchorB": {
+        "bodyId": "output-yoke",
+        "pointId": "cross"
       },
       "axesLocal": [
         {
@@ -233,8 +291,8 @@
           "z": 1
         },
         {
-          "x": 0,
-          "y": 1,
+          "x": 1,
+          "y": 0,
           "z": 0
         }
       ],
@@ -242,66 +300,17 @@
       "confidence": 0.85
     },
     {
-      "id": "c-joint",
-      "kind": "cylindrical",
-      "bodyA": "shaft",
-      "bodyB": "carriage",
-      "anchorA": {
-        "bodyId": "shaft",
-        "pointId": "sleeve"
-      },
-      "anchorB": {
-        "bodyId": "carriage",
-        "pointId": "sleeve"
-      },
-      "axesLocal": [
-        {
-          "x": 1,
-          "y": 0,
-          "z": 0
-        },
-        {
-          "x": 1,
-          "y": 0,
-          "z": 0
-        }
-      ],
-      "status": "inferred",
-      "confidence": 0.6
-    },
-    {
-      "id": "rail",
-      "kind": "prismatic",
+      "id": "j-output",
+      "kind": "revolute",
       "bodyA": "ground",
-      "bodyB": "carriage",
+      "bodyB": "output-yoke",
       "anchorA": {
         "bodyId": "ground",
-        "pointId": "rail"
+        "pointId": "output-bearing"
       },
       "anchorB": {
-        "bodyId": "carriage",
-        "pointId": "rail"
-      },
-      "axisLocalA": {
-        "x": 1,
-        "y": 0,
-        "z": 0
-      },
-      "status": "observed",
-      "confidence": 0.97
-    },
-    {
-      "id": "j-arm",
-      "kind": "revolute",
-      "bodyA": "carriage",
-      "bodyB": "arm",
-      "anchorA": {
-        "bodyId": "carriage",
-        "pointId": "rail"
-      },
-      "anchorB": {
-        "bodyId": "arm",
-        "pointId": "pivot"
+        "bodyId": "output-yoke",
+        "pointId": "hub"
       },
       "status": "observed",
       "confidence": 0.98
@@ -310,7 +319,7 @@
   "drivers": [
     {
       "id": "drive",
-      "jointId": "j-crank",
+      "jointId": "j-input",
       "coordinate": "angle",
       "profile": {
         "type": "constant_rate",

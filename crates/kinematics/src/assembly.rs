@@ -11,9 +11,11 @@ use faer::linalg::solvers::SolveLstsqCore;
 use faer::sparse::{SparseColMat, Triplet};
 use faer::{Conj, Mat};
 
+use crate::constraint::BodySlot;
 use crate::error::{JointResidual, SolverError};
 use crate::model::{Link, Model};
 use crate::planar::{Pose2, V2};
+use crate::spatial::{Placement, SpatialJoint, SpatialKind, dot, quat_rotate};
 
 /// Mechanisms with fewer unknowns than this use dense QR (design: "a small dense path").
 pub const DENSE_LIMIT: usize = 30;
@@ -265,6 +267,9 @@ impl Model {
                 });
             }
             Some(s) => vec![s.to_vec()],
+            // The drawn pose (every body at its local frame) when it already holds: that is the
+            // branch the graph's author drew.
+            None if self.drawn_pose_holds(drive) => vec![self.drawn_pose()],
             None => [(0.9, 1.0), (0.9, -1.0), (2.2, 1.0), (2.2, -1.0), (0.3, 1.0)]
                 .into_iter()
                 .map(|(turn, sign)| self.initial_guess(drive, turn, sign))
@@ -316,16 +321,39 @@ impl Model {
         })
     }
 
+    /// Every body at its local frame: planar poses zero, spatial bodies at the origin unrotated,
+    /// curve parameters at their closest points.
+    #[must_use]
+    pub fn drawn_pose(&self) -> Vec<f64> {
+        let mut q = vec![0.0; self.n_vars];
+        for body in &self.bodies {
+            if let BodySlot::Spatial(i) = body.slot {
+                q[i + 3] = 1.0;
+            }
+        }
+        for c in &self.constraints {
+            c.init_aux(&mut q);
+        }
+        q
+    }
+
+    fn drawn_pose_holds(&self, drive: &[f64]) -> bool {
+        max_abs(&self.residuals(&self.drawn_pose(), drive)) <= 1e-9
+    }
+
     /// A starting pose built outward from the ground: each body is placed so its joint to an
     /// already-placed body is satisfied, turned by the driver's value where one drives that
     /// joint and by `±turn` otherwise, alternating with depth so links are not collinear.
     #[must_use]
     pub fn initial_guess(&self, drive: &[f64], turn: f64, sign: f64) -> Vec<f64> {
-        let mut poses: Vec<Option<Pose2>> = self
-            .bodies
-            .iter()
-            .map(|b| b.is_ground.then(Pose2::default))
-            .collect();
+        let mut q = vec![0.0; self.n_vars];
+        // Unplaced spatial bodies start unrotated.
+        for body in &self.bodies {
+            if let BodySlot::Spatial(i) = body.slot {
+                q[i + 3] = 1.0;
+            }
+        }
+        let mut placed: Vec<bool> = self.bodies.iter().map(|b| b.is_ground).collect();
         let mut depth = vec![0usize; self.bodies.len()];
         let mut queue: VecDeque<usize> = self
             .bodies
@@ -343,27 +371,36 @@ impl Model {
                 } else {
                     continue;
                 };
-                if poses[to].is_some() {
+                if placed[to] || !placed[from] {
                     continue;
                 }
-                let Some(base) = poses[from] else { continue };
-                let parity = if depth[from].is_multiple_of(2) {
-                    1.0
-                } else {
-                    -1.0
-                };
-                let placed = self.place(link, base, forward, drive, sign * parity * turn);
-                poses[to] = Some(placed);
+                let driven = self
+                    .drivers
+                    .iter()
+                    .find(|d| d.joint_id == link.id())
+                    .map(|d| drive[d.index]);
+                match link {
+                    Link::Spatial(joint) => {
+                        self.place_spatial(joint, from, to, forward, driven, &mut q)
+                    }
+                    Link::Revolute(_) | Link::Prismatic(_) => {
+                        let parity = if depth[from].is_multiple_of(2) {
+                            1.0
+                        } else {
+                            -1.0
+                        };
+                        let base = self.bodies[from].slot.pose(&q);
+                        let pose = self.place(link, base, forward, driven, sign * parity * turn);
+                        if let BodySlot::Var(i) = self.bodies[to].slot {
+                            q[i] = pose.x;
+                            q[i + 1] = pose.y;
+                            q[i + 2] = pose.theta;
+                        }
+                    }
+                }
+                placed[to] = true;
                 depth[to] = depth[from] + 1;
                 queue.push_back(to);
-            }
-        }
-        let mut q = vec![0.0; self.n_vars];
-        for (body, pose) in self.bodies.iter().zip(poses) {
-            if let (crate::constraint::BodySlot::Var(i), Some(p)) = (body.slot, pose) {
-                q[i] = p.x;
-                q[i + 1] = p.y;
-                q[i + 2] = p.theta;
             }
         }
         // Curve parameters start where the curve passes closest to its partner.
@@ -373,17 +410,90 @@ impl Model {
         q
     }
 
-    /// The pose of the body at the far end of `link`, given the near body's pose.
-    fn place(&self, link: &Link, base: Pose2, forward: bool, drive: &[f64], turn: f64) -> Pose2 {
-        let link_id = match link {
-            Link::Revolute(r) => r.id.as_str(),
-            Link::Prismatic(p) => p.id.as_str(),
+    /// The rotation (as a quaternion) that takes body `i` from its rest orientation to its
+    /// orientation in `q`.
+    fn turn_from_rest(&self, i: usize, q: &[f64]) -> [f64; 4] {
+        match self.bodies[i].placement {
+            Placement::Fixed { .. } => [1.0, 0.0, 0.0, 0.0],
+            Placement::Planar { index, frame } => quat_axis_angle(frame.normal, q[index + 2]),
+            Placement::Spatial { index } => {
+                [q[index + 3], q[index + 4], q[index + 5], q[index + 6]]
+            }
+        }
+    }
+
+    /// Places body `to` so a spatial joint to the placed body `from` holds: it takes `from`'s
+    /// turn from rest (plus the driver's turn or slide), and the anchors meet.
+    fn place_spatial(
+        &self,
+        joint: &SpatialJoint,
+        from: usize,
+        to: usize,
+        forward: bool,
+        driven: Option<f64>,
+        q: &mut [f64],
+    ) {
+        let (near, far, near_placement) = if forward {
+            (joint.anchor_a, joint.anchor_b, joint.a)
+        } else {
+            (joint.anchor_b, joint.anchor_a, joint.b)
         };
-        let driven = self
-            .drivers
-            .iter()
-            .find(|d| d.joint_id == link_id)
-            .map(|d| drive[d.index]);
+        let mut target = near_placement.point(q, near);
+        let mut turn = self.turn_from_rest(from, q);
+        match (&joint.kind, driven) {
+            (SpatialKind::Revolute { axis, .. }, Some(d)) => {
+                let world_axis = joint.a.rotate(q, *axis);
+                turn = quat_mul(
+                    quat_axis_angle(world_axis, if forward { d } else { -d }),
+                    turn,
+                );
+            }
+            (
+                SpatialKind::Prismatic { axis, .. } | SpatialKind::Cylindrical { axis_a: axis, .. },
+                Some(s),
+            ) => {
+                let world_axis = joint.a.rotate(q, *axis);
+                let s = if forward { s } else { -s };
+                target = std::array::from_fn(|k| target[k] + s * world_axis[k]);
+            }
+            _ => {}
+        }
+        match self.bodies[to].placement {
+            Placement::Spatial { index } => {
+                let rotated = quat_rotate(turn[0], [turn[1], turn[2], turn[3]], far);
+                for k in 0..3 {
+                    q[index + k] = target[k] - rotated[k];
+                }
+                q[index + 3..index + 7].copy_from_slice(&turn);
+            }
+            Placement::Planar { index, frame } => {
+                // The turn about this plane's normal that the rotation implies.
+                let w = quat_rotate(turn[0], [turn[1], turn[2], turn[3]], frame.u);
+                let theta = dot(w, frame.v).atan2(dot(w, frame.u));
+                let pose = Pose2 {
+                    x: 0.0,
+                    y: 0.0,
+                    theta,
+                };
+                let at = frame.project_point(target);
+                let offset = pose.rotate(V2::new(far[0], far[1]));
+                q[index] = at.x - offset.x;
+                q[index + 1] = at.y - offset.y;
+                q[index + 2] = theta;
+            }
+            Placement::Fixed { .. } => {}
+        }
+    }
+
+    /// The pose of the body at the far end of `link`, given the near body's pose.
+    fn place(
+        &self,
+        link: &Link,
+        base: Pose2,
+        forward: bool,
+        driven: Option<f64>,
+        turn: f64,
+    ) -> Pose2 {
         match link {
             Link::Revolute(r) => {
                 let (near, far) = if forward {
@@ -430,6 +540,24 @@ impl Model {
                     theta,
                 }
             }
+            // Spatial joints are placed by `place_spatial`.
+            Link::Spatial(_) => base,
         }
     }
+}
+
+/// The rotation by `angle` about the unit `axis`, as a quaternion `(w, x, y, z)`.
+fn quat_axis_angle(axis: [f64; 3], angle: f64) -> [f64; 4] {
+    let (s, c) = (0.5 * angle).sin_cos();
+    [c, s * axis[0], s * axis[1], s * axis[2]]
+}
+
+/// The quaternion product `a · b` (apply `b`, then `a`).
+fn quat_mul(a: [f64; 4], b: [f64; 4]) -> [f64; 4] {
+    [
+        a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3],
+        a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2],
+        a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1],
+        a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0],
+    ]
 }

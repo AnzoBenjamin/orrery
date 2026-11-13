@@ -81,7 +81,10 @@ const revoluteJointSchema = jointBaseSchema
     anchorA: pointRefSchema,
     /** Anchor point on body B */
     anchorB: pointRefSchema,
-    /** Optional axis for spatial revolute (omit for planar) */
+    /**
+     * Turning axis in A's frame, required when either body is spatial (omit for planar). B turns
+     * about the same local vector in its own frame.
+     */
     axisLocalA: vec3Schema.optional(),
   })
   .meta({ title: "RevoluteJoint" });
@@ -193,7 +196,7 @@ const universalJointSchema = jointBaseSchema
     anchorA: pointRefSchema,
     /** Anchor point on body B */
     anchorB: pointRefSchema,
-    /** Joint axes in local frames [axisA, axisB] */
+    /** The two cross arms: A's in A's frame, B's in B's frame. They stay perpendicular. */
     axesLocal: z.tuple([vec3Schema, vec3Schema]).optional(),
   })
   .meta({ title: "UniversalJoint" });
@@ -206,7 +209,7 @@ const cylindricalJointSchema = jointBaseSchema
     anchorA: pointRefSchema,
     /** Anchor point on body B */
     anchorB: pointRefSchema,
-    /** Cylinder axis in body A's local frame (unit vector) */
+    /** The cylinder axis in A's frame and in B's frame. B's anchor stays on A's axis line. */
     axesLocal: z.tuple([vec3Schema, vec3Schema]).optional(),
   })
   .meta({ title: "CylindricalJoint" });

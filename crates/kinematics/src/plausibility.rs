@@ -233,6 +233,8 @@ impl Model {
                     p.anchor_b
                 }
             }
+            // Four-bar loops are found among planar revolutes only.
+            Link::Spatial(_) => V2::default(),
         }
     }
 
@@ -586,10 +588,7 @@ impl Model {
 }
 
 fn link_id(link: &Link) -> String {
-    match link {
-        Link::Revolute(r) => r.id.clone(),
-        Link::Prismatic(p) => p.id.clone(),
-    }
+    link.id().to_owned()
 }
 
 /// Grashof class from frame, input, coupler, and output lengths.

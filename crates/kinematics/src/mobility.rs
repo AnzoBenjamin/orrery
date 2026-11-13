@@ -9,8 +9,8 @@
 
 use faer::Mat;
 
-use crate::constraint::BodySlot;
 use crate::model::Model;
+use crate::spatial::Placement;
 
 /// A joint whose equations repeat what earlier joints already impose.
 #[derive(Debug, Clone, PartialEq)]
@@ -20,13 +20,13 @@ pub struct Redundant {
     pub rows: usize,
 }
 
-/// One body's share of a free motion: its velocity in the plane, per unit of the motion.
+/// One body's share of a free motion, per unit of the motion, in world coordinates: the
+/// velocity of the body's local origin and its angular velocity.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BodyMotion {
     pub body_id: String,
-    pub dx: f64,
-    pub dy: f64,
-    pub dtheta: f64,
+    pub translation: [f64; 3],
+    pub rotation: [f64; 3],
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -110,21 +110,42 @@ impl Model {
                 let motion: Vec<BodyMotion> = self
                     .bodies
                     .iter()
-                    .filter_map(|b| match b.slot {
-                        BodySlot::Var(i) => {
-                            let (dx, dy, dtheta) = (
-                                v[(i, col)] / largest,
-                                v[(i + 1, col)] / largest,
-                                v[(i + 2, col)] / largest,
-                            );
-                            (dx.abs().max(dy.abs()).max(dtheta.abs()) > 1e-9).then(|| BodyMotion {
-                                body_id: b.id.clone(),
-                                dx,
-                                dy,
-                                dtheta,
-                            })
-                        }
-                        BodySlot::Fixed(_) => None,
+                    .filter_map(|b| {
+                        let dv = |k: usize| v[(k, col)] / largest;
+                        let (translation, rotation) = match b.placement {
+                            Placement::Planar { index, frame } => {
+                                let (dx, dy, dt) = (dv(index), dv(index + 1), dv(index + 2));
+                                (
+                                    std::array::from_fn(|k| dx * frame.u[k] + dy * frame.v[k]),
+                                    std::array::from_fn(|k| dt * frame.normal[k]),
+                                )
+                            }
+                            Placement::Spatial { index } => {
+                                // ω = 2 · vec(q̇ q*) for a unit quaternion q.
+                                let (w, x, y, z) =
+                                    (q[index + 3], q[index + 4], q[index + 5], q[index + 6]);
+                                let (dw, dx, dy, dz) =
+                                    (dv(index + 3), dv(index + 4), dv(index + 5), dv(index + 6));
+                                (
+                                    [dv(index), dv(index + 1), dv(index + 2)],
+                                    [
+                                        2.0 * (-dw * x + dx * w - dy * z + dz * y),
+                                        2.0 * (-dw * y + dx * z + dy * w - dz * x),
+                                        2.0 * (-dw * z - dx * y + dy * x + dz * w),
+                                    ],
+                                )
+                            }
+                            Placement::Fixed { .. } => return None,
+                        };
+                        let size = translation
+                            .iter()
+                            .chain(&rotation)
+                            .fold(0.0_f64, |m, c| m.max(c.abs()));
+                        (size > 1e-9).then(|| BodyMotion {
+                            body_id: b.id.clone(),
+                            translation,
+                            rotation,
+                        })
                     })
                     .collect();
                 if !motion.is_empty() {

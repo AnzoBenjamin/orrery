@@ -16,6 +16,7 @@ pub mod planar;
 pub mod plausibility;
 pub mod schema;
 pub mod simulate;
+pub mod spatial;
 pub mod validate;
 
 pub use assembly::{Assembly, AssemblyOptions, LinearPath};

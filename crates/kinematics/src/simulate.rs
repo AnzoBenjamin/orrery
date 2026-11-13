@@ -100,6 +100,7 @@ impl Model {
             .enumerate()
             .filter(|(_, b)| match b.slot {
                 BodySlot::Var(i) => v[i..i + 3].iter().any(|x| x.abs() > 0.1 * largest),
+                BodySlot::Spatial(i) => v[i..i + 7].iter().any(|x| x.abs() > 0.1 * largest),
                 BodySlot::Fixed(_) => false,
             })
             .map(|(i, _)| i)
@@ -108,10 +109,7 @@ impl Model {
             .links
             .iter()
             .filter(|(a, b, _)| moving.contains(a) || moving.contains(b))
-            .map(|(_, _, l)| match l {
-                crate::model::Link::Revolute(r) => r.id.clone(),
-                crate::model::Link::Prismatic(p) => p.id.clone(),
-            })
+            .map(|(_, _, l)| l.id().to_owned())
             .collect();
         joints.sort();
         joints.dedup();
@@ -158,6 +156,11 @@ impl Model {
             .iter()
             .filter_map(|b| match b.slot {
                 BodySlot::Var(i) => Some((to[i + 2] - from[i + 2]).abs()),
+                // The angle between two orientations: 2·acos(|q₁·q₂|).
+                BodySlot::Spatial(i) => {
+                    let d: f64 = (3..7).map(|k| from[i + k] * to[i + k]).sum();
+                    Some(2.0 * d.abs().min(1.0).acos())
+                }
                 BodySlot::Fixed(_) => None,
             })
             .fold(0.0, f64::max)

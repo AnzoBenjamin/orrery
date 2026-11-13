@@ -8,13 +8,17 @@
 use crate::curves::{CamProfile, Curve};
 use crate::dual::{Jet, Scalar};
 use crate::planar::{Pose2, V2};
+use crate::spatial::{SpatialJoint, jet_jacobian, joint_vars, spatial_angle};
 
-/// Where a body's pose comes from: fixed (the ground) or three unknowns in `q`.
+/// Where a body's pose comes from: fixed (the ground), three planar unknowns in `q`, or a
+/// spatial pose (position and quaternion, seven unknowns).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BodySlot {
     Fixed(Pose2),
     /// Index of the body's `x` in `q`; `y` and `θ` follow.
     Var(usize),
+    /// Index of the body's position in `q`; the quaternion `(w, x, y, z)` follows.
+    Spatial(usize),
 }
 
 impl BodySlot {
@@ -27,6 +31,10 @@ impl BodySlot {
                 y: q[i + 1],
                 theta: q[i + 2],
             },
+            // Planar constraints are only built between planar bodies and the ground
+            // (`Model::compile_joint` routes every joint touching a spatial body to
+            // `SpatialJoint`), so no planar pose of a spatial body is ever asked for.
+            Self::Spatial(_) => unreachable!("planar pose of a spatial body"),
         }
     }
 }
@@ -222,6 +230,10 @@ pub enum DrivenCoordinate {
     Angle { a: BodySlot, b: BodySlot },
     /// The slide coordinate of a prismatic joint (meters).
     Displacement(Prismatic),
+    /// The turn of a spatial revolute about its axis (radians).
+    SpatialAngle(SpatialJoint),
+    /// The slide of a spatial prismatic or cylindrical joint along its axis (meters).
+    SpatialDisplacement(SpatialJoint),
 }
 
 /// A driver: the joint coordinate equals the driver's value (1 row).
@@ -236,17 +248,19 @@ pub struct Driver {
 }
 
 impl Driver {
-    /// The joint coordinate the driver sets, at `q`.
-    #[must_use]
-    pub fn coordinate_value<T: Scalar>(&self, q: &[T]) -> T {
+    /// The driver's residual: zero where the joint coordinate equals `value`, with slope one
+    /// in the coordinate there.
+    fn row<T: Scalar>(&self, q: &[T], value: f64) -> T {
         match &self.coordinate {
-            DrivenCoordinate::Angle { a, b } => b.pose(q).theta - a.pose(q).theta,
-            DrivenCoordinate::Displacement(p) => p.displacement(q),
+            DrivenCoordinate::Angle { a, b } => b.pose(q).theta - a.pose(q).theta - value,
+            DrivenCoordinate::Displacement(p) => p.displacement(q) - value,
+            DrivenCoordinate::SpatialAngle(j) => spatial_angle(j, q, value),
+            DrivenCoordinate::SpatialDisplacement(j) => j.displacement(q) - value,
         }
     }
 
     fn eval<T: Scalar>(&self, q: &[T], drive: &[f64], out: &mut [T]) {
-        out[0] = self.coordinate_value(q) - drive[self.index];
+        out[0] = self.row(q, drive[self.index]);
     }
 }
 
@@ -258,13 +272,19 @@ impl Constraint for Driver {
     fn dim(&self) -> usize {
         1
     }
-    fn jacobian(&self, q: &[f64], _: &[f64], row: usize, out: &mut Vec<Entry>) {
+    fn jacobian(&self, q: &[f64], drive: &[f64], row: usize, out: &mut Vec<Entry>) {
         match &self.coordinate {
             DrivenCoordinate::Angle { a, b } => {
                 push_theta(out, row, *b, 1.0);
                 push_theta(out, row, *a, -1.0);
             }
             DrivenCoordinate::Displacement(p) => p.along_jacobian(q, p.axis, row, out),
+            DrivenCoordinate::SpatialAngle(j) | DrivenCoordinate::SpatialDisplacement(j) => {
+                let value = drive[self.index];
+                jet_jacobian(q, &joint_vars(j), 1, row, out, |jq, r| {
+                    r[0] = self.row(jq, value)
+                });
+            }
         }
     }
 }

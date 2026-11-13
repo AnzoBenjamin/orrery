@@ -13,6 +13,7 @@ use crate::planar::{Pose2, V2};
 use crate::schema::{
     self, BodyKind, DriverCoordinate, FollowerType, Joint, Mechanism, PointRef, SlotCurve, Vec3,
 };
+use crate::spatial::{Placement, SpatialJoint, SpatialKind, UnitQuaternion, perpendiculars, unit};
 use crate::validate::{joint_common, joint_kind, validate};
 
 /// A plane's frame in world coordinates: `world = origin + x·u + y·v + z·normal`.
@@ -112,6 +113,8 @@ pub struct BodyInfo {
     pub points: HashMap<String, [f64; 3]>,
     /// The outline polygon in the local frame, and the thickness, in meters.
     pub outline: Option<(Vec<V2>, f64)>,
+    /// Where the body is in the world, for spatial joints and world points.
+    pub placement: Placement,
 }
 
 /// A revolute or prismatic joint, kept for building initial guesses.
@@ -119,6 +122,21 @@ pub struct BodyInfo {
 pub enum Link {
     Revolute(Revolute),
     Prismatic(Prismatic),
+    /// Any joint in world coordinates: spherical, universal, cylindrical, or a revolute or
+    /// prismatic joint touching a spatial body.
+    Spatial(Box<SpatialJoint>),
+}
+
+impl Link {
+    /// The joint's id.
+    #[must_use]
+    pub fn id(&self) -> &str {
+        match self {
+            Self::Revolute(r) => &r.id,
+            Self::Prismatic(p) => &p.id,
+            Self::Spatial(j) => &j.id,
+        }
+    }
 }
 
 /// What one joint of the graph becomes.
@@ -175,22 +193,37 @@ impl Model {
 
         let mut bodies = Vec::with_capacity(mechanism.bodies.len());
         let mut n_vars = 0;
-        for (i, body) in mechanism.bodies.iter().enumerate() {
+        for body in &mechanism.bodies {
             let is_ground = body.kind == BodyKind::Ground;
             let plane = body.plane_id.as_ref().map(|p| p.as_str().to_owned());
-            let slot = if is_ground {
-                BodySlot::Fixed(Pose2::default())
-            } else if plane.is_some() {
-                n_vars += 3;
-                BodySlot::Var(n_vars - 3)
-            } else {
-                return Err(SolverError::invalid(
-                    format!("bodies[{i}]"),
-                    format!(
-                        "Body {} is spatial; this solver build handles planar bodies only",
-                        body.id.as_str()
+            let frame = plane.as_ref().and_then(|p| planes.get(p)).copied();
+            let (slot, placement) = if is_ground {
+                let (origin, basis) = frame.map_or(
+                    (
+                        [0.0; 3],
+                        [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
                     ),
-                ));
+                    |f| (f.origin, [f.u, f.v, f.normal]),
+                );
+                (
+                    BodySlot::Fixed(Pose2::default()),
+                    Placement::Fixed { origin, basis },
+                )
+            } else if let Some(frame) = frame {
+                n_vars += 3;
+                (
+                    BodySlot::Var(n_vars - 3),
+                    Placement::Planar {
+                        index: n_vars - 3,
+                        frame,
+                    },
+                )
+            } else {
+                n_vars += 7;
+                (
+                    BodySlot::Spatial(n_vars - 7),
+                    Placement::Spatial { index: n_vars - 7 },
+                )
             };
             let points = body
                 .points
@@ -210,6 +243,7 @@ impl Model {
                 plane,
                 points,
                 outline,
+                placement,
             });
         }
         let body_index: HashMap<String, usize> = bodies
@@ -240,6 +274,15 @@ impl Model {
             planes,
             body_index,
         };
+        // Each spatial body's quaternion stays at unit length.
+        for body in &model.bodies {
+            if let BodySlot::Spatial(i) = body.slot {
+                model.constraints.push(Box::new(UnitQuaternion {
+                    id: format!("{} (orientation)", body.id),
+                    index: i + 3,
+                }));
+            }
+        }
         let mut by_joint: HashMap<String, Link> = HashMap::new();
         for (i, joint) in mechanism.joints.iter().enumerate() {
             let common = joint_common(joint);
@@ -253,6 +296,7 @@ impl Model {
                     match &link {
                         Link::Revolute(r) => model.constraints.push(Box::new(r.clone())),
                         Link::Prismatic(p) => model.constraints.push(Box::new(p.clone())),
+                        Link::Spatial(j) => model.constraints.push(Box::new(j.as_ref().clone())),
                     }
                     by_joint.insert(common.id.to_owned(), link.clone());
                     model.links.push((a, b, link));
@@ -270,6 +314,19 @@ impl Model {
                 }
                 (Some(Link::Prismatic(p)), DriverCoordinate::Displacement) => {
                     DrivenCoordinate::Displacement(p.clone())
+                }
+                (Some(Link::Spatial(j)), DriverCoordinate::Angle)
+                    if matches!(j.kind, SpatialKind::Revolute { .. }) =>
+                {
+                    DrivenCoordinate::SpatialAngle(j.as_ref().clone())
+                }
+                (Some(Link::Spatial(j)), DriverCoordinate::Displacement)
+                    if matches!(
+                        j.kind,
+                        SpatialKind::Prismatic { .. } | SpatialKind::Cylindrical { .. }
+                    ) =>
+                {
+                    DrivenCoordinate::SpatialDisplacement(j.as_ref().clone())
                 }
                 _ => {
                     return Err(SolverError::invalid(
@@ -411,8 +468,32 @@ impl Model {
             self.body_index[common.body_a],
             self.body_index[common.body_b],
         );
-        let plane = self.joint_plane(a, b);
         let id = common.id.to_owned();
+        let spatial = |i: usize| matches!(self.bodies[i].slot, BodySlot::Spatial(_));
+        match joint {
+            Joint::Spherical { .. } | Joint::Universal { .. } | Joint::Cylindrical { .. } => {
+                return self.compile_spatial(joint, a, b, id, &path);
+            }
+            Joint::Revolute { .. } | Joint::Prismatic { .. } if spatial(a) || spatial(b) => {
+                return self.compile_spatial(joint, a, b, id, &path);
+            }
+            other if spatial(a) || spatial(b) => {
+                let body = if spatial(a) {
+                    &self.bodies[a].id
+                } else {
+                    &self.bodies[b].id
+                };
+                return Err(SolverError::invalid(
+                    path,
+                    format!(
+                        "Joint {id} is a {} joint, which acts in a plane, but body {body} is spatial; give it a plane",
+                        joint_kind(other)
+                    ),
+                ));
+            }
+            _ => {}
+        }
+        let plane = self.joint_plane(a, b);
         let (slot_a, slot_b) = (self.bodies[a].slot, self.bodies[b].slot);
         match joint {
             Joint::Revolute {
@@ -633,14 +714,125 @@ impl Model {
     #[must_use]
     pub fn point_world(&self, body: usize, point: &str, q: &[f64]) -> Option<[f64; 3]> {
         let info = &self.bodies[body];
-        let local = *info.points.get(point)?;
-        match &info.plane {
-            None => Some(local),
-            Some(plane) => {
-                let frame = self.planes.get(plane)?;
-                let p = info.slot.pose(q).apply(V2::new(local[0], local[1]));
-                Some(frame.to_world(p, local[2]))
+        Some(info.placement.point(q, *info.points.get(point)?))
+    }
+
+    /// A joint in world coordinates, for joints that touch a spatial body or are spatial kinds.
+    fn compile_spatial(
+        &self,
+        joint: &Joint,
+        a: usize,
+        b: usize,
+        id: String,
+        path: &str,
+    ) -> Result<Compiled, SolverError> {
+        let point = |r: &PointRef| -> Result<[f64; 3], SolverError> {
+            let body = &self.bodies[self.body_index[r.body_id.as_str()]];
+            body.points
+                .get(r.point_id.as_str())
+                .copied()
+                .ok_or_else(|| {
+                    SolverError::invalid(path, format!("Point {} not found", r.point_id.as_str()))
+                })
+        };
+        let axis = |v: Option<&Vec3>, what: &str| -> Result<[f64; 3], SolverError> {
+            v.and_then(|v| unit(arr(v))).ok_or_else(|| {
+                SolverError::invalid(path, format!("Joint {id} needs {what} with nonzero length"))
+            })
+        };
+        let (anchor_a, anchor_b, kind, limits) = match joint {
+            Joint::Spherical {
+                anchor_a, anchor_b, ..
+            } => (anchor_a, anchor_b, SpatialKind::Spherical, None),
+            Joint::Universal {
+                anchor_a,
+                anchor_b,
+                axes_local,
+                ..
+            } => {
+                let (arm_a, arm_b) = match axes_local {
+                    Some((x, y)) => (axis(Some(x), "axesLocal")?, axis(Some(y), "axesLocal")?),
+                    None => (axis(None, "axesLocal")?, [0.0; 3]),
+                };
+                (
+                    anchor_a,
+                    anchor_b,
+                    SpatialKind::Universal { arm_a, arm_b },
+                    None,
+                )
             }
-        }
+            Joint::Cylindrical {
+                anchor_a,
+                anchor_b,
+                axes_local,
+                ..
+            } => {
+                let (axis_a, axis_b) = match axes_local {
+                    Some((x, y)) => (axis(Some(x), "axesLocal")?, axis(Some(y), "axesLocal")?),
+                    None => (axis(None, "axesLocal")?, [0.0; 3]),
+                };
+                let kind = SpatialKind::Cylindrical {
+                    axis_a,
+                    perp_a: perpendiculars(axis_a),
+                    axis_b,
+                    perp_b: perpendiculars(axis_b),
+                };
+                (anchor_a, anchor_b, kind, None)
+            }
+            Joint::Revolute {
+                anchor_a,
+                anchor_b,
+                axis_local_a,
+                ..
+            } => {
+                let axis = axis(axis_local_a.as_ref(), "axisLocalA (the turning axis)")?;
+                (
+                    anchor_a,
+                    anchor_b,
+                    SpatialKind::Revolute {
+                        axis,
+                        perp: perpendiculars(axis),
+                    },
+                    None,
+                )
+            }
+            Joint::Prismatic {
+                anchor_a,
+                anchor_b,
+                axis_local_a,
+                limits,
+                ..
+            } => {
+                let axis = axis(Some(axis_local_a), "axisLocalA (the slide axis)")?;
+                let kind = SpatialKind::Prismatic {
+                    axis,
+                    perp: perpendiculars(axis),
+                };
+                (
+                    anchor_a,
+                    anchor_b,
+                    kind,
+                    limits.map(|(lo, hi)| (lo.min(hi), lo.max(hi))),
+                )
+            }
+            other => {
+                return Err(SolverError::invalid(
+                    path,
+                    format!(
+                        "Joint {id} is a {} joint, which acts in a plane",
+                        joint_kind(other)
+                    ),
+                ));
+            }
+        };
+        Ok(Compiled::Link(Link::Spatial(Box::new(SpatialJoint {
+            id,
+            a: self.bodies[a].placement,
+            anchor_a: point(anchor_a)?,
+            b: self.bodies[b].placement,
+            anchor_b: point(anchor_b)?,
+            kind,
+            limits,
+        }))))
     }
 }

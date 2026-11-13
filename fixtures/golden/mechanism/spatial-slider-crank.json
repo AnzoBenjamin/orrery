@@ -1,0 +1,243 @@
+{
+  "schemaVersion": 1,
+  "id": "spatial-slider-crank",
+  "name": "Spatial slider-crank with a piston in a bore",
+  "scale": {
+    "source": "user_measurement",
+    "metersPerUnit": 1,
+    "sigma": 0.0005
+  },
+  "planes": [
+    {
+      "id": "plane-main",
+      "originWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 0.0
+      },
+      "normalWorld": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxisWorld": {
+        "x": 1,
+        "y": 0,
+        "z": 0.0
+      }
+    }
+  ],
+  "bodies": [
+    {
+      "id": "ground",
+      "label": "Frame",
+      "kind": "ground",
+      "planeId": null,
+      "points": [
+        {
+          "id": "crank-axle",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "bore",
+          "local": {
+            "x": 0.1,
+            "y": 0.02,
+            "z": 0.04
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "crank",
+      "label": "A",
+      "kind": "link",
+      "planeId": null,
+      "points": [
+        {
+          "id": "axle",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "pin",
+          "local": {
+            "x": 0.04,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "rod",
+      "label": "B",
+      "kind": "link",
+      "planeId": null,
+      "points": [
+        {
+          "id": "big-end",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "small-end",
+          "local": {
+            "x": 0.2,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    },
+    {
+      "id": "piston",
+      "label": "C",
+      "kind": "slider_block",
+      "planeId": null,
+      "points": [
+        {
+          "id": "bore",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "joint_anchor"
+        },
+        {
+          "id": "wrist",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "role": "output"
+        }
+      ],
+      "status": "observed",
+      "confidence": 1.0
+    }
+  ],
+  "joints": [
+    {
+      "id": "r-crank",
+      "kind": "revolute",
+      "bodyA": "ground",
+      "bodyB": "crank",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "crank-axle"
+      },
+      "anchorB": {
+        "bodyId": "crank",
+        "pointId": "axle"
+      },
+      "status": "observed",
+      "confidence": 0.98,
+      "axisLocalA": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    {
+      "id": "s-big-end",
+      "kind": "spherical",
+      "bodyA": "crank",
+      "bodyB": "rod",
+      "anchorA": {
+        "bodyId": "crank",
+        "pointId": "pin"
+      },
+      "anchorB": {
+        "bodyId": "rod",
+        "pointId": "big-end"
+      },
+      "status": "observed",
+      "confidence": 0.9
+    },
+    {
+      "id": "s-wrist",
+      "kind": "spherical",
+      "bodyA": "rod",
+      "bodyB": "piston",
+      "anchorA": {
+        "bodyId": "rod",
+        "pointId": "small-end"
+      },
+      "anchorB": {
+        "bodyId": "piston",
+        "pointId": "wrist"
+      },
+      "status": "observed",
+      "confidence": 0.9
+    },
+    {
+      "id": "c-bore",
+      "kind": "cylindrical",
+      "bodyA": "ground",
+      "bodyB": "piston",
+      "anchorA": {
+        "bodyId": "ground",
+        "pointId": "bore"
+      },
+      "anchorB": {
+        "bodyId": "piston",
+        "pointId": "bore"
+      },
+      "axesLocal": [
+        {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      ],
+      "status": "observed",
+      "confidence": 0.95
+    }
+  ],
+  "drivers": [
+    {
+      "id": "drive",
+      "jointId": "r-crank",
+      "coordinate": "angle",
+      "profile": {
+        "type": "constant_rate",
+        "rate": 6.283185307179586,
+        "phase0": 0
+      }
+    }
+  ],
+  "provenance": {
+    "createdBy": "lab",
+    "footageIds": []
+  }
+}

@@ -112,5 +112,6 @@ fn the_cam_mechanisms_free_leaf_is_reported() {
     assert_eq!(mobility.free_motions[0].len(), 1);
     let leaf = &mobility.free_motions[0][0];
     assert_eq!(leaf.body_id, "leaf");
-    assert!(leaf.dtheta.abs() > 0.5);
+    // The leaf turns about the plane normal (world z).
+    assert!(leaf.rotation[2].abs() > 0.5);
 }

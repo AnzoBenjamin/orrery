@@ -13,7 +13,6 @@ use faer::{Conj, Mat};
 
 use crate::dual::Jet;
 use crate::model::Model;
-use crate::planar::V2;
 
 /// A named point's position and its first and second derivatives with respect to the driver,
 /// in world coordinates.
@@ -110,24 +109,11 @@ impl Model {
     }
 
     fn point_jet(&self, body: usize, local: [f64; 3], q: &[Jet]) -> Option<PointMotion> {
-        let info = &self.bodies[body];
-        let Some(plane) = &info.plane else {
-            // A spatial ground does not move.
-            return Some(PointMotion {
-                position: local,
-                velocity: [0.0; 3],
-                acceleration: [0.0; 3],
-            });
-        };
-        let frame = self.planes.get(plane)?;
-        let p = info.slot.pose(q).apply(V2::new(local[0], local[1]).lift());
-        let (x, y) = (p.x, p.y);
-        let position = frame.to_world(V2::new(x.v, y.v), local[2]);
-        let along = |a: f64, b: f64| std::array::from_fn(|c| a * frame.u[c] + b * frame.v[c]);
+        let p = self.bodies[body].placement.point(q, local);
         Some(PointMotion {
-            position,
-            velocity: along(x.d1, y.d1),
-            acceleration: along(2.0 * x.d2, 2.0 * y.d2),
+            position: p.map(|c| c.v),
+            velocity: p.map(|c| c.d1),
+            acceleration: p.map(|c| 2.0 * c.d2),
         })
     }
 

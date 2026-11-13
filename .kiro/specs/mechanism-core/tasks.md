@@ -45,8 +45,9 @@
     - `tests/properties.rs`: between samples with no singularity, every body coordinate moves at most twice its larger end speed times the step, over generated linkages and step counts. Writing it found that the six-bar generator only checked the dyad on one four-bar branch; it now requires both.
 
 - [ ] 4. Spatial support
-  - [ ] 4.1 Implement spatial body poses with quaternions and spherical, universal, cylindrical, and 3D-axis revolute and prismatic constraints.
+  - [x] 4.1 Implement spatial body poses with quaternions and spherical, universal, cylindrical, and 3D-axis revolute and prismatic constraints.
     - _Requirements: 3.3_
+    - `kinematics::spatial`: spatial bodies carry a position and quaternion with a unit-length row; joints are written in world coordinates against a `Placement` (fixed, planar in any plane, or spatial), with exact Jacobians from per-joint Jet passes. Spherical, universal, cylindrical, and 3D-axis revolute and prismatic (with limits), and drivers on spatial revolutes and sliders. Tested on a double Cardan shaft (constant velocity), the redrawn spatial RSSR, a new spatial slider-crank golden against its closed form, and a tilted slider, plus finite-difference Jacobians and point derivatives. When the drawn pose already satisfies the joints, assembly starts there.
   - [ ] 4.2 Implement planar subsystems embedded in planes and connected by spatial joints, with `parry3d` collisions between subsystems.
     - _Requirements: 3.4, 8.3_
 

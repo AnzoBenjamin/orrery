@@ -192,26 +192,17 @@ fn wrong_driver_or_seed_sizes_are_typed_errors() {
 }
 
 #[test]
-fn joints_and_bodies_beyond_this_build_are_refused_with_a_reason() {
-    // A spatial joint between planar links.
-    let mut spherical = golden("four-bar-crank-rocker.json");
-    spherical["joints"][1]["kind"] = "spherical".into();
+fn joints_that_cannot_act_on_their_bodies_are_refused_with_a_reason() {
+    // A revolute touching a spatial body needs its axis.
+    let mut no_axis = golden("four-bar-crank-rocker.json");
+    no_axis["bodies"][2]["planeId"] = Value::Null;
+    // A slot touching a spatial body: slots act in a plane.
+    let mut spatial_slot = golden("slots.json");
+    spatial_slot["bodies"][3]["planeId"] = Value::Null;
+    spatial_slot["joints"][3]["axisLocalA"] = serde_json::json!({ "x": 0, "y": 0, "z": 1 });
     for (name, value, message) in [
-        (
-            "spatial-rssr.json",
-            golden("spatial-rssr.json"),
-            "handles planar bodies only",
-        ),
-        (
-            "two-plane-subsystems.json",
-            golden("two-plane-subsystems.json"),
-            "handles planar bodies only",
-        ),
-        (
-            "a spherical joint in a four-bar",
-            spherical,
-            "handles planar joints only",
-        ),
+        ("a spatial coupler", no_axis, "needs axisLocalA"),
+        ("a slot in a spatial lever", spatial_slot, "acts in a plane"),
     ] {
         match Model::new(&mechanism(&value)) {
             Err(SolverError::InvalidGraph(issues)) => {

@@ -52,7 +52,25 @@ async function audit(page: Page, url: string, found: Violation[]) {
  * Every page a test visits is checked with axe once it loads, and the test fails on serious or
  * critical violations (requirement 13.5).
  */
-export const test = base.extend<{ accessibility: undefined }>({
+export const test = base.extend<{ accessibility: undefined; contentSecurity: undefined }>({
+  /** Any Content Security Policy violation on any page fails the test (requirement 12.1). */
+  contentSecurity: [
+    async ({ context }, use) => {
+      const violations: string[] = [];
+      const watch = (p: import("@playwright/test").Page) => {
+        p.on("console", (message) => {
+          if (/Content Security Policy/i.test(message.text())) {
+            violations.push(`${p.url()}: ${message.text()}`);
+          }
+        });
+      };
+      for (const p of context.pages()) watch(p);
+      context.on("page", watch);
+      await use(undefined);
+      expect(violations, violations.join("\n")).toEqual([]);
+    },
+    { auto: true },
+  ],
   accessibility: [
     async ({ page }, use) => {
       const found: Violation[] = [];

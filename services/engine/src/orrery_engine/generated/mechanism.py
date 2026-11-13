@@ -225,6 +225,7 @@ class Outline(BaseModel):
     )
     polygon_local: Annotated[list[Vec2], Field(alias="polygonLocal", min_length=3)]
     thickness: Annotated[float, Field(gt=0.0)]
+    offset: float | None = None
 
 
 class RevoluteJoint(BaseModel):

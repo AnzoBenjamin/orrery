@@ -271,6 +271,9 @@
         "thickness": {
           "type": "number",
           "exclusiveMinimum": 0
+        },
+        "offset": {
+          "type": "number"
         }
       },
       "required": [

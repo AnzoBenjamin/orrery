@@ -902,6 +902,8 @@ impl<'de> ::serde::Deserialize<'de> for MechanismId {
 #[doc = "`Outline`"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 pub struct Outline {
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub offset: ::std::option::Option<f64>,
     #[serde(rename = "polygonLocal")]
     pub polygon_local: ::std::vec::Vec<Vec2>,
     pub thickness: f64,

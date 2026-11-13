@@ -101,6 +101,16 @@ impl PlaneFrame {
     }
 }
 
+/// A body's outline extruded into a plate, in meters.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Outline {
+    /// The polygon in the body's local frame.
+    pub polygon: Vec<V2>,
+    pub thickness: f64,
+    /// The plate's mid-plane distance from the body's plane, along the plane normal (its layer).
+    pub offset: f64,
+}
+
 /// One body as the solver sees it.
 #[derive(Debug, Clone)]
 pub struct BodyInfo {
@@ -111,8 +121,7 @@ pub struct BodyInfo {
     pub plane: Option<String>,
     /// Named points in the body's local frame.
     pub points: HashMap<String, [f64; 3]>,
-    /// The outline polygon in the local frame, and the thickness, in meters.
-    pub outline: Option<(Vec<V2>, f64)>,
+    pub outline: Option<Outline>,
     /// Where the body is in the world, for spatial joints and world points.
     pub placement: Placement,
 }
@@ -230,11 +239,10 @@ impl Model {
                 .iter()
                 .map(|p| (p.id.as_str().to_owned(), arr(&p.local)))
                 .collect();
-            let outline = body.outline.as_ref().map(|o| {
-                (
-                    o.polygon_local.iter().map(|p| V2::new(p.x, p.y)).collect(),
-                    o.thickness,
-                )
+            let outline = body.outline.as_ref().map(|o| Outline {
+                polygon: o.polygon_local.iter().map(|p| V2::new(p.x, p.y)).collect(),
+                thickness: o.thickness,
+                offset: o.offset.unwrap_or(0.0),
             });
             bodies.push(BodyInfo {
                 id: body.id.as_str().to_owned(),

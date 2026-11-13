@@ -40,6 +40,7 @@
   - [x] 3.4 Implement transmission angle, Grashof classification, swept collision detection with `parry2d`, and fabrication risk indicators.
     - _Requirements: 8.1–8.4_
     - `kinematics::plausibility`: four-bar loops found as revolute 4-cycles (frame, driven input, coupler, output), Grashof classes, least folded transmission angle at both floating joints, outline collisions with `parry2d-f64` (ear-clipped triangle compounds) between unjoined bodies in one plane or in parallel planes closer than their half thicknesses, located by subdividing each step and bisecting, slenderness from outlines, and quasi-static reaction reversals under springs and a unit load opposing each output point. Collisions are checked against a brute-force separating-axis test.
+    - Outlines carry an optional `offset`, the plate's layer along the plane normal, so parts stacked on their pins collide only where their layers overlap (added for the lab's layered machines; tested in `plates_in_separate_layers_pass_each_other`).
   - [x] 3.5 Property test 3 (continuity).
     - _Requirements: 4.2, 5.2_
     - `tests/properties.rs`: between samples with no singularity, every body coordinate moves at most twice its larger end speed times the step, over generated linkages and step counts. Writing it found that the six-bar generator only checked the dyad on one four-bar branch; it now requires both.

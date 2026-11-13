@@ -42,6 +42,11 @@ export const outlineSchema = z
 
     /** Thickness perpendicular to the plane (meters) */
     thickness: z.number().positive(),
+    /**
+     * How far the part's mid-plane sits from its plane along the plane normal (meters), for parts
+     * stacked in layers on their pins. Parts in one plane collide only where their layers overlap.
+     */
+    offset: z.number().finite().optional(),
   })
   .meta({ id: "Outline" });
 

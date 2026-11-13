@@ -318,25 +318,26 @@ impl Model {
     }
 
     /// Bodies with outlines, with their parry shapes, thicknesses, and planes.
-    fn shapes(&self) -> Vec<(usize, SharedShape, f64, Vec<V2>)> {
+    /// Bodies with outlines: index, 2D shape, thickness, layer offset, and polygon.
+    fn shapes(&self) -> Vec<(usize, SharedShape, f64, f64, Vec<V2>)> {
         self.bodies
             .iter()
             .enumerate()
             .filter_map(|(i, b)| {
-                let (polygon, thickness) = b.outline.as_ref()?;
-                let shape = outline_shape(polygon)?;
-                Some((i, shape, *thickness, polygon.clone()))
+                let o = b.outline.as_ref()?;
+                let shape = outline_shape(&o.polygon)?;
+                Some((i, shape, o.thickness, o.offset, o.polygon.clone()))
             })
             .collect()
     }
 
-    /// Pairs of bodies whose outlines can meet: not joined by any joint, in the same plane or in
-    /// parallel planes closer than their half thicknesses.
+    /// Pairs of bodies whose outlines can meet: not joined by any joint, and in planes that
+    /// cross, or in one plane or parallel planes where their plates' layers overlap.
     fn collision_pairs(&self) -> Vec<(usize, usize)> {
         let shapes = self.shapes();
         let mut pairs = Vec::new();
-        for (x, (i, _, ti, _)) in shapes.iter().enumerate() {
-            for (j, _, tj, _) in &shapes[x + 1..] {
+        for (x, (i, _, ti, oi, _)) in shapes.iter().enumerate() {
+            for (j, _, tj, oj, _) in &shapes[x + 1..] {
                 if self.joined.contains(&(*i.min(j), *i.max(j))) {
                     continue;
                 }
@@ -346,18 +347,20 @@ impl Model {
                 let (Some(fi), Some(fj)) = (self.planes.get(pi), self.planes.get(pj)) else {
                     continue;
                 };
-                let parallel = (fi.normal[0] * fj.normal[0]
+                let alignment = fi.normal[0] * fj.normal[0]
                     + fi.normal[1] * fj.normal[1]
-                    + fi.normal[2] * fj.normal[2])
-                    .abs()
-                    > 1.0 - 1e-9;
+                    + fi.normal[2] * fj.normal[2];
+                if alignment.abs() <= 1.0 - 1e-9 {
+                    // Crossing planes: checked as extruded prisms in 3D.
+                    pairs.push((*i, *j));
+                    continue;
+                }
+                // Mid-planes along i's normal: j's plane offset, then each plate's layer.
                 let gap = (0..3)
                     .map(|c| (fj.origin[c] - fi.origin[c]) * fi.normal[c])
-                    .sum::<f64>()
-                    .abs();
-                // Same plane, parallel planes closer than the half thicknesses, or planes that
-                // cross (checked as extruded prisms in 3D).
-                if pi == pj || (parallel && gap < 0.5 * (ti + tj)) || !parallel {
+                    .sum::<f64>();
+                let separation = (gap + alignment.signum() * oj - oi).abs();
+                if separation < 0.5 * (ti + tj) {
                     pairs.push((*i, *j));
                 }
             }
@@ -380,7 +383,7 @@ impl Model {
         }
     }
 
-    /// Each outline extruded through its thickness, centered on its plane, as a parry3d compound
+    /// Each outline extruded through its thickness, centered on its layer, as a parry3d compound
     /// of triangular prisms in the body's local frame.
     fn prisms(&self) -> BTreeMap<usize, parry3d_f64::shape::SharedShape> {
         use parry3d_f64::math::{Pose as Pose3, Vector as Vector3};
@@ -389,14 +392,16 @@ impl Model {
             .iter()
             .enumerate()
             .filter_map(|(i, b)| {
-                let (polygon, thickness) = b.outline.as_ref()?;
-                let h = 0.5 * thickness;
-                let parts: Vec<(Pose3, Shape3)> = triangulate(polygon)
+                let o = b.outline.as_ref()?;
+                let (low, high) = (o.offset - 0.5 * o.thickness, o.offset + 0.5 * o.thickness);
+                let parts: Vec<(Pose3, Shape3)> = triangulate(&o.polygon)
                     .into_iter()
                     .filter_map(|tri| {
                         let points: Vec<Vector3> = tri
                             .iter()
-                            .flat_map(|p| [Vector3::new(p.x, p.y, -h), Vector3::new(p.x, p.y, h)])
+                            .flat_map(|p| {
+                                [Vector3::new(p.x, p.y, low), Vector3::new(p.x, p.y, high)]
+                            })
                             .collect();
                         Shape3::convex_hull(&points).map(|s| (Pose3::IDENTITY, s))
                     })
@@ -475,7 +480,7 @@ impl Model {
         let shapes: BTreeMap<usize, SharedShape> = self
             .shapes()
             .into_iter()
-            .map(|(i, s, _, _)| (i, s))
+            .map(|(i, s, _, _, _)| (i, s))
             .collect();
         let prisms = self.prisms();
         let mut values = drive.to_vec();
@@ -553,7 +558,7 @@ impl Model {
         self.bodies
             .iter()
             .filter_map(|b| {
-                let (polygon, _) = b.outline.as_ref()?;
+                let polygon = &b.outline.as_ref()?.polygon;
                 let pts: Vec<V2> = b.points.values().map(|p| V2::new(p[0], p[1])).collect();
                 let mut axis = V2::new(1.0, 0.0);
                 let mut longest = 0.0;

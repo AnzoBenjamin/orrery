@@ -99,6 +99,54 @@ fn convex_overlap(a: &[V2], b: &[V2]) -> bool {
     !separated(a, b) && !separated(b, a)
 }
 
+/// The golden four-bar with a block on the frame in the coupler's path at θ = 4.5, the block's
+/// plate centered `offset` from the plane (the coupler's is centered on it, 4 mm thick).
+fn four_bar_with_block(offset: f64) -> Value {
+    let mut v = golden("four-bar-crank-rocker.json");
+    let probe = model(&v);
+    let at = probe
+        .assemble(&[4.5], None, &AssemblyOptions::default())
+        .unwrap();
+    let pose = probe.pose(probe.body("coupler").unwrap(), &at.q);
+    let center = pose.apply(V2::new(0.125, 0.0));
+    let half = 0.008;
+    let block: Vec<Value> = [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)]
+        .iter()
+        .map(|(x, y)| json!({"x": center.x + x * half, "y": center.y + y * half}))
+        .collect();
+    v["bodies"][0]["outline"] =
+        json!({"polygonLocal": block, "thickness": 0.005, "offset": offset});
+    v
+}
+
+#[test]
+fn plates_in_separate_layers_pass_each_other() {
+    let sweep = |v: &Value| {
+        let m = model(v);
+        let sim = m
+            .simulate(
+                0,
+                &[0.0],
+                (0.0, TAU, TAU / 90.0),
+                None,
+                &SimulationOptions::default(),
+            )
+            .unwrap();
+        m.plausibility(&sim, 0, &[0.0]).collisions
+    };
+    // Plates 5 and 4 mm thick: they meet while their centers are under 4.5 mm apart.
+    for (offset, collides) in [
+        (0.0, true),
+        (0.004, true),
+        (-0.0044, true),
+        (0.0046, false),
+        (-0.01, false),
+    ] {
+        let found = !sweep(&four_bar_with_block(offset)).is_empty();
+        assert_eq!(found, collides, "offset {offset}");
+    }
+}
+
 #[test]
 fn collisions_with_a_frame_block_match_a_brute_force_check() {
     let mut v = golden("four-bar-crank-rocker.json");

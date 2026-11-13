@@ -15,7 +15,7 @@ TOOLBOX := $(COMPOSE) run --rm $(TTY_FLAG) toolbox
 # Volumes holding project data. `reset` recreates these and keeps the dependency caches.
 DATA_VOLUMES := orrery_pg-data orrery_garage-meta orrery_garage-data
 
-.PHONY: help env up dev down codegen reset logs ps db-shell migrate migrate-only admin toolbox shell install check test e2e format
+.PHONY: help env up dev down codegen audit reset logs ps db-shell migrate migrate-only admin toolbox shell install check test e2e format
 
 help: ## List recipes
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -89,6 +89,9 @@ e2e: up ## Playwright end-to-end tests against the running stack (pass args with
 
 codegen: toolbox ## Regenerate generated code (pkg="<name> ..." limits it, such as pkg=@orrery/schema)
 	$(TOOLBOX) pnpm exec turbo run codegen --output-logs=errors-only $(foreach p,$(pkg),--filter=$(p))
+
+audit: toolbox ## Scan every lockfile for known vulnerabilities; fails on high severity with a fix
+	$(TOOLBOX) node scripts/scan-dependencies.ts
 
 format: install ## Apply formatters for all languages
 	$(TOOLBOX) pnpm format

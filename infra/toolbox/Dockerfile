@@ -19,6 +19,7 @@ ARG RUSTUP_VERSION=1.29.2
 ARG RUST_VERSION=1.100.0
 ARG WASM_PACK_VERSION=0.15.1
 ARG PLAYWRIGHT_VERSION=1.65.0
+ARG OSV_SCANNER_VERSION=2.7.1
 
 ENV DEBIAN_FRONTEND=noninteractive \
     RUSTUP_HOME=/opt/rustup \
@@ -84,6 +85,17 @@ RUN set -eux; \
     echo "${sum}  /tmp/wasm-pack.tgz" | sha256sum -c -; \
     tar -xzf /tmp/wasm-pack.tgz -C /usr/local/bin --strip-components=1 --wildcards '*/wasm-pack'; \
     rm /tmp/wasm-pack.tgz
+
+# OSV-Scanner (Apache-2.0): dependency vulnerability scanning of pnpm, uv, and Cargo lockfiles
+# (requirement 12.5, scripts/scan-dependencies.ts).
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+      amd64) sum=fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8 ;; \
+      arm64) sum=983d22fbad9724514e3fcc6acc83b5fa64c5ffa6b0d9f510028f22c1b223ff81 ;; \
+    esac; \
+    curl -fsSL "https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/osv-scanner_linux_${TARGETARCH}" -o /usr/local/bin/osv-scanner; \
+    echo "${sum}  /usr/local/bin/osv-scanner" | sha256sum -c -; \
+    chmod 0755 /usr/local/bin/osv-scanner
 
 # pnpm (Node.js 25 and later no longer bundle Corepack) and Playwright's Chromium with its system deps.
 RUN npm install --global "pnpm@${PNPM_VERSION}" \

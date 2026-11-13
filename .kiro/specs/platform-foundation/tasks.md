@@ -128,6 +128,7 @@ Task numbers are stable references (other specs cite them). Work them in this or
 - [ ] 10. CI/CD and deployment
   - [ ] 10.1 GitHub Actions: checks, unit, integration, end-to-end, lab smoke suite, Lighthouse CI, dependency scanning.
     - _Requirements: 14.1, 12.5_
+    - Done: checks, unit, integration, and end-to-end tests in one toolbox job, and dependency scanning (`make audit`, OSV-Scanner over every lockfile, failing on high severity with a fix). Remaining: the lab smoke suite (synthetic-lab) and Lighthouse CI, which measures the production build that lands with 10.3.
   - [ ] 10.2 Engine workflow on GitHub-hosted runners with the engine limited to 4 CPUs and 8 GB, for engine, crates, and lab changes. Nightly `core` suite run with results ingested into the Proving Ground.
     - _Requirements: 14.2_
   - [ ] 10.3 Deploy pipeline with Kamal 2: migrate, deploy the `web`, `worker`, and `engine` roles with zero-downtime rollout and `kamal rollback`, then run the post-deploy production smoke test.

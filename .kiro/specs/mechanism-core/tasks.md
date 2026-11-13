@@ -1,6 +1,6 @@
 # Tasks: Mechanism core
 
-- [ ] 1. Schema and code generation
+- [x] 1. Schema and code generation
   - [x] 1.1 Implement the Zod schema in `packages/schema` with refinements, version field, and migration registry.
     - _Requirements: 1.1–1.6, 2.4_
   - [x] 1.2 Emit JSON Schema, generate Rust types with `typify` and Pydantic models with `datamodel-code-generator`. Add to `pnpm codegen` and the stale check.

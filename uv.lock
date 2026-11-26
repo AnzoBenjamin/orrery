@@ -825,6 +825,7 @@ source = { editable = "tools/lab" }
 dependencies = [
     { name = "boto3" },
     { name = "bpy" },
+    { name = "httpx" },
     { name = "numpy" },
     { name = "orrery-kinematics" },
     { name = "pyarrow" },
@@ -837,6 +838,7 @@ dependencies = [
 requires-dist = [
     { name = "boto3", specifier = "==1.44.12" },
     { name = "bpy", specifier = "==5.3.0" },
+    { name = "httpx", specifier = "==0.28.1" },
     { name = "numpy", specifier = "==2.5.4" },
     { name = "orrery-kinematics", editable = "crates/kinematics-py" },
     { name = "pyarrow", specifier = "==23.0.1" },

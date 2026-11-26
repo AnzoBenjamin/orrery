@@ -64,6 +64,7 @@
 - [ ] 7. Evaluation and gate
   - [ ] 7.1 Implement the harness that runs clips through the engine job API and computes all stage metrics.
     - _Requirements: 8.1, 8.2_
+    - In progress: `eval/` now loads and checksum-validates exported truth, deterministically aligns bodies and joints, and computes tracking endpoint/occlusion, camera, grouping ARI, joint, mobility, scale-aligned link, pose, uncertainty calibration, diagnosis, resurrection tie/top-k, and stage-runtime metrics with explicit empty/non-applicable policies. The real HTTP adapter verifies engine health/probe behavior and refuses to fabricate jobs. Completion is blocked on the production reconstruction job submission/completion/artifact contract, which is not yet present in `packages/engine-contract` or `services/engine`.
   - [ ] 7.2 Implement breakdowns by family, profile, and tier, and the versioned report format in `packages/engine-contract`.
     - _Requirements: 8.3, 8.6_
   - [ ] 7.2a Run the engine under the reference VPS resource profile in the harness, and add tracker-backend comparison and re-tracking recovery metrics.

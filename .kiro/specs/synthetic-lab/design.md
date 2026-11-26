@@ -82,9 +82,9 @@ class Family(Protocol):
 
 ## Suites
 
-- Manifests in `tools/lab/suites/*.toml`. The manifest hash is the SHA-256 of the canonicalized manifest plus the lab version.
-- Determinism: one NumPy `Generator` per clip derived from the suite seed and clip index. Encoders run with fixed thread counts and deterministic flags. Clip content hash is computed over decoded frames to remain stable across container metadata.
-- Difficulty tiers: `clean`, `phone`, `hostile` (heavy shake, occlusion, low light), `archival`.
+- Strict TOML manifests define version, suite seed, CPU budget, capture profiles, families, and breakage selection. Canonical JSON plus the lab version forms the SHA-256 suite identity; NumPy `SeedSequence` derives one clip seed from `(suite seed, manifest index)` so parallel order cannot change content.
+- Generation runs the real sampler, solver motion, renderers, encoder, and truth exporter. Suite indexes are written atomically with a complete file inventory, checksums, and decoded RGB24 frame hashes. The local and Garage-compatible S3 caches are content-addressed by manifest hash and publish a completion marker last, so partial uploads are never reused.
+- Manifests in `tools/lab/suites/*.toml` define `smoke` (under 3 CPU minutes), `core` (under 45 minutes on a GitHub-hosted 4-core runner), and `full`. Encoded frame hashes are computed over decoded RGB frames to ignore container-only metadata.
 
 ## Evaluation (`lab/eval/`)
 

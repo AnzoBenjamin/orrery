@@ -1,0 +1,263 @@
+schema_version = 1
+name = "full"
+seed = 20260323
+# Developer/CI overnight intent; 3D work is cached and never runs on the production VPS.
+runtime_budget_seconds = 28800
+
+[[profiles]]
+name = "clean-high"
+tier = "clean"
+render_mode = "2d"
+width = 320
+height = 240
+frame_rate = 24
+frame_count = 48
+codec = "h264"
+clutter_count = 2
+shadows = true
+
+[[profiles]]
+name = "phone-high"
+tier = "phone"
+render_mode = "2d"
+width = 320
+height = 240
+frame_rate = 24
+frame_count = 48
+codec = "h264"
+variable_frame_rate = true
+drop_probability = 0.05
+clutter_count = 8
+shadows = true
+
+[[profiles]]
+name = "hostile-high"
+tier = "hostile"
+render_mode = "2d"
+width = 256
+height = 192
+frame_rate = 18
+frame_count = 36
+codec = "h265"
+variable_frame_rate = true
+drop_probability = 0.2
+clutter_count = 16
+shadows = true
+
+[[profiles]]
+name = "archival-high"
+tier = "archival"
+render_mode = "2d"
+width = 256
+height = 192
+frame_rate = 16
+frame_count = 32
+codec = "h264"
+variable_frame_rate = true
+drop_probability = 0.1
+clutter_count = 4
+shadows = true
+
+[[profiles]]
+name = "spatial-orbit"
+tier = "clean"
+render_mode = "3d"
+width = 160
+height = 120
+frame_rate = 12
+frame_count = 12
+codec = "h264"
+cycles_samples = 8
+camera_path = "orbit"
+
+[[profiles]]
+name = "spatial-handheld"
+tier = "phone"
+render_mode = "3d"
+width = 160
+height = 120
+frame_rate = 12
+frame_count = 12
+codec = "h264"
+variable_frame_rate = true
+drop_probability = 0.05
+cycles_samples = 8
+camera_path = "handheld"
+
+[[clips]]
+id = "full-four-bar-crank-rocker"
+family = "four-bar-crank-rocker"
+profile = "clean-high"
+[[clips]]
+id = "full-four-bar-double-crank"
+family = "four-bar-double-crank"
+profile = "phone-high"
+[[clips]]
+id = "full-four-bar-double-rocker"
+family = "four-bar-double-rocker"
+profile = "hostile-high"
+[[clips]]
+id = "full-four-bar-change-point"
+family = "four-bar-change-point"
+profile = "archival-high"
+[[clips]]
+id = "full-slider-crank"
+family = "slider-crank"
+profile = "clean-high"
+[[clips]]
+id = "full-inverted-slider-crank"
+family = "inverted-slider-crank"
+profile = "phone-high"
+[[clips]]
+id = "full-whitworth"
+family = "whitworth-quick-return"
+profile = "hostile-high"
+[[clips]]
+id = "full-scotch-yoke"
+family = "scotch-yoke"
+profile = "archival-high"
+[[clips]]
+id = "full-watt-one"
+family = "six-bar-watt-1"
+profile = "clean-high"
+[[clips]]
+id = "full-watt-two"
+family = "six-bar-watt-2"
+profile = "phone-high"
+[[clips]]
+id = "full-stephenson-one"
+family = "six-bar-stephenson-1"
+profile = "hostile-high"
+[[clips]]
+id = "full-stephenson-two"
+family = "six-bar-stephenson-2"
+profile = "archival-high"
+[[clips]]
+id = "full-stephenson-three"
+family = "six-bar-stephenson-3"
+profile = "clean-high"
+[[clips]]
+id = "full-chebyshev"
+family = "chebyshev-lambda"
+profile = "phone-high"
+[[clips]]
+id = "full-peaucellier"
+family = "peaucellier-lipkin"
+profile = "hostile-high"
+[[clips]]
+id = "full-pantograph"
+family = "pantograph"
+profile = "archival-high"
+[[clips]]
+id = "full-jansen"
+family = "jansen-leg"
+profile = "clean-high"
+[[clips]]
+id = "full-flapping-wing"
+family = "flapping-wing"
+profile = "phone-high"
+[[clips]]
+id = "full-gear-train"
+family = "gear-train"
+profile = "hostile-high"
+[[clips]]
+id = "full-rack-pinion"
+family = "rack-and-pinion"
+profile = "archival-high"
+[[clips]]
+id = "full-belt-drive"
+family = "belt-drive"
+profile = "clean-high"
+[[clips]]
+id = "full-geneva"
+family = "geneva-drive"
+profile = "phone-high"
+[[clips]]
+id = "full-cam-knife"
+family = "cam-follower-knife"
+profile = "hostile-high"
+[[clips]]
+id = "full-cam-roller"
+family = "cam-follower-roller"
+profile = "archival-high"
+[[clips]]
+id = "full-cam-flat"
+family = "cam-follower-flat"
+profile = "clean-high"
+[[clips]]
+id = "full-sewing-machine"
+family = "sewing-machine"
+profile = "phone-high"
+[[clips]]
+id = "full-spatial-rssr-orbit"
+family = "spatial-rssr"
+profile = "spatial-orbit"
+[[clips]]
+id = "full-spatial-rssr-handheld"
+family = "spatial-rssr"
+profile = "spatial-handheld"
+[[clips]]
+id = "full-two-plane-orbit"
+family = "two-plane-cardan"
+profile = "spatial-orbit"
+[[clips]]
+id = "full-two-plane-handheld"
+family = "two-plane-cardan"
+profile = "spatial-handheld"
+
+# Broken counterparts span every breakage-capable planar family class.
+[[clips]]
+id = "full-broken-four-bar"
+family = "four-bar-crank-rocker"
+profile = "hostile-high"
+breakage = "adjacent_links"
+[[clips]]
+id = "full-broken-slider"
+family = "slider-crank"
+profile = "phone-high"
+breakage = "any"
+[[clips]]
+id = "full-broken-six-bar"
+family = "six-bar-watt-1"
+profile = "hostile-high"
+breakage = "any"
+[[clips]]
+id = "full-broken-jansen"
+family = "jansen-leg"
+profile = "archival-high"
+breakage = "any"
+[[clips]]
+id = "full-broken-wing"
+family = "flapping-wing"
+profile = "phone-high"
+breakage = "adjacent_links"
+[[clips]]
+id = "full-broken-gears"
+family = "gear-train"
+profile = "clean-high"
+breakage = "gear"
+[[clips]]
+id = "full-broken-rack"
+family = "rack-and-pinion"
+profile = "hostile-high"
+breakage = "any"
+[[clips]]
+id = "full-broken-belt"
+family = "belt-drive"
+profile = "phone-high"
+breakage = "belt"
+[[clips]]
+id = "full-broken-geneva"
+family = "geneva-drive"
+profile = "archival-high"
+breakage = "any"
+[[clips]]
+id = "full-broken-cam"
+family = "cam-follower-roller"
+profile = "hostile-high"
+breakage = "any"
+[[clips]]
+id = "full-broken-sewing"
+family = "sewing-machine"
+profile = "phone-high"
+breakage = "slider_block"

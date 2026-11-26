@@ -33,3 +33,13 @@ def test_an_unknown_family_is_a_usage_error() -> None:
     result = run("sample", "orrery")
     assert result.returncode == 2
     assert "unknown family" in result.stderr
+
+
+def test_hashes_a_real_suite_manifest() -> None:
+    manifest = Path(__file__).parents[1] / "suites" / "smoke.toml"
+    first = run("suite-hash", str(manifest))
+    second = run("suite-hash", str(manifest))
+
+    assert first.returncode == second.returncode == 0
+    assert first.stdout == second.stdout
+    assert len(first.stdout.strip()) == 64

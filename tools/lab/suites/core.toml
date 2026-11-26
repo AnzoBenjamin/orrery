@@ -1,0 +1,190 @@
+schema_version = 1
+name = "core"
+seed = 20260322
+# GitHub-hosted four-core runner acceptance budget: 45 minutes.
+runtime_budget_seconds = 2700
+
+[[profiles]]
+name = "clean"
+tier = "clean"
+render_mode = "2d"
+width = 160
+height = 120
+frame_rate = 12
+frame_count = 12
+codec = "h264"
+clutter_count = 1
+shadows = true
+
+[[profiles]]
+name = "phone"
+tier = "phone"
+render_mode = "2d"
+width = 160
+height = 120
+frame_rate = 12
+frame_count = 12
+codec = "h264"
+variable_frame_rate = true
+drop_probability = 0.05
+clutter_count = 5
+shadows = true
+
+[[profiles]]
+name = "hostile"
+tier = "hostile"
+render_mode = "2d"
+width = 128
+height = 96
+frame_rate = 8
+frame_count = 10
+codec = "h265"
+variable_frame_rate = true
+drop_probability = 0.2
+clutter_count = 10
+shadows = true
+
+[[profiles]]
+name = "archival"
+tier = "archival"
+render_mode = "2d"
+width = 128
+height = 96
+frame_rate = 12
+frame_count = 12
+codec = "h264"
+variable_frame_rate = true
+drop_probability = 0.08
+clutter_count = 2
+shadows = true
+
+[[profiles]]
+name = "spatial-fast"
+tier = "clean"
+render_mode = "3d"
+width = 32
+height = 24
+frame_rate = 4
+frame_count = 2
+codec = "h264"
+cycles_samples = 1
+camera_path = "orbit"
+
+[[clips]]
+id = "core-four-bar-crank-rocker"
+family = "four-bar-crank-rocker"
+profile = "clean"
+[[clips]]
+id = "core-four-bar-double-crank"
+family = "four-bar-double-crank"
+profile = "phone"
+[[clips]]
+id = "core-four-bar-double-rocker"
+family = "four-bar-double-rocker"
+profile = "hostile"
+[[clips]]
+id = "core-four-bar-change-point"
+family = "four-bar-change-point"
+profile = "archival"
+[[clips]]
+id = "core-slider-crank"
+family = "slider-crank"
+profile = "phone"
+[[clips]]
+id = "core-inverted-slider-crank"
+family = "inverted-slider-crank"
+profile = "hostile"
+[[clips]]
+id = "core-whitworth"
+family = "whitworth-quick-return"
+profile = "clean"
+[[clips]]
+id = "core-scotch-yoke"
+family = "scotch-yoke"
+profile = "archival"
+[[clips]]
+id = "core-watt-one"
+family = "six-bar-watt-1"
+profile = "clean"
+[[clips]]
+id = "core-watt-two"
+family = "six-bar-watt-2"
+profile = "phone"
+[[clips]]
+id = "core-stephenson-one"
+family = "six-bar-stephenson-1"
+profile = "hostile"
+[[clips]]
+id = "core-stephenson-two"
+family = "six-bar-stephenson-2"
+profile = "archival"
+[[clips]]
+id = "core-stephenson-three"
+family = "six-bar-stephenson-3"
+profile = "clean"
+[[clips]]
+id = "core-chebyshev"
+family = "chebyshev-lambda"
+profile = "phone"
+[[clips]]
+id = "core-peaucellier"
+family = "peaucellier-lipkin"
+profile = "hostile"
+[[clips]]
+id = "core-pantograph"
+family = "pantograph"
+profile = "archival"
+[[clips]]
+id = "core-jansen"
+family = "jansen-leg"
+profile = "hostile"
+breakage = "any"
+[[clips]]
+id = "core-flapping-wing"
+family = "flapping-wing"
+profile = "phone"
+breakage = "any"
+[[clips]]
+id = "core-gear-train"
+family = "gear-train"
+profile = "clean"
+breakage = "gear"
+[[clips]]
+id = "core-rack-pinion"
+family = "rack-and-pinion"
+profile = "phone"
+breakage = "any"
+[[clips]]
+id = "core-belt-drive"
+family = "belt-drive"
+profile = "hostile"
+breakage = "belt"
+[[clips]]
+id = "core-geneva"
+family = "geneva-drive"
+profile = "archival"
+[[clips]]
+id = "core-cam-knife"
+family = "cam-follower-knife"
+profile = "clean"
+[[clips]]
+id = "core-cam-roller"
+family = "cam-follower-roller"
+profile = "phone"
+[[clips]]
+id = "core-cam-flat"
+family = "cam-follower-flat"
+profile = "hostile"
+[[clips]]
+id = "core-sewing-machine"
+family = "sewing-machine"
+profile = "archival"
+breakage = "any"
+[[clips]]
+id = "core-spatial-rssr"
+family = "spatial-rssr"
+profile = "spatial-fast"
+[[clips]]
+id = "core-two-plane-cardan"
+family = "two-plane-cardan"
+profile = "spatial-fast"

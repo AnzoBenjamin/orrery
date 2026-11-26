@@ -1,0 +1,47 @@
+schema_version = 1
+name = "smoke"
+seed = 20260321
+# Hard acceptance budget: intended to remain below three CPU minutes.
+runtime_budget_seconds = 180
+
+[[profiles]]
+name = "clean-fast"
+tier = "clean"
+render_mode = "2d"
+width = 96
+height = 64
+frame_rate = 6
+frame_count = 4
+codec = "h264"
+clutter_count = 0
+shadows = false
+
+[[profiles]]
+name = "phone-fast"
+tier = "phone"
+render_mode = "2d"
+width = 96
+height = 64
+frame_rate = 6
+frame_count = 4
+codec = "h264"
+variable_frame_rate = true
+drop_probability = 0.1
+clutter_count = 2
+shadows = true
+
+[[clips]]
+id = "smoke-four-bar"
+family = "four-bar-crank-rocker"
+profile = "clean-fast"
+
+[[clips]]
+id = "smoke-slider"
+family = "slider-crank"
+profile = "phone-fast"
+
+[[clips]]
+id = "smoke-broken-gears"
+family = "gear-train"
+profile = "clean-fast"
+breakage = "gear"

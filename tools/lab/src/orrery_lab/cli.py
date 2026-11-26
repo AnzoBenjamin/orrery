@@ -11,6 +11,7 @@ import typer
 from orrery_lab import LAB_VERSION
 from orrery_lab.families import FAMILIES, family
 from orrery_lab.sampling import NoFeasibleSample, generate
+from orrery_lab.suite import load_manifest, manifest_hash
 
 app = typer.Typer(
     name="orrery-lab",
@@ -63,3 +64,35 @@ def sample(
         f"{math.degrees(result.min_transmission):.1f}°",
         err=True,
     )
+
+
+@app.command("suite-hash")
+def suite_hash(
+    manifest: Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True)],
+) -> None:
+    """Print a suite's canonical manifest/lab-version SHA-256 identity."""
+    typer.echo(manifest_hash(load_manifest(manifest), LAB_VERSION))
+
+
+@app.command("suite-generate")
+def suite_generate(
+    manifest: Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True)],
+    out: Annotated[Path, typer.Option(help="Root directory for content-addressed suites")],
+    cache: Annotated[
+        Path | None,
+        typer.Option(help="Optional local object-cache root keyed by manifest hash"),
+    ] = None,
+) -> None:
+    """Generate and atomically export every real clip in a suite manifest."""
+    from orrery_lab.suite import (  # noqa: PLC0415 -- generation alone loads Blender
+        LocalSuiteCache,
+        generate_suite,
+    )
+
+    result = generate_suite(
+        manifest,
+        out,
+        cache=LocalSuiteCache(cache) if cache is not None else None,
+    )
+    status = "cache hit" if result.cache_hit else "generated"
+    typer.echo(f"{result.manifest_hash} {status} {len(result.clips)} clips {result.directory}")

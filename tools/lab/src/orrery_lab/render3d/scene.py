@@ -194,6 +194,7 @@ def _camera(
         raise SceneBuildError("camera location coincides with its target")
     obj.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
     scene.camera = obj
+    bpy.context.view_layer.update()
     view = obj.matrix_world.inverted()
     matrix = tuple(float(view[row][column]) for row in range(4) for column in range(4))
     return CameraMetadata(

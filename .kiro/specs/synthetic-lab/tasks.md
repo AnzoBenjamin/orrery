@@ -49,8 +49,9 @@
     - `degrade/archival*.py` resamples clips to a seeded 12–24 fps timeline, then applies smooth low-frequency gate weave and flicker, luminance-aware temporal film grain, persistent seeded scratches and dust with recorded lifetimes and trajectories, radial vignetting, and linear-light sepia or monochrome tone. Gate weave uses bilinear subpixel translation with constant-black borders. Frozen clip, frame, timing, and artifact metadata records every sampled parameter; equal seeds produce identical float32 linear RGB and metadata. Tests cover timing, trajectory smoothness, grain statistics, artifact persistence, vignette falloff, both tones, complete JSON records, validation, and exact determinism.
 
 - [ ] 5. Ground truth and suites
-  - [ ] 5.1 Implement the export format (MP4, `truth.json`, Arrow, masks, depth). Property test 3.
+  - [x] 5.1 Implement the export format (MP4, `truth.json`, Arrow, masks, depth). Property test 3.
     - _Requirements: 6.1, 6.2_
+    - `truth/` atomically exports a versioned clip directory containing the actual encoded `clip.mp4`, canonical `truth.json`, Arrow IPC body-pose and point tables, 16-bit instance PNG masks, and optional float32 EXR depth. The manifest integrates the mechanism graph, appearance, camera/extrinsics, breakage, dynamics, degradation, and encoding records without inventing absent stage data. Stable renderer object IDs, source/encoded timestamp alignment, body/driver completeness, pose consistency, dimensions, and depth conventions are validated before publication. Hypothesis property 3 requires every visible point to have a 3×3 interior neighborhood in its owning instance mask. Tests cover exact regeneration, Arrow/mask/depth round trips, dropped frames, broken dynamics, malformed inputs, and real Blender depth.
   - [ ] 5.2 Implement suite manifests, hashing, deterministic generation, and object-storage caching. Write `smoke`, `core`, and `full` manifests. Property test 2.
     - _Requirements: 7.1–7.4_
 

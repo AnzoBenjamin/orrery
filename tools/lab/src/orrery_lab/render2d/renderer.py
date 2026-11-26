@@ -23,6 +23,9 @@ from orrery_lab.render2d.occluders import AnimatedOccluder, draw_occluders
 RGBA = tuple[int, int, int, int]
 
 
+MAX_INSTANCE_ID = 0xFFFF
+
+
 @dataclass(frozen=True)
 class RenderConfig:
     width: int = 640
@@ -47,6 +50,9 @@ class RenderedFrame:
     point_visibility: dict[tuple[str, str], bool]
     materials: dict[str, Material]
     camera: Camera
+    instance_id: npt.NDArray[np.int32]
+    object_ids: dict[str, int]
+    body_poses: dict[str, BodyPose]
 
 
 def _color(rgba: RGBA) -> int:
@@ -257,6 +263,66 @@ def _draw_body(
         canvas.drawCircle(*center, math.dist(center, side), wear_paint)
 
 
+def _instance_color(instance_id: int) -> int:
+    return skia.ColorSetARGB(
+        255,
+        instance_id & 0xFF,
+        (instance_id >> 8) & 0xFF,
+        (instance_id >> 16) & 0xFF,
+    )
+
+
+def _instance_map(
+    document: Json,
+    appearance: Appearance,
+    camera: Camera,
+    poses: dict[str, BodyPose],
+    *,
+    ordered_body_ids: list[str],
+    object_ids: dict[str, int],
+    occluders: tuple[AnimatedOccluder, ...],
+    time: float,
+) -> npt.NDArray[np.int32]:
+    surface = skia.Surface(camera.width, camera.height)
+    canvas = surface.getCanvas()
+    canvas.clear(skia.ColorBLACK)
+    ground = next(
+        (str(body["id"]) for body in document["bodies"] if body["kind"] == "ground"), None
+    )
+    if ground is not None and appearance.base_plate:
+        canvas.drawPath(
+            _path([camera.project(point) for point in appearance.base_plate]),
+            skia.Paint(Color=_instance_color(object_ids[ground]), AntiAlias=False),
+        )
+    for body_id in ordered_body_ids:
+        canvas.drawPath(
+            _body_path(appearance.bodies[body_id], camera, poses.get(body_id)),
+            skia.Paint(Color=_instance_color(object_ids[body_id]), AntiAlias=False),
+        )
+    image = surface.makeImageSnapshot()
+    rgba = np.asarray(
+        image.toarray(colorType=skia.ColorType.kRGBA_8888_ColorType), dtype=np.uint8
+    )
+    instance_id = (
+        rgba[:, :, 0].astype(np.int32)
+        | (rgba[:, :, 1].astype(np.int32) << 8)
+        | (rgba[:, :, 2].astype(np.int32) << 16)
+    )
+    if any(occluder.active(time) for occluder in occluders):
+        cover_surface = skia.Surface(camera.width, camera.height)
+        cover_canvas = cover_surface.getCanvas()
+        cover_canvas.clear(skia.ColorTRANSPARENT)
+        draw_occluders(cover_canvas, occluders, time)
+        cover = np.asarray(
+            cover_surface.makeImageSnapshot().toarray(
+                colorType=skia.ColorType.kRGBA_8888_ColorType
+            ),
+            dtype=np.uint8,
+        )
+        instance_id[cover[:, :, 3] > 0] = 0
+    return instance_id
+
+
 def render_frame(
     document: Json,
     appearance: Appearance,
@@ -320,6 +386,21 @@ def render_frame(
     encoded = image.encodeToData(skia.EncodedImageFormat.kPNG, 100)
     if encoded is None:
         raise RuntimeError("Skia failed to encode the frame")
+    object_ids = {
+        str(body["id"]): index for index, body in enumerate(document["bodies"], start=1)
+    }
+    if max(object_ids.values(), default=0) > MAX_INSTANCE_ID:
+        raise ValueError("the 2D instance pass supports at most 65535 bodies")
+    instance_id = _instance_map(
+        document,
+        appearance,
+        chosen_camera,
+        poses,
+        ordered_body_ids=ordered,
+        object_ids=object_ids,
+        occluders=occluders,
+        time=time,
+    )
     return RenderedFrame(
         pixels,
         bytes(encoded),
@@ -327,6 +408,9 @@ def render_frame(
         visibility,
         materials,
         chosen_camera,
+        instance_id,
+        object_ids,
+        dict(poses),
     )
 
 

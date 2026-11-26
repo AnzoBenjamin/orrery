@@ -68,6 +68,8 @@ class Family(Protocol):
 
 ## Ground truth format
 
+`truth/exporter.py` writes each clip atomically after validating the real render, simulation, degradation, and encoding outputs. `truth.json` is canonical and versioned; Arrow IPC keeps typed per-frame body poses and per-point image coordinates/visibility; masks are deterministic 16-bit PNG instance IDs; 3D depth is float32 OpenEXR. Source and encoded timelines remain explicit so dropped/VFR frames cannot misalign truth.
+
 ```
 <suite-hash>/<clip-id>/
   clip.mp4

@@ -308,6 +308,65 @@ const stageRuntime = z
   })
   .strict();
 
+const embeddedMediaArtifact = z
+  .object({
+    filename: identifier,
+    mediaType: z.string().min(1).max(200),
+    encoding: z.literal("base64"),
+    byteSize: z.number().int().nonnegative(),
+    sha256,
+    data: z.string(),
+  })
+  .strict();
+
+const normalizedFrame = z
+  .object({
+    frameIndex: z.number().int().nonnegative(),
+    timestampSeconds: z.number().nonnegative(),
+    sourceFrameIndex: z.number().int().nonnegative(),
+    originalTimestampSeconds: z.number().nonnegative(),
+  })
+  .strict();
+
+const cameraIntrinsics = z
+  .object({
+    fxPixels: z.number().positive(),
+    fyPixels: z.number().positive(),
+    cxPixels: z.number().nonnegative(),
+    cyPixels: z.number().nonnegative(),
+    source: identifier,
+  })
+  .strict();
+
+const thumbnailArtifact = z
+  .object({
+    frameIndex: z.number().int().nonnegative(),
+    timestampSeconds: z.number().nonnegative(),
+    image: embeddedMediaArtifact,
+  })
+  .strict();
+
+const ingestFootageArtifact = z
+  .object({
+    footageId: identifier,
+    sourceSha256: sha256,
+    container: identifier,
+    codec: identifier,
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    displayWidth: z.number().int().positive(),
+    displayHeight: z.number().int().positive(),
+    rotationQuarterTurns: z.number().int().min(0).max(3),
+    colorSpace: z.literal("bt709-rgb"),
+    originalTimestampsSeconds: z.array(z.number().nonnegative()).min(1),
+    normalizedFrames: z.array(normalizedFrame).min(1),
+    intrinsics: cameraIntrinsics.optional(),
+    analysisCopy: embeddedMediaArtifact,
+    proxyVideo: embeddedMediaArtifact,
+    thumbnails: z.array(thumbnailArtifact).min(1),
+  })
+  .strict();
+
 export const analysisArtifacts = z
   .object({
     format: z.literal("orrery.engine.analysis-artifacts"),
@@ -322,6 +381,7 @@ export const analysisArtifacts = z
     diagnosis: z.array(diagnosisFinding),
     resurrection: z.array(resurrectionCandidate),
     stageRuntimes: z.array(stageRuntime),
+    ingest: z.array(ingestFootageArtifact).optional(),
   })
   .strict()
   .meta({ id: "AnalysisArtifacts", title: "AnalysisArtifacts" });

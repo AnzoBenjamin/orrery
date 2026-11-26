@@ -1209,6 +1209,300 @@
             ],
             "additionalProperties": false
           }
+        },
+        "ingest": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "footageId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "sourceSha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "container": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "codec": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "width": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "height": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "displayWidth": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "displayHeight": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "rotationQuarterTurns": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              "colorSpace": {
+                "type": "string",
+                "const": "bt709-rgb"
+              },
+              "originalTimestampsSeconds": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "normalizedFrames": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "frameIndex": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "timestampSeconds": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "sourceFrameIndex": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "originalTimestampSeconds": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "frameIndex",
+                    "timestampSeconds",
+                    "sourceFrameIndex",
+                    "originalTimestampSeconds"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "intrinsics": {
+                "type": "object",
+                "properties": {
+                  "fxPixels": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "fyPixels": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "cxPixels": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "cyPixels": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "source": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "fxPixels",
+                  "fyPixels",
+                  "cxPixels",
+                  "cyPixels",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              "analysisCopy": {
+                "type": "object",
+                "properties": {
+                  "filename": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "mediaType": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "encoding": {
+                    "type": "string",
+                    "const": "base64"
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "data": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "filename",
+                  "mediaType",
+                  "encoding",
+                  "byteSize",
+                  "sha256",
+                  "data"
+                ],
+                "additionalProperties": false
+              },
+              "proxyVideo": {
+                "type": "object",
+                "properties": {
+                  "filename": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "mediaType": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "encoding": {
+                    "type": "string",
+                    "const": "base64"
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "data": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "filename",
+                  "mediaType",
+                  "encoding",
+                  "byteSize",
+                  "sha256",
+                  "data"
+                ],
+                "additionalProperties": false
+              },
+              "thumbnails": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "frameIndex": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "timestampSeconds": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "image": {
+                      "type": "object",
+                      "properties": {
+                        "filename": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "mediaType": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "encoding": {
+                          "type": "string",
+                          "const": "base64"
+                        },
+                        "byteSize": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "sha256": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        "data": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "filename",
+                        "mediaType",
+                        "encoding",
+                        "byteSize",
+                        "sha256",
+                        "data"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "frameIndex",
+                    "timestampSeconds",
+                    "image"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "footageId",
+              "sourceSha256",
+              "container",
+              "codec",
+              "width",
+              "height",
+              "displayWidth",
+              "displayHeight",
+              "rotationQuarterTurns",
+              "colorSpace",
+              "originalTimestampsSeconds",
+              "normalizedFrames",
+              "analysisCopy",
+              "proxyVideo",
+              "thumbnails"
+            ],
+            "additionalProperties": false
+          }
         }
       },
       "required": [

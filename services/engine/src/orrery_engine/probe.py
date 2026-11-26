@@ -7,6 +7,7 @@ The verdict depends only on what the file contains, never on its name or declare
 import hashlib
 import itertools
 import statistics
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, SupportsFloat
@@ -62,7 +63,14 @@ class TooLargeError(Exception):
     pass
 
 
-def download(url: str, dest: Path, max_bytes: int, client: httpx.Client) -> tuple[str, int]:
+def download(
+    url: str,
+    dest: Path,
+    max_bytes: int,
+    client: httpx.Client,
+    *,
+    check_canceled: Callable[[], None] | None = None,
+) -> tuple[str, int]:
     """Streams `url` to `dest`, hashing as it goes. Stops once `max_bytes` is exceeded."""
     digest = hashlib.sha256()
     size = 0
@@ -73,6 +81,8 @@ def download(url: str, dest: Path, max_bytes: int, client: httpx.Client) -> tupl
                 raise SourceUnavailableError(msg)
             with dest.open("wb") as out:
                 for chunk in response.iter_bytes(DOWNLOAD_CHUNK):
+                    if check_canceled is not None:
+                        check_canceled()
                     size += len(chunk)
                     if size > max_bytes:
                         raise TooLargeError

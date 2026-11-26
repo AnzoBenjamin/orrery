@@ -11,7 +11,7 @@ from uuid import UUID
 
 import httpx
 import structlog
-from fastapi import Body, Depends, FastAPI, Header, HTTPException, status
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ValidationError
 
@@ -24,6 +24,7 @@ from orrery_engine.generated.contract import (
     ProbeRequest,
     ReconstructJobRequest,
 )
+from orrery_engine.jobs import JobFailureError, JobManager
 from orrery_engine.probe import (
     ProbeResult,
     Rejection,
@@ -37,12 +38,14 @@ from orrery_engine.settings import Settings
 log = structlog.get_logger()
 
 
-def create_app(settings: Settings) -> FastAPI:
-    http = httpx.Client(timeout=httpx.Timeout(30.0, read=120.0), follow_redirects=False)
+def create_app(settings: Settings) -> FastAPI:  # noqa: PLR0915 - route wiring is kept together
+    http = httpx.Client(timeout=httpx.Timeout(8.0, connect=5.0), follow_redirects=False)
+    jobs = JobManager(settings, http)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         yield
+        jobs.close()
         http.close()
 
     app = FastAPI(
@@ -63,8 +66,13 @@ def create_app(settings: Settings) -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.post("/v1/jobs", dependencies=[Depends(authorize)])
+    @app.post(
+        "/v1/jobs",
+        dependencies=[Depends(authorize)],
+        status_code=status.HTTP_202_ACCEPTED,
+    )
     def submit_job(
+        http_request: Request,
         payload: Annotated[object, Body()],
         callback_secret: Annotated[str | None, Header(alias="Orrery-Callback-Secret")] = None,
     ) -> JSONResponse:
@@ -101,23 +109,46 @@ def create_app(settings: Settings) -> FastAPI:
                 "A footage or artifact URL has an origin outside the engine allowlist.",
                 http_status=status.HTTP_422_UNPROCESSABLE_CONTENT,
             )
-        return _job_rejected(
-            request.job_id,
-            "capability_unavailable",
-            "Reconstruction cannot run because the production stage runner and ingest artifacts "
-            "are not implemented.",
-            stage="ingest",
-            prerequisites=("vision-pipeline:1.1", "vision-pipeline:2.1"),
-        )
+        try:
+            accepted = jobs.submit(
+                request,
+                callback_secret,
+                str(http_request.url_for("job_status", job_id=str(request.job_id))),
+            )
+        except JobFailureError as failure:
+            return _job_rejected(
+                request.job_id,
+                failure.error.code,
+                failure.error.message,
+                http_status=status.HTTP_409_CONFLICT,
+                stage=failure.error.stage,
+                prerequisites=tuple(item.root for item in failure.error.prerequisites or ()),
+            )
+        return _json_response(accepted, status.HTTP_202_ACCEPTED)
 
-    @app.get("/v1/jobs/{job_id}", dependencies=[Depends(authorize)])
+    @app.get("/v1/jobs/{job_id}", dependencies=[Depends(authorize)], name="job_status")
     def job_status(job_id: UUID) -> JSONResponse:
-        return _job_rejected(
-            job_id,
-            "job_not_found",
-            "No reconstruction job with this ID exists.",
-            http_status=status.HTTP_404_NOT_FOUND,
-        )
+        current = jobs.status(job_id)
+        if current is None:
+            return _job_rejected(
+                job_id,
+                "job_not_found",
+                "No reconstruction job with this ID exists.",
+                http_status=status.HTTP_404_NOT_FOUND,
+            )
+        return _json_response(current, status.HTTP_200_OK)
+
+    @app.post("/v1/jobs/{job_id}/cancel", dependencies=[Depends(authorize)])
+    def cancel_job(job_id: UUID) -> JSONResponse:
+        current = jobs.cancel(job_id)
+        if current is None:
+            return _job_rejected(
+                job_id,
+                "job_not_found",
+                "No reconstruction job with this ID exists.",
+                http_status=status.HTTP_404_NOT_FOUND,
+            )
+        return _json_response(current, status.HTTP_202_ACCEPTED)
 
     @app.post("/v1/probe", dependencies=[Depends(authorize)], response_model_by_alias=True)
     def probe(request: ProbeRequest) -> ProbeAccepted | ProbeRejected:

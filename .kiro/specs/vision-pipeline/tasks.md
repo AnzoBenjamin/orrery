@@ -1,17 +1,18 @@
 # Tasks: Vision pipeline
 
 - [ ] 1. Engine service and stage runner
-  - [ ] 1.1 Create the FastAPI app with contract models, service-token auth, job intake, stage graph, artifact upload via grants, checkpoint and resume, cancellation, and signed event callbacks.
+  - [x] 1.1 Create the FastAPI app with contract models, service-token auth, job intake, stage graph, artifact upload via grants, checkpoint and resume, cancellation, and signed event callbacks.
     - _Requirements: 3.1, 3.2, 3.3, 3.4_
-    - In progress: versioned cross-language contracts now cover reconstruction submission, grants, acceptance/status/completion/failure, events, artifacts, and typed errors. FastAPI exposes authenticated `POST /v1/jobs` and `GET /v1/jobs/{job_id}` with strict contract/version/origin validation, while the lab client can submit, poll, retrieve, checksum, and validate artifacts. The engine truthfully returns `capability_unavailable` until the real stage runner, ingest artifacts, callbacks, checkpoint/resume, and cancellation are implemented; no reconstruction outputs are fabricated.
+    - Versioned cross-language contracts cover reconstruction submission, grants, acceptance/status/completion/failure, events, artifacts, and typed errors. FastAPI runs real asynchronous jobs with bounded concurrency, an explicit stage graph, filesystem checkpoints and resume, cooperative cancellation, presigned artifact PUTs, HMAC-SHA256 callbacks, monotonic event sequences, authenticated status/cancel routes, and source/artifact origin allowlists. The lab client submits, polls, retrieves, checksums, and validates artifacts. Unsupported downstream stages fail explicitly without fabricated outputs.
   - [ ] 1.2 Add analysis tables (including window, queue position, ETA, allowance), migration, typed queries, server functions, and worker dispatch. Integration tests.
     - _Requirements: 3.1–3.4, 4.4_
   - [ ] 1.3 Build the CPU-only engine image without PyTorch (ONNX Runtime for models). Implement the `engine.analysis` queue with configurable concurrency, queue position and ETA events, container CPU and memory limits, per-stage runtime and peak memory metrics, and slot release while awaiting input.
     - _Requirements: 3.6, 4.2, 4.3, 15.4_
 
 - [ ] 2. Ingest and window
-  - [ ] 2.1 Implement decode, rotation, color conversion, VFR normalization, intrinsics from metadata, the downscaled analysis copy with full-resolution access, proxy video, and thumbnails.
+  - [x] 2.1 Implement decode, rotation, color conversion, VFR normalization, intrinsics from metadata, the downscaled analysis copy with full-resolution access, proxy video, and thumbnails.
     - _Requirements: 1.1, 1.2, 1.4, 1.5, 18.2_
+    - PyAV decodes supported containers/codecs, applies display rotation, converts BT.709 RGB, records exact source timestamps, and creates a normalized constant-rate timeline. Ingest retains the full-resolution source, writes a configurable lossless FFV1 analysis copy, H.264 proxy with frequent keyframes, WebP thumbnails, and metadata-derived intrinsics when available. Versioned ingest artifacts embed hashes, sizes, and media metadata and are uploaded through the real job grant flow; cancellation is checked during download and frame decoding.
   - [ ] 2.2 Implement shot detection and the `choose_shots` input request.
     - _Requirements: 1.3, 15.1_
   - [ ] 2.3 Implement the motion pre-pass, period detection, automatic window selection, the 90-second limit, and `suggestWindow`.

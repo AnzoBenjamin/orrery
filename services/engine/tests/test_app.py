@@ -1,16 +1,23 @@
+import base64
+import io
+import itertools
 import json
 import socket
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
+from contextlib import contextmanager
 from pathlib import Path
-from typing import cast
+from typing import Any, Protocol, cast
+from uuid import uuid4
 
+import av
 import httpx
 import pytest
 import uvicorn
 from opentelemetry.sdk.trace import TracerProvider
 from orrery_engine.app import create_app
+from orrery_engine.generated.contract import AnalysisArtifacts, EngineEvent
 from orrery_engine.settings import Settings, describe_errors
 from orrery_engine.telemetry import add_trace_ids
 from pydantic import ValidationError
@@ -19,13 +26,29 @@ TOKEN = "t" * 40
 GOLDEN = Path(__file__).resolve().parents[3] / "fixtures/golden/engine-contract"
 
 
-def reconstruction_request(file_server: str) -> dict[str, object]:
+class JobServer(Protocol):
+    origin: str
+    artifact: bytes | None
+    events: list[dict[str, object]]
+    put_count: int
+    signatures_verified: int
+    lock: threading.Lock
+
+
+def reconstruction_request(
+    source_origin: str,
+    job_origin: str | None = None,
+    *,
+    filename: str = "h264.mp4",
+) -> dict[str, Any]:
+    target = job_origin or source_origin
     request = json.loads((GOLDEN / "reconstruct-job-request.json").read_text())
     footage = request["inputs"]["footage"][0]
-    footage["sourceUrl"] = f"{file_server}/h264.mp4"
+    footage["sourceUrl"] = f"{source_origin}/{filename}"
     grant = request["artifactGrant"]["analysisArtifacts"]
-    grant["uploadUrl"] = f"{file_server}/analysis.json?upload=1"
-    grant["downloadUrl"] = f"{file_server}/analysis.json?download=1"
+    grant["uploadUrl"] = f"{target}/analysis.json?upload=1"
+    grant["downloadUrl"] = f"{target}/analysis.json?download=1"
+    request["callback"]["url"] = f"{target}/callbacks"
     return request
 
 
@@ -35,14 +58,8 @@ def free_port() -> int:
         return int(s.getsockname()[1])
 
 
-@pytest.fixture
-def client(file_server: str, tmp_path: Path) -> Iterator[httpx.Client]:
-    """The engine served by uvicorn on a real socket, as the worker reaches it."""
-    settings = Settings(
-        service_token=TOKEN,  # pyright: ignore[reportArgumentType] - coerced to SecretStr
-        allowed_source_origins=(file_server,),
-        work_dir=tmp_path,
-    )
+@contextmanager
+def running_engine(settings: Settings) -> Generator[httpx.Client]:
     port = free_port()
     server = uvicorn.Server(
         uvicorn.Config(create_app(settings), host="127.0.0.1", port=port, log_level="warning")
@@ -60,12 +77,35 @@ def client(file_server: str, tmp_path: Path) -> Iterator[httpx.Client]:
     thread.join()
 
 
+@pytest.fixture
+def client(file_server: str, job_server: JobServer, tmp_path: Path) -> Iterator[httpx.Client]:
+    """The engine served by uvicorn on a real socket, as the worker reaches it."""
+    settings = Settings(
+        service_token=TOKEN,  # pyright: ignore[reportArgumentType] - coerced to SecretStr
+        allowed_source_origins=(file_server, job_server.origin),
+        work_dir=tmp_path,
+    )
+    with running_engine(settings) as http:
+        yield http
+
+
 def probe(client: httpx.Client, url: str, *, token: str = TOKEN, max_bytes: int = 10**9):
     return client.post(
         "/v1/probe",
         json={"sourceUrl": url, "maxBytes": max_bytes, "maxDurationS": 300},
         headers={"Authorization": f"Bearer {token}"},
     )
+
+
+def wait_terminal(client: httpx.Client, job_id: str) -> dict[str, Any]:
+    deadline = time.monotonic() + 20
+    while time.monotonic() < deadline:
+        response = client.get(f"/v1/jobs/{job_id}", headers={"Authorization": f"Bearer {TOKEN}"})
+        body = response.json()
+        if body["status"] in {"failed", "canceled", "completed"}:
+            return body
+        time.sleep(0.02)
+    raise AssertionError("job did not reach a terminal state")
 
 
 def test_probes_a_real_download(client: httpx.Client, file_server: str) -> None:
@@ -103,34 +143,183 @@ def test_missing_sources_are_retryable_errors(client: httpx.Client, file_server:
     assert probe(client, f"{file_server}/missing.mp4").status_code == 502
 
 
-def test_reconstruction_job_is_contract_validated_and_truthfully_blocked(
-    client: httpx.Client, file_server: str
+def test_reconstruction_job_runs_real_ingest_and_reports_the_next_capability_limit(
+    client: httpx.Client, file_server: str, job_server: JobServer
 ) -> None:
+    with job_server.lock:
+        job_server.artifact = None
+        job_server.events.clear()
+        job_server.put_count = 0
+        job_server.signatures_verified = 0
+    request = reconstruction_request(file_server, job_server.origin)
+    job_id = str(request["jobId"])
     response = client.post(
         "/v1/jobs",
-        json=reconstruction_request(file_server),
+        json=request,
         headers={
             "Authorization": f"Bearer {TOKEN}",
             "Orrery-Callback-Secret": "s" * 40,
         },
     )
-    assert response.status_code == 409
-    assert response.json() == {
-        "contractVersion": "1",
-        "jobId": "0195e7c3-24a0-7a72-8c4e-f57a34537c29",
-        "accepted": False,
-        "status": "rejected",
-        "error": {
-            "code": "capability_unavailable",
-            "message": (
-                "Reconstruction cannot run because the production stage runner and ingest "
-                "artifacts are not implemented."
-            ),
-            "retryable": False,
-            "stage": "ingest",
-            "prerequisites": ["vision-pipeline:1.1", "vision-pipeline:2.1"],
-        },
+    assert response.status_code == 202
+    assert response.json()["accepted"] is True
+    assert client.get(response.json()["statusUrl"]).status_code == 401
+
+    terminal = wait_terminal(client, job_id)
+    assert terminal["status"] == "failed"
+    assert terminal["error"] == {
+        "code": "capability_unavailable",
+        "message": "Ingest completed, but camera-motion reconstruction is not implemented yet.",
+        "retryable": False,
+        "stage": "camera_motion",
+        "prerequisites": ["vision-pipeline:3.1"],
     }
+    assert len(cast(list[object], terminal["artifacts"])) == 1
+
+    artifact_bytes = job_server.artifact
+    assert artifact_bytes is not None
+    artifact = AnalysisArtifacts.model_validate_json(artifact_bytes)
+    assert artifact.tracks == []
+    assert artifact.camera_motion == []
+    assert artifact.ingest is not None
+    footage = artifact.ingest[0]
+    assert (footage.width, footage.height) == (320, 240)
+    assert (footage.display_width, footage.display_height) == (320, 240)
+    assert footage.color_space == "bt709-rgb"
+    assert len(footage.original_timestamps_seconds) == 60
+    assert len(footage.normalized_frames) == 60
+    assert footage.analysis_copy.byte_size > 0
+    assert footage.proxy_video.byte_size > 0
+    assert len(footage.thumbnails) == 5
+    with av.open(io.BytesIO(base64.b64decode(footage.proxy_video.data))) as proxy:
+        assert proxy.streams.video[0].codec_context.name == "h264"
+        assert proxy.streams.video[0].frames == 60
+
+    with job_server.lock:
+        events = [event for event in job_server.events if event["jobId"] == job_id]
+        assert job_server.signatures_verified >= len(events)
+    validated = [EngineEvent.model_validate(event).root for event in events]
+    assert [event.seq for event in validated] == list(range(len(validated)))
+    assert [event.type for event in validated] == [
+        "stage_started",
+        "progress",
+        "progress",
+        "stage_completed",
+        "artifact_written",
+        "stage_started",
+        "failed",
+    ]
+
+
+def test_reconstruction_ingest_applies_rotation_and_normalizes_vfr(
+    client: httpx.Client, file_server: str, job_server: JobServer
+) -> None:
+    rotated = reconstruction_request(file_server, job_server.origin, filename="rotated.mp4")
+    rotated["jobId"] = str(uuid4())
+    response = client.post(
+        "/v1/jobs",
+        json=rotated,
+        headers={
+            "Authorization": f"Bearer {TOKEN}",
+            "Orrery-Callback-Secret": "s" * 40,
+        },
+    )
+    terminal = wait_terminal(client, str(rotated["jobId"]))
+    assert response.status_code == 202
+    assert terminal["error"]["code"] == "capability_unavailable"
+    rotated_bytes = job_server.artifact
+    assert rotated_bytes is not None
+    rotated_artifact = AnalysisArtifacts.model_validate_json(rotated_bytes)
+    assert rotated_artifact.ingest is not None
+    rotated_ingest = rotated_artifact.ingest[0]
+    assert rotated_ingest.rotation_quarter_turns == 1
+    assert (rotated_ingest.display_width, rotated_ingest.display_height) == (240, 320)
+
+    vfr = reconstruction_request(file_server, job_server.origin, filename="vfr.mp4")
+    vfr["jobId"] = str(uuid4())
+    client.post(
+        "/v1/jobs",
+        json=vfr,
+        headers={
+            "Authorization": f"Bearer {TOKEN}",
+            "Orrery-Callback-Secret": "s" * 40,
+        },
+    )
+    wait_terminal(client, str(vfr["jobId"]))
+    vfr_bytes = job_server.artifact
+    assert vfr_bytes is not None
+    vfr_artifact = AnalysisArtifacts.model_validate_json(vfr_bytes)
+    assert vfr_artifact.ingest is not None
+    vfr_ingest = vfr_artifact.ingest[0]
+    original_deltas = [
+        float(after.root - before.root)
+        for before, after in itertools.pairwise(vfr_ingest.original_timestamps_seconds)
+    ]
+    normalized_deltas = [
+        after.timestamp_seconds - before.timestamp_seconds
+        for before, after in itertools.pairwise(vfr_ingest.normalized_frames)
+    ]
+    assert max(original_deltas) > min(original_deltas) * 1.5
+    assert max(normalized_deltas) - min(normalized_deltas) < 1e-9
+
+
+def test_reconstruction_job_can_be_canceled_within_ten_seconds(
+    client: httpx.Client, job_server: JobServer
+) -> None:
+    request = reconstruction_request(job_server.origin, job_server.origin, filename="slow.mp4")
+    request["jobId"] = str(uuid4())
+    job_id = str(request["jobId"])
+    client.post(
+        "/v1/jobs",
+        json=request,
+        headers={
+            "Authorization": f"Bearer {TOKEN}",
+            "Orrery-Callback-Secret": "s" * 40,
+        },
+    )
+    started = time.monotonic()
+    canceled = client.post(
+        f"/v1/jobs/{job_id}/cancel", headers={"Authorization": f"Bearer {TOKEN}"}
+    )
+    assert canceled.status_code == 202
+    terminal = wait_terminal(client, job_id)
+    assert time.monotonic() - started < 10
+    assert terminal["status"] == "canceled"
+    assert terminal["error"]["code"] == "canceled"
+
+
+def test_reconstruction_resumes_from_the_ingest_checkpoint_after_restart(
+    file_server: str, job_server: JobServer, tmp_path: Path
+) -> None:
+    request = reconstruction_request(file_server, job_server.origin)
+    request["jobId"] = str(uuid4())
+    job_id = str(request["jobId"])
+    settings = Settings(
+        service_token=TOKEN,  # pyright: ignore[reportArgumentType] - coerced to SecretStr
+        allowed_source_origins=(file_server, job_server.origin),
+        work_dir=tmp_path,
+    )
+    headers = {
+        "Authorization": f"Bearer {TOKEN}",
+        "Orrery-Callback-Secret": "s" * 40,
+    }
+    with job_server.lock:
+        initial_puts = job_server.put_count
+    with running_engine(settings) as first:
+        assert first.post("/v1/jobs", json=request, headers=headers).status_code == 202
+        assert wait_terminal(first, job_id)["error"]["code"] == "capability_unavailable"
+    with job_server.lock:
+        after_ingest_puts = job_server.put_count
+    assert after_ingest_puts == initial_puts + 1
+
+    with running_engine(settings) as resumed:
+        assert resumed.post("/v1/jobs", json=request, headers=headers).status_code == 202
+        terminal = wait_terminal(resumed, job_id)
+    assert terminal["error"]["stage"] == "camera_motion"
+    with job_server.lock:
+        assert job_server.put_count == after_ingest_puts
+        job_events = [event for event in job_server.events if event["jobId"] == job_id]
+    assert [event["type"] for event in job_events[-2:]] == ["stage_started", "failed"]
 
 
 def test_reconstruction_job_rejects_incompatible_versions_and_invalid_payloads(

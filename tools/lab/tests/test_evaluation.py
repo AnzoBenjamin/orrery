@@ -414,8 +414,19 @@ def _real_engine_and_clip_server() -> Generator[tuple[str, str]]:
     from orrery_engine.app import create_app  # noqa: PLC0415
     from orrery_engine.settings import Settings  # noqa: PLC0415
 
+    class Handler(SimpleHTTPRequestHandler):
+        def do_PUT(self) -> None:
+            self.rfile.read(int(self.headers.get("Content-Length", "0")))
+            self.send_response(204)
+            self.end_headers()
+
+        def do_POST(self) -> None:
+            self.rfile.read(int(self.headers.get("Content-Length", "0")))
+            self.send_response(204)
+            self.end_headers()
+
     directory = FIXTURES / "clean-four-bar"
-    handler = partial(SimpleHTTPRequestHandler, directory=str(directory))
+    handler = partial(Handler, directory=str(directory))
     files = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     files_thread = threading.Thread(target=files.serve_forever, daemon=True)
     files_thread.start()
@@ -463,8 +474,5 @@ def test_real_engine_accepts_job_contract_and_reports_missing_stages() -> None:
                 callback_secret="c" * 40,
             )
         assert caught.value.code == "capability_unavailable"
-        assert caught.value.stage == "ingest"
-        assert caught.value.prerequisites == (
-            "vision-pipeline:1.1",
-            "vision-pipeline:2.1",
-        )
+        assert caught.value.stage == "camera_motion"
+        assert caught.value.prerequisites == ("vision-pipeline:3.1",)

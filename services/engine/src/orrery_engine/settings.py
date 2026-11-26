@@ -22,7 +22,18 @@ class Settings(BaseSettings):
     """Origins (scheme://host:port) the engine may download inputs from: the object store."""
 
     work_dir: Path = Path("/tmp")  # noqa: S108 - the container's private, size-limited tmpfs
-    """Where downloads are staged while they are inspected."""
+    """Where downloads, stage caches, and persistent checkpoints are stored."""
+
+    concurrency: int = Field(default=1, ge=1, le=32)
+    """Maximum reconstruction jobs executing at once."""
+
+    analysis_long_side: int = Field(default=960, ge=160, le=4096)
+    proxy_long_side: int = Field(default=720, ge=160, le=2160)
+    thumbnail_count: int = Field(default=5, ge=1, le=20)
+    max_source_bytes: int = Field(default=2_000_000_000, gt=0)
+    callback_attempts: int = Field(default=3, ge=1, le=10)
+    callback_timeout_seconds: float = Field(default=3.0, gt=0, le=8.0)
+    engine_version: str = Field(default="development", min_length=1, max_length=200)
 
     port: int = Field(default=8000, ge=1, le=65535)
 

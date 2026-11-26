@@ -455,6 +455,109 @@ class StageRuntime(BaseModel):
     runtime_ms: Annotated[float, Field(alias="runtimeMs", ge=0.0)]
 
 
+class OriginalTimestampsSecond(RootModel[float]):
+    root: Annotated[float, Field(ge=0.0)]
+
+
+class NormalizedFrame(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    frame_index: Annotated[int, Field(alias="frameIndex", ge=0, le=9007199254740991)]
+    timestamp_seconds: Annotated[float, Field(alias="timestampSeconds", ge=0.0)]
+    source_frame_index: Annotated[int, Field(alias="sourceFrameIndex", ge=0, le=9007199254740991)]
+    original_timestamp_seconds: Annotated[float, Field(alias="originalTimestampSeconds", ge=0.0)]
+
+
+class Intrinsics(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    fx_pixels: Annotated[float, Field(alias="fxPixels", gt=0.0)]
+    fy_pixels: Annotated[float, Field(alias="fyPixels", gt=0.0)]
+    cx_pixels: Annotated[float, Field(alias="cxPixels", ge=0.0)]
+    cy_pixels: Annotated[float, Field(alias="cyPixels", ge=0.0)]
+    source: Annotated[str, Field(max_length=200, min_length=1)]
+
+
+class AnalysisCopy(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    filename: Annotated[str, Field(max_length=200, min_length=1)]
+    media_type: Annotated[str, Field(alias="mediaType", max_length=200, min_length=1)]
+    encoding: Literal["base64"]
+    byte_size: Annotated[int, Field(alias="byteSize", ge=0, le=9007199254740991)]
+    sha256: Annotated[str, Field(pattern="^[0-9a-f]{64}$")]
+    data: str
+
+
+class ProxyVideo(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    filename: Annotated[str, Field(max_length=200, min_length=1)]
+    media_type: Annotated[str, Field(alias="mediaType", max_length=200, min_length=1)]
+    encoding: Literal["base64"]
+    byte_size: Annotated[int, Field(alias="byteSize", ge=0, le=9007199254740991)]
+    sha256: Annotated[str, Field(pattern="^[0-9a-f]{64}$")]
+    data: str
+
+
+class Image(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    filename: Annotated[str, Field(max_length=200, min_length=1)]
+    media_type: Annotated[str, Field(alias="mediaType", max_length=200, min_length=1)]
+    encoding: Literal["base64"]
+    byte_size: Annotated[int, Field(alias="byteSize", ge=0, le=9007199254740991)]
+    sha256: Annotated[str, Field(pattern="^[0-9a-f]{64}$")]
+    data: str
+
+
+class Thumbnail(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    frame_index: Annotated[int, Field(alias="frameIndex", ge=0, le=9007199254740991)]
+    timestamp_seconds: Annotated[float, Field(alias="timestampSeconds", ge=0.0)]
+    image: Image
+
+
+class IngestItem(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    footage_id: Annotated[str, Field(alias="footageId", max_length=200, min_length=1)]
+    source_sha256: Annotated[str, Field(alias="sourceSha256", pattern="^[0-9a-f]{64}$")]
+    container: Annotated[str, Field(max_length=200, min_length=1)]
+    codec: Annotated[str, Field(max_length=200, min_length=1)]
+    width: Annotated[int, Field(gt=0, le=9007199254740991)]
+    height: Annotated[int, Field(gt=0, le=9007199254740991)]
+    display_width: Annotated[int, Field(alias="displayWidth", gt=0, le=9007199254740991)]
+    display_height: Annotated[int, Field(alias="displayHeight", gt=0, le=9007199254740991)]
+    rotation_quarter_turns: Annotated[int, Field(alias="rotationQuarterTurns", ge=0, le=3)]
+    color_space: Annotated[Literal["bt709-rgb"], Field(alias="colorSpace")]
+    original_timestamps_seconds: Annotated[
+        list[OriginalTimestampsSecond], Field(alias="originalTimestampsSeconds", min_length=1)
+    ]
+    normalized_frames: Annotated[
+        list[NormalizedFrame], Field(alias="normalizedFrames", min_length=1)
+    ]
+    intrinsics: Intrinsics | None = None
+    analysis_copy: Annotated[AnalysisCopy, Field(alias="analysisCopy")]
+    proxy_video: Annotated[ProxyVideo, Field(alias="proxyVideo")]
+    thumbnails: Annotated[list[Thumbnail], Field(min_length=1)]
+
+
 class AnalysisArtifacts(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -472,6 +575,7 @@ class AnalysisArtifacts(BaseModel):
     diagnosis: list[Diagnosi]
     resurrection: list[ResurrectionItem]
     stage_runtimes: Annotated[list[StageRuntime], Field(alias="stageRuntimes")]
+    ingest: list[IngestItem] | None = None
 
 
 class ArtifactGrant(BaseModel):

@@ -188,6 +188,68 @@
                 ],
                 "additionalProperties": false
               }
+            },
+            "annotations": {
+              "maxItems": 10000,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "annotationId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "footageId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "frameIndex": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "joint",
+                      "part_prompt"
+                    ]
+                  },
+                  "point": {
+                    "type": "object",
+                    "properties": {
+                      "xPx": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "yPx": {
+                        "type": "number",
+                        "minimum": 0
+                      }
+                    },
+                    "required": [
+                      "xPx",
+                      "yPx"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "coordinateSpace": {
+                    "type": "string",
+                    "const": "full_resolution_pixels"
+                  }
+                },
+                "required": [
+                  "annotationId",
+                  "footageId",
+                  "frameIndex",
+                  "kind",
+                  "point",
+                  "coordinateSpace"
+                ],
+                "additionalProperties": false
+              }
             }
           },
           "required": [
@@ -1246,6 +1308,291 @@
               "staticMask",
               "stabilizedPreview",
               "quality"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "seedingAnalysis": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "format": {
+                "type": "string",
+                "const": "orrery.engine.seeding"
+              },
+              "schemaVersion": {
+                "type": "number",
+                "const": 1
+              },
+              "footageId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "coordinateSpace": {
+                "type": "string",
+                "const": "analysis_pixels"
+              },
+              "analysisWidth": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "analysisHeight": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "sourceWidth": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "sourceHeight": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "scaleXFromSource": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "scaleYFromSource": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "keyFrameIndices": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "movingMask": {
+                "type": "object",
+                "properties": {
+                  "filename": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "mediaType": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "encoding": {
+                    "type": "string",
+                    "const": "base64"
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "data": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "filename",
+                  "mediaType",
+                  "encoding",
+                  "byteSize",
+                  "sha256",
+                  "data"
+                ],
+                "additionalProperties": false
+              },
+              "points": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "seedId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "xPx": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "yPx": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "shi_tomasi",
+                        "circular_hole",
+                        "user_joint",
+                        "user_part_prompt",
+                        "reseeded_shi_tomasi"
+                      ]
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "corner",
+                        "hole",
+                        "pivot",
+                        "prompt"
+                      ]
+                    },
+                    "confidence": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "frameIndex": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "detectionScale": {
+                      "type": "string",
+                      "enum": [
+                        "analysis",
+                        "full_resolution",
+                        "user_full_resolution"
+                      ]
+                    },
+                    "regionId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "sourceXPx": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "sourceYPx": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "annotationId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  },
+                  "required": [
+                    "seedId",
+                    "xPx",
+                    "yPx",
+                    "source",
+                    "type",
+                    "confidence",
+                    "frameIndex",
+                    "detectionScale"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "coverage": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "regionId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "boundingBox": {
+                      "minItems": 4,
+                      "maxItems": 4,
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "movingPixelCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "eligibleCellCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "coveredCellCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "seedCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "coverageFraction": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "required": [
+                    "regionId",
+                    "boundingBox",
+                    "movingPixelCount",
+                    "eligibleCellCount",
+                    "coveredCellCount",
+                    "seedCount",
+                    "coverageFraction"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "reseedingPolicy": {
+                "type": "object",
+                "properties": {
+                  "intervalFrames": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "regionalCoverageThreshold": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "intervalFrames",
+                  "regionalCoverageThreshold"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "format",
+              "schemaVersion",
+              "footageId",
+              "coordinateSpace",
+              "analysisWidth",
+              "analysisHeight",
+              "sourceWidth",
+              "sourceHeight",
+              "scaleXFromSource",
+              "scaleYFromSource",
+              "keyFrameIndices",
+              "movingMask",
+              "points",
+              "coverage",
+              "reseedingPolicy"
             ],
             "additionalProperties": false
           }

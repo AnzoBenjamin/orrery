@@ -24,8 +24,9 @@
     - The real engine stage computes adjacent-window Farneback static masks, matches static features with ORB and LK fallback, and fits deterministic OpenCV USAC_MAGSAC reference-to-frame homographies. It records residual/inlier/static/valid-frame quality metrics, detects coherent second-plane parallax, emits typed spatial-routing events and guidance, supports later ground-track MAGSAC refinement, and uploads real H.264 stabilized preview plus PNG static-mask artifacts through job grants. Property 1 keeps stabilized planar ground points below 1 px RMS; tests cover handheld fixture footage, parallax routing, deterministic estimation, contracts, callbacks, checkpoints, and decoded previews.
 
 - [ ] 4. Seeding and tracking
-  - [ ] 4.1 Implement moving-region seeding with even coverage, full-resolution hole detection, user points, and re-seeding.
+  - [x] 4.1 Implement moving-region seeding with even coverage, full-resolution hole detection, user points, and re-seeding.
     - _Requirements: 6.1–6.4, 11.4_
+    - The seeding stage stabilizes frames, combines frame differencing with dense Farneback flow, labels moving regions, and selects grid-balanced Shi–Tomasi corners with per-region coverage metrics. Full-resolution multi-keyframe Hough/contour circle detection rejects transient false holes by radius, position, contrast, and appearance consistency. Contracted joint and part-prompt annotations are scaled into analysis coordinates, and deterministic regional re-seeding refills coverage below threshold. Versioned artifacts record point source/type/confidence, coordinates, frame/scale provenance, moving mask, coverage, and policy. Jobs now checkpoint and upload seeding before failing explicitly at unavailable tracking.
   - [ ] 4.2 Implement the tracker adapter and the `klt` backend with forward-backward and appearance checks.
     - _Requirements: 7.1, 7.2, 7.4_
   - [ ] 4.3 Implement ArUco and colored-dot marker tracks with sub-pixel refinement and the `marker_color` annotation. Property test 10.

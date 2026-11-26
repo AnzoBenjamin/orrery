@@ -144,7 +144,7 @@ def test_missing_sources_are_retryable_errors(client: httpx.Client, file_server:
     assert probe(client, f"{file_server}/missing.mp4").status_code == 502
 
 
-def test_reconstruction_job_runs_real_ingest_and_camera_motion_then_reports_seeding_limit(
+def test_reconstruction_job_runs_real_ingest_camera_motion_and_seeding_then_reports_tracking_limit(  # noqa: PLR0915
     client: httpx.Client, file_server: str, job_server: JobServer
 ) -> None:
     with job_server.lock:
@@ -153,6 +153,16 @@ def test_reconstruction_job_runs_real_ingest_and_camera_motion_then_reports_seed
         job_server.put_count = 0
         job_server.signatures_verified = 0
     request = reconstruction_request(file_server, job_server.origin)
+    request["inputs"]["annotations"] = [
+        {
+            "annotationId": "user-joint-1",
+            "footageId": "fixture-clean-four-bar",
+            "frameIndex": 3,
+            "kind": "joint",
+            "point": {"xPx": 160, "yPx": 120},
+            "coordinateSpace": "full_resolution_pixels",
+        }
+    ]
     job_id = str(request["jobId"])
     response = client.post(
         "/v1/jobs",
@@ -170,10 +180,10 @@ def test_reconstruction_job_runs_real_ingest_and_camera_motion_then_reports_seed
     assert terminal["status"] == "failed"
     assert terminal["error"] == {
         "code": "capability_unavailable",
-        "message": "Camera motion completed, but track seeding is not implemented yet.",
+        "message": "Track seeding completed, but point tracking is not implemented yet.",
         "retryable": False,
-        "stage": "seeding",
-        "prerequisites": ["vision-pipeline:4.1"],
+        "stage": "tracking",
+        "prerequisites": ["vision-pipeline:4.2"],
     }
     assert len(cast(list[object], terminal["artifacts"])) == 1
 
@@ -187,10 +197,25 @@ def test_reconstruction_job_runs_real_ingest_and_camera_motion_then_reports_seed
     assert camera_stage.footage_id == "fixture-clean-four-bar"
     assert camera_stage.quality.valid_frame_fraction > 0.9
     assert camera_stage.stabilized_preview.byte_size > 0
+    assert artifact.seeding_analysis is not None
+    seeding_stage = artifact.seeding_analysis[0]
+    assert seeding_stage.format == "orrery.engine.seeding"
+    assert seeding_stage.schema_version == 1
+    assert seeding_stage.coverage
+    assert any(point.source == "user_joint" for point in seeding_stage.points)
+    user_point = next(point for point in seeding_stage.points if point.source == "user_joint")
+    assert (user_point.x_px, user_point.y_px) == (160, 120)
+    assert user_point.frame_index == 3
+    assert seeding_stage.moving_mask.byte_size > 0
+    assert seeding_stage.reseeding_policy.interval_frames == 15
     with av.open(io.BytesIO(base64.b64decode(camera_stage.stabilized_preview.data))) as preview:
         assert preview.streams.video[0].codec_context.name == "h264"
         assert preview.streams.video[0].frames == 60
-    assert [stage.stage for stage in artifact.stage_runtimes] == ["ingest", "camera_motion"]
+    assert [stage.stage for stage in artifact.stage_runtimes] == [
+        "ingest",
+        "camera_motion",
+        "seeding",
+    ]
     assert artifact.ingest is not None
     footage = artifact.ingest[0]
     assert (footage.width, footage.height) == (320, 240)
@@ -223,6 +248,12 @@ def test_reconstruction_job_runs_real_ingest_and_camera_motion_then_reports_seed
         "stage_completed",
         "artifact_written",
         "stage_started",
+        "progress",
+        "progress",
+        "progress",
+        "stage_completed",
+        "artifact_written",
+        "stage_started",
         "failed",
     ]
 
@@ -244,7 +275,7 @@ def test_real_handheld_fixture_runs_ingest_then_camera_motion(
     )
     terminal = wait_terminal(client, str(request["jobId"]))
     assert response.status_code == 202
-    assert terminal["error"]["stage"] == "seeding"
+    assert terminal["error"]["stage"] == "tracking"
     artifact_bytes = job_server.artifact
     assert artifact_bytes is not None
     artifact = AnalysisArtifacts.model_validate_json(artifact_bytes)
@@ -313,7 +344,7 @@ def test_reconstruction_ingest_applies_rotation_and_normalizes_vfr(
     terminal = wait_terminal(client, str(rotated["jobId"]))
     assert response.status_code == 202
     assert terminal["error"]["code"] == "capability_unavailable"
-    assert terminal["error"]["stage"] == "seeding"
+    assert terminal["error"]["stage"] == "tracking"
     rotated_bytes = job_server.artifact
     assert rotated_bytes is not None
     rotated_artifact = AnalysisArtifacts.model_validate_json(rotated_bytes)
@@ -375,7 +406,7 @@ def test_reconstruction_job_can_be_canceled_within_ten_seconds(
     assert terminal["error"]["code"] == "canceled"
 
 
-def test_reconstruction_resumes_from_the_camera_motion_checkpoint_after_restart(
+def test_reconstruction_resumes_from_the_seeding_checkpoint_after_restart(
     file_server: str, job_server: JobServer, tmp_path: Path
 ) -> None:
     request = reconstruction_request(file_server, job_server.origin)
@@ -396,15 +427,15 @@ def test_reconstruction_resumes_from_the_camera_motion_checkpoint_after_restart(
         assert first.post("/v1/jobs", json=request, headers=headers).status_code == 202
         assert wait_terminal(first, job_id)["error"]["code"] == "capability_unavailable"
     with job_server.lock:
-        after_camera_puts = job_server.put_count
-    assert after_camera_puts == initial_puts + 2
+        after_seeding_puts = job_server.put_count
+    assert after_seeding_puts == initial_puts + 3
 
     with running_engine(settings) as resumed:
         assert resumed.post("/v1/jobs", json=request, headers=headers).status_code == 202
         terminal = wait_terminal(resumed, job_id)
-    assert terminal["error"]["stage"] == "seeding"
+    assert terminal["error"]["stage"] == "tracking"
     with job_server.lock:
-        assert job_server.put_count == after_camera_puts
+        assert job_server.put_count == after_seeding_puts
         job_events = [event for event in job_server.events if event["jobId"] == job_id]
     assert [event["type"] for event in job_events[-2:]] == ["stage_started", "failed"]
 

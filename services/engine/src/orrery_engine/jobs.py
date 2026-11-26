@@ -24,6 +24,7 @@ from orrery_engine.generated.contract import (
     JobStatus3,
     ReconstructJobRequest,
 )
+from orrery_engine.job_artifacts import build_analysis_artifact
 from orrery_engine.job_camera_motion import (
     CameraMotionStageOutput,
     load_camera_motion_stage,
@@ -36,6 +37,12 @@ from orrery_engine.job_ingest import (
     run_ingest_stage,
 )
 from orrery_engine.job_models import JobCanceledError, JobFailureError, JobRecord
+from orrery_engine.job_seeding import (
+    SeedingError,
+    SeedingStageOutput,
+    load_seeding_stage,
+    run_seeding_stage,
+)
 from orrery_engine.job_support import (
     job_error as _error,
 )
@@ -49,7 +56,12 @@ from orrery_engine.probe import SourceUnavailableError, TooLargeError
 from orrery_engine.settings import Settings
 
 MEDIA_TYPE = "application/vnd.orrery.analysis-artifacts+json"
-STAGE_GRAPH = {"ingest": (), "camera_motion": ("ingest",)}
+STAGE_GRAPH = {
+    "ingest": (),
+    "camera_motion": ("ingest",),
+    "seeding": ("camera_motion",),
+    "tracking": ("seeding",),
+}
 
 
 class JobManager:
@@ -157,20 +169,28 @@ class JobManager:
             else:
                 camera = load_camera_motion_stage(self._job_dir(record.job_id))
             self._route_spatial_if_needed(record, camera)
-            self._emit(record, "stage_started", {"stage": "seeding"})
+            if "seeding" not in record.completed_stages:
+                self._run_seeding(record, camera)
+            else:
+                load_seeding_stage(self._job_dir(record.job_id))
+            with record.lock:
+                record.current_stage = "tracking"
+                record.progress = 0.0
+                self._checkpoint(record)
+            self._emit(record, "stage_started", {"stage": "tracking"})
             raise JobFailureError(
                 _error(
                     "capability_unavailable",
-                    "Camera motion completed, but track seeding is not implemented yet.",
-                    stage="seeding",
-                    prerequisites=("vision-pipeline:4.1",),
+                    "Track seeding completed, but point tracking is not implemented yet.",
+                    stage="tracking",
+                    prerequisites=("vision-pipeline:4.2",),
                 )
             )
         except JobCanceledError:
             self._finish_failure(record, _error("canceled", "The reconstruction job was canceled."))
         except JobFailureError as failure:
             self._finish_failure(record, failure.error)
-        except (IngestChecksumError, CameraMotionError) as failure:
+        except (IngestChecksumError, CameraMotionError, SeedingError) as failure:
             self._finish_failure(
                 record,
                 _error(
@@ -215,7 +235,8 @@ class JobManager:
             check_canceled=lambda: self._check_canceled(record),
             progress=lambda fraction, description: self._progress(record, fraction, description),
         )
-        artifact = self._analysis_artifact(
+        artifact = build_analysis_artifact(
+            self._settings.engine_version,
             record,
             ingest=list(output.manifests),
             pending_runtime=("ingest", output.runtime_ms),
@@ -236,7 +257,8 @@ class JobManager:
             check_canceled=lambda: self._check_canceled(record),
             progress=lambda fraction, description: self._progress(record, fraction, description),
         )
-        artifact = self._analysis_artifact(
+        artifact = build_analysis_artifact(
+            self._settings.engine_version,
             record,
             ingest=list(load_ingest_manifests(self._job_dir(record.job_id))),
             camera=output,
@@ -246,36 +268,35 @@ class JobManager:
         self._complete_stage(record, "camera_motion", output.runtime_ms, descriptor)
         return output
 
-    def _analysis_artifact(
-        self,
-        record: JobRecord,
-        *,
-        ingest: list[dict[str, object]],
-        camera: CameraMotionStageOutput | None = None,
-        pending_runtime: tuple[str, float] | None = None,
-    ) -> AnalysisArtifacts:
-        runtimes = dict(record.stage_runtimes)
-        if pending_runtime is not None:
-            runtimes[pending_runtime[0]] = pending_runtime[1]
-        return AnalysisArtifacts.model_validate(
-            {
-                "format": "orrery.engine.analysis-artifacts",
-                "schemaVersion": 1,
-                "engineVersion": self._settings.engine_version,
-                "tracks": [],
-                "cameraMotion": list(camera.motions) if camera else [],
-                "cameraMotionAnalysis": list(camera.manifests) if camera else None,
-                "bodies": [],
-                "joints": [],
-                "parameters": [],
-                "diagnosis": [],
-                "resurrection": [],
-                "stageRuntimes": [
-                    {"stage": stage, "runtimeMs": runtime} for stage, runtime in runtimes.items()
-                ],
-                "ingest": ingest,
-            }
+    def _run_seeding(
+        self, record: JobRecord, camera: CameraMotionStageOutput
+    ) -> SeedingStageOutput:
+        with record.lock:
+            record.current_stage = "seeding"
+            record.progress = 0.0
+            self._checkpoint(record)
+        self._emit(record, "stage_started", {"stage": "seeding"})
+        ingest = load_ingest_manifests(self._job_dir(record.job_id))
+        output = run_seeding_stage(
+            record.request,
+            self._job_dir(record.job_id),
+            self._settings,
+            camera,
+            ingest_manifests=ingest,
+            check_canceled=lambda: self._check_canceled(record),
+            progress=lambda fraction, description: self._progress(record, fraction, description),
         )
+        artifact = build_analysis_artifact(
+            self._settings.engine_version,
+            record,
+            ingest=list(ingest),
+            camera=camera,
+            seeding=output,
+            pending_runtime=("seeding", output.runtime_ms),
+        )
+        descriptor = self._upload_artifact(record, artifact)
+        self._complete_stage(record, "seeding", output.runtime_ms, descriptor)
+        return output
 
     def _complete_stage(
         self,

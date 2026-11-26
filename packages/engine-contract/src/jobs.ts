@@ -15,6 +15,22 @@ export const artifactUploadGrant = z
   .strict()
   .meta({ id: "ArtifactUploadGrant", title: "ArtifactUploadGrant" });
 
+const pointAnnotation = z
+  .object({
+    annotationId: identifier,
+    footageId: identifier,
+    frameIndex: z.number().int().nonnegative(),
+    kind: z.enum(["joint", "part_prompt"]),
+    point: z
+      .object({
+        xPx: z.number().nonnegative(),
+        yPx: z.number().nonnegative(),
+      })
+      .strict(),
+    coordinateSpace: z.literal("full_resolution_pixels"),
+  })
+  .strict();
+
 export const reconstructJobRequest = z
   .object({
     contractVersion: z.string().min(1).max(16),
@@ -34,6 +50,7 @@ export const reconstructJobRequest = z
           )
           .min(1)
           .max(8),
+        annotations: z.array(pointAnnotation).max(10000).optional(),
       })
       .strict(),
     params: z
@@ -408,6 +425,68 @@ const ingestFootageArtifact = z
   })
   .strict();
 
+const seedingReseedingPolicy = z
+  .object({
+    intervalFrames: z.number().int().positive(),
+    regionalCoverageThreshold: z.number().min(0).max(1),
+  })
+  .strict();
+
+const seedPointArtifact = z
+  .object({
+    seedId: identifier,
+    xPx: z.number().nonnegative(),
+    yPx: z.number().nonnegative(),
+    source: z.enum([
+      "shi_tomasi",
+      "circular_hole",
+      "user_joint",
+      "user_part_prompt",
+      "reseeded_shi_tomasi",
+    ]),
+    type: z.enum(["corner", "hole", "pivot", "prompt"]),
+    confidence: z.number().min(0).max(1),
+    frameIndex: z.number().int().nonnegative(),
+    detectionScale: z.enum(["analysis", "full_resolution", "user_full_resolution"]),
+    regionId: identifier.optional(),
+    sourceXPx: z.number().nonnegative().optional(),
+    sourceYPx: z.number().nonnegative().optional(),
+    annotationId: identifier.optional(),
+  })
+  .strict();
+
+const seedingCoverageArtifact = z
+  .object({
+    regionId: identifier,
+    boundingBox: z.array(z.number().int().nonnegative()).length(4),
+    movingPixelCount: z.number().int().nonnegative(),
+    eligibleCellCount: z.number().int().nonnegative(),
+    coveredCellCount: z.number().int().nonnegative(),
+    seedCount: z.number().int().nonnegative(),
+    coverageFraction: z.number().min(0).max(1),
+  })
+  .strict();
+
+const seedingFootageArtifact = z
+  .object({
+    format: z.literal("orrery.engine.seeding"),
+    schemaVersion: z.literal(1),
+    footageId: identifier,
+    coordinateSpace: z.literal("analysis_pixels"),
+    analysisWidth: z.number().int().positive(),
+    analysisHeight: z.number().int().positive(),
+    sourceWidth: z.number().int().positive(),
+    sourceHeight: z.number().int().positive(),
+    scaleXFromSource: z.number().positive(),
+    scaleYFromSource: z.number().positive(),
+    keyFrameIndices: z.array(z.number().int().nonnegative()).min(1),
+    movingMask: embeddedMediaArtifact,
+    points: z.array(seedPointArtifact),
+    coverage: z.array(seedingCoverageArtifact),
+    reseedingPolicy: seedingReseedingPolicy,
+  })
+  .strict();
+
 export const analysisArtifacts = z
   .object({
     format: z.literal("orrery.engine.analysis-artifacts"),
@@ -416,6 +495,7 @@ export const analysisArtifacts = z
     tracks: z.array(trackArtifact),
     cameraMotion: z.array(cameraMotionArtifact),
     cameraMotionAnalysis: z.array(cameraMotionFootageArtifact).optional(),
+    seedingAnalysis: z.array(seedingFootageArtifact).optional(),
     bodies: z.array(bodyArtifact),
     joints: z.array(jointArtifact),
     mobility: z.number().int().optional(),

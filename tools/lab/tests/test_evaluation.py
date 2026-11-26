@@ -474,5 +474,5 @@ def test_real_engine_accepts_job_contract_and_reports_missing_stages() -> None:
                 callback_secret="c" * 40,
             )
         assert caught.value.code == "capability_unavailable"
-        assert caught.value.stage == "seeding"
-        assert caught.value.prerequisites == ("vision-pipeline:4.1",)
+        assert caught.value.stage == "tracking"
+        assert caught.value.prerequisites == ("vision-pipeline:4.2",)

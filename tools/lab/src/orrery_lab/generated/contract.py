@@ -70,12 +70,35 @@ class FootageItem(BaseModel):
     sha256: Annotated[str | None, Field(pattern="^[0-9a-f]{64}$")] = None
 
 
+class Point(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    x_px: Annotated[float, Field(alias="xPx", ge=0.0)]
+    y_px: Annotated[float, Field(alias="yPx", ge=0.0)]
+
+
+class Annotation(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    annotation_id: Annotated[str, Field(alias="annotationId", max_length=200, min_length=1)]
+    footage_id: Annotated[str, Field(alias="footageId", max_length=200, min_length=1)]
+    frame_index: Annotated[int, Field(alias="frameIndex", ge=0, le=9007199254740991)]
+    kind: Literal["joint", "part_prompt"]
+    point: Point
+    coordinate_space: Annotated[Literal["full_resolution_pixels"], Field(alias="coordinateSpace")]
+
+
 class Inputs(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
     )
     footage: Annotated[list[FootageItem], Field(max_length=8, min_length=1)]
+    annotations: Annotated[list[Annotation] | None, Field(max_length=10000)] = None
 
 
 class Params(BaseModel):
@@ -484,6 +507,102 @@ class CameraMotionAnalysi(BaseModel):
     quality: Quality
 
 
+class KeyFrameIndice(RootModel[int]):
+    root: Annotated[int, Field(ge=0, le=9007199254740991)]
+
+
+class MovingMask(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    filename: Annotated[str, Field(max_length=200, min_length=1)]
+    media_type: Annotated[str, Field(alias="mediaType", max_length=200, min_length=1)]
+    encoding: Literal["base64"]
+    byte_size: Annotated[int, Field(alias="byteSize", ge=0, le=9007199254740991)]
+    sha256: Annotated[str, Field(pattern="^[0-9a-f]{64}$")]
+    data: str
+
+
+class Point1(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    seed_id: Annotated[str, Field(alias="seedId", max_length=200, min_length=1)]
+    x_px: Annotated[float, Field(alias="xPx", ge=0.0)]
+    y_px: Annotated[float, Field(alias="yPx", ge=0.0)]
+    source: Literal[
+        "shi_tomasi", "circular_hole", "user_joint", "user_part_prompt", "reseeded_shi_tomasi"
+    ]
+    type: Literal["corner", "hole", "pivot", "prompt"]
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    frame_index: Annotated[int, Field(alias="frameIndex", ge=0, le=9007199254740991)]
+    detection_scale: Annotated[
+        Literal["analysis", "full_resolution", "user_full_resolution"],
+        Field(alias="detectionScale"),
+    ]
+    region_id: Annotated[str | None, Field(alias="regionId", max_length=200, min_length=1)] = None
+    source_x_px: Annotated[float | None, Field(alias="sourceXPx", ge=0.0)] = None
+    source_y_px: Annotated[float | None, Field(alias="sourceYPx", ge=0.0)] = None
+    annotation_id: Annotated[
+        str | None, Field(alias="annotationId", max_length=200, min_length=1)
+    ] = None
+
+
+class BoundingBoxItem(RootModel[int]):
+    root: Annotated[int, Field(ge=0, le=9007199254740991)]
+
+
+class CoverageItem(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    region_id: Annotated[str, Field(alias="regionId", max_length=200, min_length=1)]
+    bounding_box: Annotated[
+        list[BoundingBoxItem], Field(alias="boundingBox", max_length=4, min_length=4)
+    ]
+    moving_pixel_count: Annotated[int, Field(alias="movingPixelCount", ge=0, le=9007199254740991)]
+    eligible_cell_count: Annotated[int, Field(alias="eligibleCellCount", ge=0, le=9007199254740991)]
+    covered_cell_count: Annotated[int, Field(alias="coveredCellCount", ge=0, le=9007199254740991)]
+    seed_count: Annotated[int, Field(alias="seedCount", ge=0, le=9007199254740991)]
+    coverage_fraction: Annotated[float, Field(alias="coverageFraction", ge=0.0, le=1.0)]
+
+
+class ReseedingPolicy(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    interval_frames: Annotated[int, Field(alias="intervalFrames", gt=0, le=9007199254740991)]
+    regional_coverage_threshold: Annotated[
+        float, Field(alias="regionalCoverageThreshold", ge=0.0, le=1.0)
+    ]
+
+
+class SeedingAnalysi(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    format: Literal["orrery.engine.seeding"]
+    schema_version: Annotated[Literal[1], Field(alias="schemaVersion")]
+    footage_id: Annotated[str, Field(alias="footageId", max_length=200, min_length=1)]
+    coordinate_space: Annotated[Literal["analysis_pixels"], Field(alias="coordinateSpace")]
+    analysis_width: Annotated[int, Field(alias="analysisWidth", gt=0, le=9007199254740991)]
+    analysis_height: Annotated[int, Field(alias="analysisHeight", gt=0, le=9007199254740991)]
+    source_width: Annotated[int, Field(alias="sourceWidth", gt=0, le=9007199254740991)]
+    source_height: Annotated[int, Field(alias="sourceHeight", gt=0, le=9007199254740991)]
+    scale_x_from_source: Annotated[float, Field(alias="scaleXFromSource", gt=0.0)]
+    scale_y_from_source: Annotated[float, Field(alias="scaleYFromSource", gt=0.0)]
+    key_frame_indices: Annotated[list[KeyFrameIndice], Field(alias="keyFrameIndices", min_length=1)]
+    moving_mask: Annotated[MovingMask, Field(alias="movingMask")]
+    points: list[Point1]
+    coverage: list[CoverageItem]
+    reseeding_policy: Annotated[ReseedingPolicy, Field(alias="reseedingPolicy")]
+
+
 class Pose(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -672,6 +791,7 @@ class AnalysisArtifacts(BaseModel):
     camera_motion_analysis: Annotated[
         list[CameraMotionAnalysi] | None, Field(alias="cameraMotionAnalysis")
     ] = None
+    seeding_analysis: Annotated[list[SeedingAnalysi] | None, Field(alias="seedingAnalysis")] = None
     bodies: list[Body]
     joints: list[Joint]
     mobility: Annotated[int | None, Field(ge=-9007199254740991, le=9007199254740991)] = None

@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import cast
 
 import pytest
 from orrery_engine.generated.contract import (
@@ -27,6 +28,21 @@ def test_generated_models_accept_the_golden_messages() -> None:
     assert rejected.outcome == "rejected"
     job = ReconstructJobRequest.model_validate(golden("reconstruct-job-request.json"))
     assert job.kind == "reconstruct"
+    annotated = golden("reconstruct-job-request.json")
+    inputs = cast(dict[str, object], annotated["inputs"])
+    inputs["annotations"] = [
+        {
+            "annotationId": "joint-1",
+            "footageId": "fixture-clean-four-bar",
+            "frameIndex": 4,
+            "kind": "joint",
+            "point": {"xPx": 12.5, "yPx": 20.25},
+            "coordinateSpace": "full_resolution_pixels",
+        }
+    ]
+    annotation = ReconstructJobRequest.model_validate(annotated).inputs.annotations
+    assert annotation is not None
+    assert annotation[0].point.x_px == 12.5
     job_rejected = JobSubmissionResponse.model_validate(
         golden("reconstruct-job-rejected.json")
     ).root

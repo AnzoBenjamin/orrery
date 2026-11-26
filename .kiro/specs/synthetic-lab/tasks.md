@@ -38,8 +38,9 @@
     - `render3d/` builds deterministic Blender 5.3 scenes for real CPU Cycles. Planar outlines are embedded in their graph planes, extruded to dressed thickness, and beveled; spatial mechanisms become rods at their world points. PBR materials, area lighting, stable per-body object indices, seeded orbit paths, and smooth band-limited handheld paths support planar, multi-plane, and RSSR scenes. Blender's actual Combined, Z, and IndexOB compositor passes are written as uncompressed EXR and decoded into typed RGB, depth, and instance arrays with explicit background conventions. Tiny real-Cycles tests cover planar extrusion, spatial rods, multi-plane extent, both camera paths, pass dimensions and IDs, and exact repeated output. `bpy==5.3.0` is pinned; these renders remain developer/CI work and are never required on the production VPS.
 
 - [ ] 4. Degradations
-  - [ ] 4.1 Implement shake, motion blur, rolling shutter, noise, and exposure drift.
+  - [x] 4.1 Implement shake, motion blur, rolling shutter, noise, and exposure drift.
     - _Requirements: 4.1, 4.2_
+    - `degrade/` operates on validated float32 linear RGB and timestamped cameras/subframes. Camera shake is a seeded 0.5–8 Hz Fourier trajectory over center, tilt, and roll, clamped to the legal 25° tilt; focus breathing varies focal length on the same timestamp domain. Temporal degradation integrates real supersamples over box-shutter intervals and samples row-specific exposure centers for rolling shutter. The sensor stage applies low-frequency auto-exposure in linear light, then Poisson shot and Gaussian read noise, clipping only at the declared output boundary. Frozen metadata records every frequency term, per-frame camera/focal/exposure sample, shutter and row timing, full-well capacity, and read-noise parameter. Tests cover smooth frequency bounds, static identity, moving-edge blur, row skew, noise statistics, metadata completeness, invalid inputs, and exact seeded determinism.
   - [ ] 4.2 Implement encoding variants, VFR, and dropped frames.
     - _Requirements: 4.3_
   - [ ] 4.3 Implement the archival profile and record all degradation parameters.

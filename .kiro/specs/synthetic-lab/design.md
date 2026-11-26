@@ -57,10 +57,11 @@ class Family(Protocol):
 
 | Degradation | Method |
 |---|---|
-| Shake | camera pose random walk filtered to 0.5–8 Hz |
-| Motion blur | render 8–16 subframes per frame and average |
-| Rolling shutter | per-row time offset when sampling subframes |
-| Noise, exposure | Poisson-Gaussian sensor noise, exposure random walk |
+| Shake | Seeded Fourier camera center, tilt, and roll terms restricted to 0.5–8 Hz; tilt remains within 25° |
+| Focus breathing | Low-frequency focal-length trajectory sampled on frame timestamps |
+| Motion blur | Box-shutter integration of genuinely rendered temporal supersamples |
+| Rolling shutter | Per-row exposure-center offsets with temporal interpolation before shutter integration |
+| Noise, exposure | Low-frequency auto-exposure in linear light, then Poisson shot and Gaussian read noise |
 | Compression | FFmpeg libx264, libx265, libvpx-vp9 with randomized CRF and GOP |
 | VFR, drops | timestamp jitter and dropped frames written with an explicit timecode track |
 | Archival | 12–24 fps, grain, gate weave (low-frequency translation), flicker, scratch and dust sprites, vignette, tone curves |

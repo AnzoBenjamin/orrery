@@ -44,8 +44,9 @@
   - [x] 4.2 Implement encoding variants, VFR, and dropped frames.
     - _Requirements: 4.3_
     - `degrade/encoding*.py` and `ffmpeg.py` select seeded H.264, H.265, or VP9 profiles with recorded CRF, GOP, thread count, pixel format, mux options, VFR jitter, and dropped-frame indices. Real FFmpeg encodes MP4 for H.264/H.265 and WebM for VP9 from validated uint8 RGB. A millisecond time base preserves explicit presentation timestamps and leaves gaps where frames were dropped rather than silently collapsing to CFR. Real ffprobe verification records codec, dimensions, frame count, native PTS, and normalized timestamps. Fixed metadata, threads, and mux flags produce deterministic bytes. Tests cover every codec, VFR, drop accounting, probing, metadata JSON, executable paths with spaces, invalid inputs, and exact determinism.
-  - [ ] 4.3 Implement the archival profile and record all degradation parameters.
+  - [x] 4.3 Implement the archival profile and record all degradation parameters.
     - _Requirements: 4.4, 4.5_
+    - `degrade/archival*.py` resamples clips to a seeded 12–24 fps timeline, then applies smooth low-frequency gate weave and flicker, luminance-aware temporal film grain, persistent seeded scratches and dust with recorded lifetimes and trajectories, radial vignetting, and linear-light sepia or monochrome tone. Gate weave uses bilinear subpixel translation with constant-black borders. Frozen clip, frame, timing, and artifact metadata records every sampled parameter; equal seeds produce identical float32 linear RGB and metadata. Tests cover timing, trajectory smoothness, grain statistics, artifact persistence, vignette falloff, both tones, complete JSON records, validation, and exact determinism.
 
 - [ ] 5. Ground truth and suites
   - [ ] 5.1 Implement the export format (MP4, `truth.json`, Arrow, masks, depth). Property test 3.

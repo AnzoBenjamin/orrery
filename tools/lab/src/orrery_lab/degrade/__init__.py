@@ -1,5 +1,22 @@
-"""Deterministic camera, temporal, sensor, and video encoding degradation."""
+"""Deterministic camera, temporal, sensor, archival, and video encoding degradation."""
 
+from orrery_lab.degrade.archival import degrade_archival
+from orrery_lab.degrade.archival_types import (
+    ArchivalDegradeConfig,
+    ArchivalDegradeMetadata,
+    ArchivalDegradeResult,
+    ArchivalFrameMetadata,
+    ArchivalRGBSequence,
+    ArchivalTimingMetadata,
+    ArchivalTone,
+    DustEventMetadata,
+    FlickerFourierTerm,
+    ResampleFrameMetadata,
+    ScratchEventMetadata,
+    ToneMetadata,
+    VignetteMetadata,
+    WeaveFourierTerm,
+)
 from orrery_lab.degrade.camera import (
     CameraDegradeConfig,
     CameraDegradeMetadata,
@@ -39,6 +56,13 @@ from orrery_lab.degrade.temporal import (
 )
 
 __all__ = [
+    "ArchivalDegradeConfig",
+    "ArchivalDegradeMetadata",
+    "ArchivalDegradeResult",
+    "ArchivalFrameMetadata",
+    "ArchivalRGBSequence",
+    "ArchivalTimingMetadata",
+    "ArchivalTone",
     "CameraDegradeConfig",
     "CameraDegradeMetadata",
     "CameraDegradeResult",
@@ -47,6 +71,7 @@ __all__ = [
     "CodecName",
     "CodecProfile",
     "ContainerName",
+    "DustEventMetadata",
     "EncodingConfig",
     "EncodingError",
     "EncodingMetadata",
@@ -54,8 +79,11 @@ __all__ = [
     "EncodingTimingMetadata",
     "ExposureFourierTerm",
     "FFmpegAdapter",
+    "FlickerFourierTerm",
     "PixelFormat",
     "ProbeMetadata",
+    "ResampleFrameMetadata",
+    "ScratchEventMetadata",
     "SensorDegradeConfig",
     "SensorDegradeMetadata",
     "SensorDegradeResult",
@@ -63,6 +91,10 @@ __all__ = [
     "TemporalDegradeConfig",
     "TemporalDegradeMetadata",
     "TemporalDegradeResult",
+    "ToneMetadata",
+    "VignetteMetadata",
+    "WeaveFourierTerm",
+    "degrade_archival",
     "degrade_camera",
     "degrade_sensor",
     "degrade_temporal",

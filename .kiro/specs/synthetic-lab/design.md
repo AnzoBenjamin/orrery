@@ -64,7 +64,7 @@ class Family(Protocol):
 | Noise, exposure | Low-frequency auto-exposure in linear light, then Poisson shot and Gaussian read noise |
 | Compression | Real FFmpeg libx264/libx265/libvpx-vp9 with seeded CRF, GOP, pixel format, fixed threads, and deterministic mux metadata |
 | VFR, drops | Millisecond presentation timeline with seeded interval jitter; dropped source indices retain explicit timestamp gaps verified by ffprobe |
-| Archival | 12–24 fps, grain, gate weave (low-frequency translation), flicker, scratch and dust sprites, vignette, tone curves |
+| Archival | Seeded 12–24 fps resampling, smooth gate weave/flicker, luminance-aware grain, persistent recorded scratches/dust, radial vignette, and linear-light sepia or monochrome tone |
 
 ## Ground truth format
 

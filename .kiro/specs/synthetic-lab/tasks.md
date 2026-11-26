@@ -1,6 +1,6 @@
 # Tasks: Synthetic lab
 
-- [ ] 1. Lab package and families
+- [x] 1. Lab package and families
   - [x] 1.1 Create `tools/lab` with Typer CLI, the `Family` protocol, parameter spaces, and feasibility checks using `orrery_kinematics`.
     - _Requirements: 1.2, 1.5_
     - `orrery-lab` (`version`, `families`, `sample`). A family's `build` draws every body in world coordinates at driver zero, so the drawn pose holds and fixes the branch, and returns the driver range (cyclic for cranks, rocking otherwise) and its breakable parts. Documents are checked by the Pydantic models generated from the shared JSON Schema (copied into the lab by `pnpm codegen`) and by the solver's validation. Feasibility sweeps outward from the drawn pose to both ends of the range: one unbroken reachable range, no dead center, no branch point unless the family allows it, no collisions, and a driven transmission angle (at the coupler-output joint) of at least the family minimum, 20° by default. Rejection sampling with one generator per seed. Property 1 runs under Hypothesis.
@@ -13,22 +13,29 @@
   - [x] 1.4 Implement spatial RSSR and multi-plane samples.
     - _Requirements: 1.1_
     - `families/spatial.py`: RSSR on skew axles (spatial bodies drawn in world coordinates), and `two-plane-cardan`, two crank-rockers in different planes joined by a double-Cardan shaft with a slip joint. Tests: RSSR links stay rigid and the rocker's ball turns in the plane of its axle; between parallel planes the in-phase Cardan pair turns the output exactly with the input, and a tilted rear plane makes it lead and lag within a turn. The drawn-pose check maps each planar body's plane coordinates to the world.
-  - [ ] 1.5 Implement appearance generation (outlines, involute gears, holes, decorations) and the compound-machine composer. Property test 1.
+  - [x] 1.5 Implement appearance generation (outlines, involute gears, holes, decorations) and the compound-machine composer. Property test 1.
     - _Requirements: 1.3, 1.4_
+    - `shapes.py` builds counter-clockwise rounded plates, stadium slots, standard 20° involute spur gears, racks, Fourier cam profiles, and Geneva wheels. `appearance.py` dresses every accepted sample with thickness, collision-checked layer offsets, joint holes, lightening cut-outs, rivets, printed patterns, specimen tags, a frame plate and bosses, or rods for spatial bodies. Dressing is deterministic from the sample seed and the dressed graph is revalidated against the shared schema and real solver.
+    - `composer.py` namespaces, similarity-transforms, and merges two planar accepted samples onto one ground. It removes the second driver and connects the first fixed-axis output to the second input through either a non-singular double-crank coupling link or an external gear pair, then the whole compound is dressed and collision-checked together. Tests sweep both coupling modes with the real solver. Property 1 now runs against dressed documents, and appearance tests cover schema-valid outlines, deterministic decoration, and involute radii.
 
-- [ ] 2. Breakage
-  - [ ] 2.1 Implement part removal with hole points and ground-truth records. Property test 4.
+- [x] 2. Breakage
+  - [x] 2.1 Implement part removal with hole points and ground-truth records. Property test 4.
     - _Requirements: 2.1, 2.3_
-  - [ ] 2.2 Implement loose-part planar dynamics with gravity, friction, and ground contact. Property test 5.
+    - `breakage.py` applies only a family's declared `PartRef`: one binary link, slider block, gear, belt, or adjacent-link pair. It removes every incident joint and dangling driver, preserves complete body, appearance, and joint snapshots in a versioned record, adds schema `hole` points and visible scuff/ring/mesh/belt wear to surviving parts, and validates the broken graph with both the generated Pydantic model and real solver. Selection and records are deterministic. Hypothesis property 4 checks that physical removed anchors coincide with the new hole points; prismatic guide references are recorded as non-coincident wear rather than falsely equated anchors.
+  - [x] 2.2 Implement loose-part planar dynamics with gravity, friction, and ground contact. Property test 5.
     - _Requirements: 2.2_
+    - `dynamics.py`, `dynamics_constraints.py`, and `dynamics_geometry.py` use the solver's numerical free modes to select only newly loose bodies while locking surviving drivers at the break pose. Uniform plate mass properties include cut-outs and holes. A fixed-step velocity-Verlet/RATTLE integrator applies gravity, revolute and prismatic friction, deterministic point impulses, revolute/prismatic/gear/rack/belt constraints, prismatic limits, and horizontal-ground restitution plus Coulomb friction. Frames report body-origin poses separately from the schema graph. Every declared native planar breakage builds and steps; spatial or unsupported active modes fail explicitly. Property 5 keeps frictionless one-second energy drift below 1%, and tests cover hanging links, sliders, coupled gears, pushes, contact, and exact determinism.
 
-- [ ] 3. Rendering
-  - [ ] 3.1 Implement the Skia 2D renderer with procedural and CC0 materials, shadows, camera model with tilt and distortion, and clutter.
+- [x] 3. Rendering
+  - [x] 3.1 Implement the Skia 2D renderer with procedural and CC0 materials, shadows, camera model with tilt and distortion, and clutter.
     - _Requirements: 3.1, 3.2, 3.3_
-  - [ ] 3.2 Implement animated hand and tool occluders.
+    - `render2d/camera.py` projects the mechanism plane through a fitted pinhole view with randomized roll, up to 25° tilt, and Brown–Conrady radial and tangential distortion. `materials.py` deterministically assigns cardboard, plywood, brass, steel, painted tin, and aged iron; plywood uses the bundled CC0 Poly Haven diffuse texture while the other surface detail is procedural. `renderer.py` draws the base plate, bosses, depth-ordered part outlines, cut-outs, holes, rivets, wear, material grain, blurred directional shadows, vignette, background grain, and deterministic workshop clutter on a Skia canvas. Each frame returns RGBA pixels, deterministic PNG bytes, the exact camera, material assignments, and every named point's image projection. Tests cover camera fitting/distortion, all material families, CC0 asset packaging, deterministic pixels, dynamic body poses, shadows, and clutter.
+  - [x] 3.2 Implement animated hand and tool occluders.
     - _Requirements: 3.4_
-  - [ ] 3.3 Implement the Blender 3D renderer with RGB, depth, and instance passes and multiple camera paths.
+    - `render2d/occluders.py` draws production vector hand and workshop-tool silhouettes above the mechanism. Each occluder has a validated active interval, cubic Bézier image path, scale, and angle. Rendering is deterministic at an exact frame time; inactive intervals leave bytes unchanged. Occluders never alter point projections, but each rendered frame reports named-point visibility from the same silhouettes. Tests cover interval boundaries, spline positions, hand occlusion, inactive identity, tool rendering, visibility, and deterministic bytes.
+  - [x] 3.3 Implement the Blender 3D renderer with RGB, depth, and instance passes and multiple camera paths.
     - _Requirements: 5.1, 5.2, 5.3_
+    - `render3d/` builds deterministic Blender 5.3 scenes for real CPU Cycles. Planar outlines are embedded in their graph planes, extruded to dressed thickness, and beveled; spatial mechanisms become rods at their world points. PBR materials, area lighting, stable per-body object indices, seeded orbit paths, and smooth band-limited handheld paths support planar, multi-plane, and RSSR scenes. Blender's actual Combined, Z, and IndexOB compositor passes are written as uncompressed EXR and decoded into typed RGB, depth, and instance arrays with explicit background conventions. Tiny real-Cycles tests cover planar extrusion, spatial rods, multi-plane extent, both camera paths, pass dimensions and IDs, and exact repeated output. `bpy==5.3.0` is pinned; these renders remain developer/CI work and are never required on the production VPS.
 
 - [ ] 4. Degradations
   - [ ] 4.1 Implement shake, motion blur, rolling shutter, noise, and exposure drift.

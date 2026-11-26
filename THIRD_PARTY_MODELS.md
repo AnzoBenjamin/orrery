@@ -9,3 +9,9 @@ No model is integrated yet. The table lists the models chosen in `.kiro/steering
 | SAM 2.1 (tiny or small)       | Interactive part outlining                             | Browser (transformers.js, ONNX) | Meta AI, `facebookresearch/sam2`       | 2.1      | Apache-2.0                                      | No         |
 | DINOv2 ViT-S/14               | Part re-identification between footage                 | Engine (ONNX Runtime, CPU)      | Meta AI, `facebookresearch/dinov2`     | ViT-S/14 | Apache-2.0                                      | No         |
 | CoTracker3 (optional backend) | Point tracking, only if the lab benchmark justifies it | Engine (ONNX Runtime, CPU)      | Meta AI, `facebookresearch/co-tracker` | 3        | CC-BY-NC 4.0 (weights): non-commercial use only | No         |
+
+## Assets
+
+| Asset | Used for | Source | Version | License | Checksum |
+| --- | --- | --- | --- | --- | --- |
+| Wood Planks Grey diffuse, 1K JPG | Synthetic-lab plywood image texture | Poly Haven, `wood_planks_grey` | Downloaded 2026-11-26 | CC0 1.0 | MD5 `f2b4a70fed329c13850917c5f2d1498c` |

@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 
+from orrery_lab.appearance import Appearance, AppearanceInfeasible, dress
 from orrery_lab.family import Built, Family, Infeasible
 from orrery_lab.feasibility import Verdict, check
 from orrery_lab.generated.mechanism import Mechanism
@@ -38,6 +39,7 @@ class Sample:
     params: Params
     built: Built
     mechanism: Mechanism
+    appearance: Appearance
     min_transmission: float
     rejections: Counter[str] = field(default_factory=Counter[str])
 
@@ -69,13 +71,25 @@ def generate(family: Family, seed: int, attempts: int = DEFAULT_ATTEMPTS) -> Sam
         if verdict.reason is not None or verdict.mechanism is None:
             rejections[verdict.reason or "unchecked"] += 1
             continue
+        try:
+            dressed = dress(
+                built,
+                family.requirements,
+                rng,
+                geneva_slots=int(params["slots"]) if family.name == "geneva-drive" else None,
+            )
+        except AppearanceInfeasible as error:
+            rejections[f"appearance: {error}"] += 1
+            continue
+        dressed_built = replace(built, document=dressed.document)
         return Sample(
             family=family.name,
             seed=seed,
             attempt=attempt,
             params=params,
-            built=built,
-            mechanism=verdict.mechanism,
+            built=dressed_built,
+            mechanism=Mechanism.model_validate(dressed.document),
+            appearance=dressed.appearance,
             min_transmission=verdict.min_transmission,
             rejections=rejections,
         )

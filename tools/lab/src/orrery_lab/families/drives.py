@@ -73,7 +73,9 @@ class GearTrain:
         for i in range(count):
             for j in range(i + 2, count):
                 # Gears that do not mesh must not overlap.
-                reach = module * (teeth[i] + teeth[j]) / 2 + 2 * module
+                # Two addenda make the theoretical tip circles tangent; keep another half-module
+                # so discretized involute polygons and collision tolerances have real clearance.
+                reach = module * (teeth[i] + teeth[j]) / 2 + 2.5 * module
                 if not (ring and j == count - 1) and distance(centers[i], centers[j]) < reach:
                     raise Infeasible("two gears that do not mesh overlap")
         loc = {f"axle-{i}": turn(c) for i, c in enumerate(centers)}

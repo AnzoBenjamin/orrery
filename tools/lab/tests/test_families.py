@@ -40,6 +40,7 @@ def test_every_accepted_sample_validates_and_assembles_over_its_range(name: str,
 def test_the_same_seed_gives_the_same_sample(name: str) -> None:
     a, b = generate(family(name), 7), generate(family(name), 7)
     assert a.graph_json() == b.graph_json()
+    assert a.appearance.record() == b.appearance.record()
     assert a.params == b.params
     assert generate(family(name), 8).graph_json() != a.graph_json()
 

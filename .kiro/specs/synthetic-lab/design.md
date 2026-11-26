@@ -33,21 +33,25 @@ class Family(Protocol):
 
 ## Breakage (`lab/breakage.py`)
 
-- Removes the selected parts and their joints, adds empty-hole points (`role: "hole"`) at the former anchors, and simulates the broken result.
-- Bodies that lose their constraint are simulated with a light planar rigid-body dynamics step (gravity, joint friction, contact with ground plane) so they droop or swing as real loose parts do. This uses a small explicit integrator in the lab, separate from the kinematics solver, and is validated by energy-conservation tests in the frictionless case.
+- A breakage may only select a family's declared `PartRef`. It removes selected bodies or belt joints, every joint incident to a removed body, and any driver left dangling. The versioned ground-truth record retains full removed body, appearance, and joint documents. Surviving attachment sites receive schema points with `role: "hole"`; dressed appearance receives matching holes plus scuff, ring, mesh, or belt wear. Revolute-style anchors must coincide exactly. Prismatic guide references are not falsely treated as coincident anchors.
+- Planar dynamics holds surviving drivers at their break-pose value and asks `orrery_kinematics` mobility for the bodies participating in newly free modes. Uniform-density plate mass and inertia come from dressed outlines after subtracting cut-outs and unique holes. The fixed-step velocity-Verlet/RATTLE solver enforces active revolute, prismatic, gear/rack, and belt constraints, prismatic limits, gravity, viscous joint friction, deterministic point impulses, and horizontal-ground restitution and Coulomb friction. Dynamic poses remain frame data; they never mutate the schema graph.
+- Total energy is translational plus rotational kinetic energy and gravitational potential relative to the ground line. With friction disabled and no contact, one-second drift must remain below 1%. Spatial and multi-plane free modes, or an active constraint outside the supported planar set, raise an explicit error rather than being silently frozen. Body-to-body impact is deferred to rendering/scene composition; task 2.2's contact surface is the ground plane.
 
 ## Renderers
 
 ### 2D (`lab/render2d/`)
 
-- Skia canvas per frame. Material shaders are procedural textures (fBm noise, wood grain, brushed metal anisotropy) plus image textures from CC0 sources (Poly Haven, ambientCG) recorded with attribution in `THIRD_PARTY_MODELS.md` assets section.
-- Shadows: offset blurred silhouettes from the light direction. Depth ordering per body from the sample's layer order.
-- Camera: homography from plane to image composed with Brown–Conrady distortion.
-- Occluders: hand silhouettes from a CC0 hand-pose mask set, animated along splines.
+- A fitted pinhole camera projects the mechanism plane through sampled roll and at most 25° x/y tilt, followed by Brown–Conrady radial and tangential lens distortion. The same immutable camera projects render geometry and named ground-truth points.
+- Skia draws one deterministic RGBA canvas per frame. Materials cover cardboard, plywood, brass, steel, painted tin, and aged iron. Surface detail is procedural except for the bundled Poly Haven `wood_planks_grey` 1K diffuse texture (CC0, checksum and attribution in `THIRD_PARTY_MODELS.md`), which is packaged with the lab.
+- The renderer draws the frame plate and bosses, moving bodies by layer offset, cut-outs, holes, rivets, breakage wear, material grain, edges, and blurred shadows. Procedural background grain, vignette, and workshop clutter are seeded scene elements and never enter point or mechanism ground truth. Output includes RGBA pixels, PNG bytes, camera parameters, material assignments, and every named point in image pixels.
+- Occluders are deterministic vector hand and workshop-tool silhouettes, drawn above parts during validated time intervals. Their image-space motion follows cubic Bézier paths with configurable scale and angle. They never perturb mechanism or point projection ground truth; the renderer separately marks each named point visible or covered from the same silhouette hit test.
 
 ### 3D (`lab/render3d/`)
 
-- Blender as a Python module. Outlines extruded with bevels. PBR materials from the same sources. Cycles on CPU with denoising and low sample counts for speed, higher counts for the realism tier. Rendered clips are cached by manifest hash so each is rendered once. Outputs RGB, depth, and instance ID passes.
+- Blender 5.3 runs as the pinned `bpy` Python module with Cycles forced to one deterministic CPU device and fixed seed/thread settings. It is a developer/CI-only dependency and never runs on the production VPS.
+- Planar dressed polygons are embedded through each graph plane's origin, x axis, and normal, then extruded to their thickness and beveled. Spatial bodies are cylinders between their world-coordinate named points using the dressed rod radius. PBR materials, area lights, ground geometry, and stable positive per-body object indices are rebuilt for each scene.
+- Seeded orbit paths cover the scene extent. Handheld paths add smooth finite Fourier perturbations instead of frame-wise white-noise jitter. Both paths report full camera extrinsics and clipping bounds.
+- Blender Render Layers writes the actual Combined, Z, and IndexOB outputs as lossless 32-bit uncompressed EXR. The lab decodes them into float32 RGB and depth plus int32 instance IDs; background depth is infinity and background instance ID is zero. Rendered clips are later cached by manifest hash so each expensive scene is rendered once.
 
 ## Degradations (`lab/degrade/`)
 

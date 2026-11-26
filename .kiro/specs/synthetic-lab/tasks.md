@@ -41,8 +41,9 @@
   - [x] 4.1 Implement shake, motion blur, rolling shutter, noise, and exposure drift.
     - _Requirements: 4.1, 4.2_
     - `degrade/` operates on validated float32 linear RGB and timestamped cameras/subframes. Camera shake is a seeded 0.5–8 Hz Fourier trajectory over center, tilt, and roll, clamped to the legal 25° tilt; focus breathing varies focal length on the same timestamp domain. Temporal degradation integrates real supersamples over box-shutter intervals and samples row-specific exposure centers for rolling shutter. The sensor stage applies low-frequency auto-exposure in linear light, then Poisson shot and Gaussian read noise, clipping only at the declared output boundary. Frozen metadata records every frequency term, per-frame camera/focal/exposure sample, shutter and row timing, full-well capacity, and read-noise parameter. Tests cover smooth frequency bounds, static identity, moving-edge blur, row skew, noise statistics, metadata completeness, invalid inputs, and exact seeded determinism.
-  - [ ] 4.2 Implement encoding variants, VFR, and dropped frames.
+  - [x] 4.2 Implement encoding variants, VFR, and dropped frames.
     - _Requirements: 4.3_
+    - `degrade/encoding*.py` and `ffmpeg.py` select seeded H.264, H.265, or VP9 profiles with recorded CRF, GOP, thread count, pixel format, mux options, VFR jitter, and dropped-frame indices. Real FFmpeg encodes MP4 for H.264/H.265 and WebM for VP9 from validated uint8 RGB. A millisecond time base preserves explicit presentation timestamps and leaves gaps where frames were dropped rather than silently collapsing to CFR. Real ffprobe verification records codec, dimensions, frame count, native PTS, and normalized timestamps. Fixed metadata, threads, and mux flags produce deterministic bytes. Tests cover every codec, VFR, drop accounting, probing, metadata JSON, executable paths with spaces, invalid inputs, and exact determinism.
   - [ ] 4.3 Implement the archival profile and record all degradation parameters.
     - _Requirements: 4.4, 4.5_
 

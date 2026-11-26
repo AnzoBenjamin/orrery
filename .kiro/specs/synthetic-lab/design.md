@@ -62,8 +62,8 @@ class Family(Protocol):
 | Motion blur | Box-shutter integration of genuinely rendered temporal supersamples |
 | Rolling shutter | Per-row exposure-center offsets with temporal interpolation before shutter integration |
 | Noise, exposure | Low-frequency auto-exposure in linear light, then Poisson shot and Gaussian read noise |
-| Compression | FFmpeg libx264, libx265, libvpx-vp9 with randomized CRF and GOP |
-| VFR, drops | timestamp jitter and dropped frames written with an explicit timecode track |
+| Compression | Real FFmpeg libx264/libx265/libvpx-vp9 with seeded CRF, GOP, pixel format, fixed threads, and deterministic mux metadata |
+| VFR, drops | Millisecond presentation timeline with seeded interval jitter; dropped source indices retain explicit timestamp gaps verified by ffprobe |
 | Archival | 12–24 fps, grain, gate weave (low-frequency translation), flicker, scratch and dust sprites, vignette, tone curves |
 
 ## Ground truth format

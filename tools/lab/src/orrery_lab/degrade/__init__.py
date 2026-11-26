@@ -1,4 +1,4 @@
-"""Deterministic linear-light camera, temporal, and sensor degradation."""
+"""Deterministic camera, temporal, sensor, and video encoding degradation."""
 
 from orrery_lab.degrade.camera import (
     CameraDegradeConfig,
@@ -8,6 +8,21 @@ from orrery_lab.degrade.camera import (
     CameraSampleMetadata,
     degrade_camera,
 )
+from orrery_lab.degrade.encoding import encode_video
+from orrery_lab.degrade.encoding_profile import select_codec_profile
+from orrery_lab.degrade.encoding_types import (
+    CodecName,
+    CodecProfile,
+    ContainerName,
+    EncodingConfig,
+    EncodingError,
+    EncodingMetadata,
+    EncodingResult,
+    EncodingTimingMetadata,
+    PixelFormat,
+    ProbeMetadata,
+)
+from orrery_lab.degrade.ffmpeg import FFmpegAdapter
 from orrery_lab.degrade.sensor import (
     ExposureFourierTerm,
     SensorDegradeConfig,
@@ -29,7 +44,18 @@ __all__ = [
     "CameraDegradeResult",
     "CameraFourierTerm",
     "CameraSampleMetadata",
+    "CodecName",
+    "CodecProfile",
+    "ContainerName",
+    "EncodingConfig",
+    "EncodingError",
+    "EncodingMetadata",
+    "EncodingResult",
+    "EncodingTimingMetadata",
     "ExposureFourierTerm",
+    "FFmpegAdapter",
+    "PixelFormat",
+    "ProbeMetadata",
     "SensorDegradeConfig",
     "SensorDegradeMetadata",
     "SensorDegradeResult",
@@ -40,4 +66,6 @@ __all__ = [
     "degrade_camera",
     "degrade_sensor",
     "degrade_temporal",
+    "encode_video",
+    "select_codec_profile",
 ]

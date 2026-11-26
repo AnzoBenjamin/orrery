@@ -20,15 +20,38 @@ class _Model(BaseModel):
 
 class TrackSample(_Model):
     frame_index: Annotated[int, Field(alias="frameIndex", ge=0)]
-    x_px: float = Field(alias="xPx")
-    y_px: float = Field(alias="yPx")
+    x_px: float | None = Field(default=None, alias="xPx")
+    y_px: float | None = Field(default=None, alias="yPx")
     visible: bool
+    confidence: Annotated[float, Field(ge=0, le=1)] = 0.0
+    status: Literal["observed", "occluded", "lost", "not_seeded"] = "observed"
+    rejection_reason: Annotated[
+        Literal["lk_failure", "forward_backward", "appearance", "out_of_bounds"] | None,
+        Field(alias="rejectionReason"),
+    ] = None
     uncertainty_px: Annotated[float | None, Field(alias="uncertaintyPx", gt=0)] = None
+
+    @model_validator(mode="after")
+    def observed_position(self) -> Self:
+        has_position = self.x_px is not None and self.y_px is not None
+        if (self.x_px is None) != (self.y_px is None) or has_position != self.visible:
+            raise ValueError("only visible samples may contain a complete position")
+        return self
 
 
 class TrackArtifact(_Model):
     track_id: Annotated[str, Field(alias="trackId", min_length=1)]
-    body_id: Annotated[str, Field(alias="bodyId", min_length=1)]
+    footage_id: Annotated[str, Field(alias="footageId", min_length=1)] = "legacy"
+    seed_id: Annotated[str, Field(alias="seedId", min_length=1)] = "legacy"
+    region_id: Annotated[str | None, Field(alias="regionId", min_length=1)] = None
+    source: Literal[
+        "shi_tomasi",
+        "circular_hole",
+        "user_joint",
+        "user_part_prompt",
+        "reseeded_shi_tomasi",
+    ] = "shi_tomasi"
+    body_id: Annotated[str | None, Field(alias="bodyId", min_length=1)] = None
     samples: tuple[TrackSample, ...]
 
     @model_validator(mode="after")

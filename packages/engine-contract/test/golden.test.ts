@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  analysisArtifacts,
   jobSubmissionResponse,
   probeRequest,
   probeResponse,
@@ -32,6 +33,50 @@ describe("engine contract", () => {
       accepted: false,
       error: { code: "capability_unavailable" },
     });
+  });
+
+  it("requires positions only for observed track samples", () => {
+    const artifact = {
+      format: "orrery.engine.analysis-artifacts",
+      schemaVersion: 1,
+      engineVersion: "test",
+      tracks: [
+        {
+          trackId: "footage:seed-1",
+          footageId: "footage",
+          seedId: "seed-1",
+          source: "shi_tomasi",
+          samples: [
+            {
+              frameIndex: 0,
+              xPx: 10,
+              yPx: 20,
+              visible: true,
+              confidence: 0.9,
+              status: "observed",
+            },
+            {
+              frameIndex: 1,
+              visible: false,
+              confidence: 0,
+              status: "occluded",
+              rejectionReason: "appearance",
+            },
+          ],
+        },
+      ],
+      cameraMotion: [],
+      bodies: [],
+      joints: [],
+      parameters: [],
+      diagnosis: [],
+      resurrection: [],
+      stageRuntimes: [],
+    };
+    expect(analysisArtifacts.safeParse(artifact).success).toBe(true);
+    const invalid = structuredClone(artifact);
+    Object.assign(invalid.tracks[0].samples[1], { xPx: 10, yPx: 20 });
+    expect(analysisArtifacts.safeParse(invalid).success).toBe(false);
   });
 
   it("rejects unknown fields and out-of-range values", () => {

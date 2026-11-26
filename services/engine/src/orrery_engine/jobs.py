@@ -52,19 +52,15 @@ from orrery_engine.job_support import (
 from orrery_engine.job_support import (
     request_fingerprint as _request_fingerprint,
 )
+from orrery_engine.job_tracking import TrackingError, load_tracking_stage
+from orrery_engine.job_tracking_lifecycle import TrackingLifecycleMixin
 from orrery_engine.probe import SourceUnavailableError, TooLargeError
 from orrery_engine.settings import Settings
 
 MEDIA_TYPE = "application/vnd.orrery.analysis-artifacts+json"
-STAGE_GRAPH = {
-    "ingest": (),
-    "camera_motion": ("ingest",),
-    "seeding": ("camera_motion",),
-    "tracking": ("seeding",),
-}
 
 
-class JobManager:
+class JobManager(TrackingLifecycleMixin):
     def __init__(self, settings: Settings, http: httpx.Client) -> None:
         self._settings = settings
         self._http = http
@@ -170,27 +166,31 @@ class JobManager:
                 camera = load_camera_motion_stage(self._job_dir(record.job_id))
             self._route_spatial_if_needed(record, camera)
             if "seeding" not in record.completed_stages:
-                self._run_seeding(record, camera)
+                seeding = self._run_seeding(record, camera)
             else:
-                load_seeding_stage(self._job_dir(record.job_id))
+                seeding = load_seeding_stage(self._job_dir(record.job_id))
+            if "tracking" not in record.completed_stages:
+                self._run_tracking(record, camera, seeding)
+            else:
+                load_tracking_stage(self._job_dir(record.job_id))
             with record.lock:
-                record.current_stage = "tracking"
+                record.current_stage = "body_grouping"
                 record.progress = 0.0
                 self._checkpoint(record)
-            self._emit(record, "stage_started", {"stage": "tracking"})
+            self._emit(record, "stage_started", {"stage": "body_grouping"})
             raise JobFailureError(
                 _error(
                     "capability_unavailable",
-                    "Track seeding completed, but point tracking is not implemented yet.",
-                    stage="tracking",
-                    prerequisites=("vision-pipeline:4.2",),
+                    "Point tracking completed, but body grouping is not implemented yet.",
+                    stage="body_grouping",
+                    prerequisites=("vision-pipeline:5.1",),
                 )
             )
         except JobCanceledError:
             self._finish_failure(record, _error("canceled", "The reconstruction job was canceled."))
         except JobFailureError as failure:
             self._finish_failure(record, failure.error)
-        except (IngestChecksumError, CameraMotionError, SeedingError) as failure:
+        except (IngestChecksumError, CameraMotionError, SeedingError, TrackingError) as failure:
             self._finish_failure(
                 record,
                 _error(

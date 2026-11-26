@@ -415,9 +415,15 @@ class Sample(BaseModel):
         populate_by_name=True,
     )
     frame_index: Annotated[int, Field(alias="frameIndex", ge=0, le=9007199254740991)]
-    x_px: Annotated[float, Field(alias="xPx")]
-    y_px: Annotated[float, Field(alias="yPx")]
+    x_px: Annotated[float | None, Field(alias="xPx")] = None
+    y_px: Annotated[float | None, Field(alias="yPx")] = None
     visible: bool
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    status: Literal["observed", "occluded", "lost", "not_seeded"]
+    rejection_reason: Annotated[
+        Literal["lk_failure", "forward_backward", "appearance", "out_of_bounds"] | None,
+        Field(alias="rejectionReason"),
+    ] = None
     uncertainty_px: Annotated[float | None, Field(alias="uncertaintyPx", gt=0.0)] = None
 
 
@@ -427,8 +433,14 @@ class Track(BaseModel):
         populate_by_name=True,
     )
     track_id: Annotated[str, Field(alias="trackId", max_length=200, min_length=1)]
-    body_id: Annotated[str, Field(alias="bodyId", max_length=200, min_length=1)]
-    samples: list[Sample]
+    footage_id: Annotated[str, Field(alias="footageId", max_length=200, min_length=1)]
+    seed_id: Annotated[str, Field(alias="seedId", max_length=200, min_length=1)]
+    region_id: Annotated[str | None, Field(alias="regionId", max_length=200, min_length=1)] = None
+    source: Literal[
+        "shi_tomasi", "circular_hole", "user_joint", "user_part_prompt", "reseeded_shi_tomasi"
+    ]
+    body_id: Annotated[str | None, Field(alias="bodyId", max_length=200, min_length=1)] = None
+    samples: Annotated[list[Sample], Field(min_length=1)]
 
 
 class CameraMotionItem(BaseModel):
@@ -601,6 +613,90 @@ class SeedingAnalysi(BaseModel):
     points: list[Point1]
     coverage: list[CoverageItem]
     reseeding_policy: Annotated[ReseedingPolicy, Field(alias="reseedingPolicy")]
+
+
+class TracksArrow(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    filename: Annotated[str, Field(max_length=200, min_length=1)]
+    media_type: Annotated[str, Field(alias="mediaType", max_length=200, min_length=1)]
+    encoding: Literal["base64"]
+    byte_size: Annotated[int, Field(alias="byteSize", ge=0, le=9007199254740991)]
+    sha256: Annotated[str, Field(pattern="^[0-9a-f]{64}$")]
+    data: str
+
+
+class Metrics(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    input_seed_count: Annotated[int, Field(alias="inputSeedCount", ge=0, le=9007199254740991)]
+    output_track_count: Annotated[int, Field(alias="outputTrackCount", ge=0, le=9007199254740991)]
+    reseeded_track_count: Annotated[
+        int, Field(alias="reseededTrackCount", ge=0, le=9007199254740991)
+    ]
+    observed_sample_count: Annotated[
+        int, Field(alias="observedSampleCount", ge=0, le=9007199254740991)
+    ]
+    observed_fraction: Annotated[float, Field(alias="observedFraction", ge=0.0, le=1.0)]
+    forward_backward_rejections: Annotated[
+        int, Field(alias="forwardBackwardRejections", ge=0, le=9007199254740991)
+    ]
+    appearance_rejections: Annotated[
+        int, Field(alias="appearanceRejections", ge=0, le=9007199254740991)
+    ]
+    lk_rejections: Annotated[int, Field(alias="lkRejections", ge=0, le=9007199254740991)]
+    boundary_rejections: Annotated[
+        int, Field(alias="boundaryRejections", ge=0, le=9007199254740991)
+    ]
+
+
+class CoverageItem1(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    region_id: Annotated[str, Field(alias="regionId", max_length=200, min_length=1)]
+    baseline_seed_count: Annotated[int, Field(alias="baselineSeedCount", ge=0, le=9007199254740991)]
+    live_seed_count: Annotated[int, Field(alias="liveSeedCount", ge=0, le=9007199254740991)]
+    added_seed_count: Annotated[int, Field(alias="addedSeedCount", ge=0, le=9007199254740991)]
+    coverage_before: Annotated[float, Field(alias="coverageBefore", ge=0.0, le=1.0)]
+    coverage_after: Annotated[float, Field(alias="coverageAfter", ge=0.0, le=1.0)]
+
+
+class AddedSeedId(RootModel[str]):
+    root: Annotated[str, Field(max_length=200, min_length=1)]
+
+
+class ReseedingItem(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    frame_index: Annotated[int, Field(alias="frameIndex", ge=0, le=9007199254740991)]
+    coverage: list[CoverageItem1]
+    added_seed_ids: Annotated[list[AddedSeedId], Field(alias="addedSeedIds")]
+
+
+class TrackingAnalysi(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    format: Literal["orrery.engine.tracking"]
+    schema_version: Annotated[Literal[1], Field(alias="schemaVersion")]
+    footage_id: Annotated[str, Field(alias="footageId", max_length=200, min_length=1)]
+    backend: Literal["klt"]
+    coordinate_space: Annotated[Literal["analysis_pixels"], Field(alias="coordinateSpace")]
+    analysis_width: Annotated[int, Field(alias="analysisWidth", gt=0, le=9007199254740991)]
+    analysis_height: Annotated[int, Field(alias="analysisHeight", gt=0, le=9007199254740991)]
+    frame_count: Annotated[int, Field(alias="frameCount", gt=0, le=9007199254740991)]
+    tracks_arrow: Annotated[TracksArrow, Field(alias="tracksArrow")]
+    metrics: Metrics
+    reseeding: list[ReseedingItem]
 
 
 class Pose(BaseModel):
@@ -792,6 +888,9 @@ class AnalysisArtifacts(BaseModel):
         list[CameraMotionAnalysi] | None, Field(alias="cameraMotionAnalysis")
     ] = None
     seeding_analysis: Annotated[list[SeedingAnalysi] | None, Field(alias="seedingAnalysis")] = None
+    tracking_analysis: Annotated[list[TrackingAnalysi] | None, Field(alias="trackingAnalysis")] = (
+        None
+    )
     bodies: list[Body]
     joints: list[Joint]
     mobility: Annotated[int | None, Field(ge=-9007199254740991, le=9007199254740991)] = None

@@ -144,7 +144,7 @@ def test_missing_sources_are_retryable_errors(client: httpx.Client, file_server:
     assert probe(client, f"{file_server}/missing.mp4").status_code == 502
 
 
-def test_reconstruction_job_runs_real_ingest_camera_motion_and_seeding_then_reports_tracking_limit(  # noqa: PLR0915
+def test_reconstruction_job_runs_real_ingest_camera_motion_seeding_and_tracking_then_reports_grouping_limit(  # noqa: E501, PLR0915
     client: httpx.Client, file_server: str, job_server: JobServer
 ) -> None:
     with job_server.lock:
@@ -180,17 +180,27 @@ def test_reconstruction_job_runs_real_ingest_camera_motion_and_seeding_then_repo
     assert terminal["status"] == "failed"
     assert terminal["error"] == {
         "code": "capability_unavailable",
-        "message": "Track seeding completed, but point tracking is not implemented yet.",
+        "message": "Point tracking completed, but body grouping is not implemented yet.",
         "retryable": False,
-        "stage": "tracking",
-        "prerequisites": ["vision-pipeline:4.2"],
+        "stage": "body_grouping",
+        "prerequisites": ["vision-pipeline:5.1"],
     }
     assert len(cast(list[object], terminal["artifacts"])) == 1
 
     artifact_bytes = job_server.artifact
     assert artifact_bytes is not None
     artifact = AnalysisArtifacts.model_validate_json(artifact_bytes)
-    assert artifact.tracks == []
+    assert artifact.tracks
+    assert all(track.body_id is None for track in artifact.tracks)
+    assert artifact.tracking_analysis is not None
+    tracking_stage = artifact.tracking_analysis[0]
+    assert tracking_stage.format == "orrery.engine.tracking"
+    assert tracking_stage.schema_version == 1
+    assert tracking_stage.backend == "klt"
+    assert tracking_stage.metrics.output_track_count == len(artifact.tracks)
+    assert tracking_stage.metrics.observed_sample_count > 0
+    assert len(tracking_stage.reseeding) == 3
+    assert tracking_stage.tracks_arrow.byte_size > 0
     assert len(artifact.camera_motion) == 60
     assert artifact.camera_motion_analysis is not None
     camera_stage = artifact.camera_motion_analysis[0]
@@ -215,6 +225,7 @@ def test_reconstruction_job_runs_real_ingest_camera_motion_and_seeding_then_repo
         "ingest",
         "camera_motion",
         "seeding",
+        "tracking",
     ]
     assert artifact.ingest is not None
     footage = artifact.ingest[0]
@@ -254,6 +265,11 @@ def test_reconstruction_job_runs_real_ingest_camera_motion_and_seeding_then_repo
         "stage_completed",
         "artifact_written",
         "stage_started",
+        "progress",
+        "progress",
+        "stage_completed",
+        "artifact_written",
+        "stage_started",
         "failed",
     ]
 
@@ -275,7 +291,7 @@ def test_real_handheld_fixture_runs_ingest_then_camera_motion(
     )
     terminal = wait_terminal(client, str(request["jobId"]))
     assert response.status_code == 202
-    assert terminal["error"]["stage"] == "tracking"
+    assert terminal["error"]["stage"] == "body_grouping"
     artifact_bytes = job_server.artifact
     assert artifact_bytes is not None
     artifact = AnalysisArtifacts.model_validate_json(artifact_bytes)
@@ -344,7 +360,7 @@ def test_reconstruction_ingest_applies_rotation_and_normalizes_vfr(
     terminal = wait_terminal(client, str(rotated["jobId"]))
     assert response.status_code == 202
     assert terminal["error"]["code"] == "capability_unavailable"
-    assert terminal["error"]["stage"] == "tracking"
+    assert terminal["error"]["stage"] == "body_grouping"
     rotated_bytes = job_server.artifact
     assert rotated_bytes is not None
     rotated_artifact = AnalysisArtifacts.model_validate_json(rotated_bytes)
@@ -406,7 +422,7 @@ def test_reconstruction_job_can_be_canceled_within_ten_seconds(
     assert terminal["error"]["code"] == "canceled"
 
 
-def test_reconstruction_resumes_from_the_seeding_checkpoint_after_restart(
+def test_reconstruction_resumes_from_the_tracking_checkpoint_after_restart(
     file_server: str, job_server: JobServer, tmp_path: Path
 ) -> None:
     request = reconstruction_request(file_server, job_server.origin)
@@ -427,15 +443,15 @@ def test_reconstruction_resumes_from_the_seeding_checkpoint_after_restart(
         assert first.post("/v1/jobs", json=request, headers=headers).status_code == 202
         assert wait_terminal(first, job_id)["error"]["code"] == "capability_unavailable"
     with job_server.lock:
-        after_seeding_puts = job_server.put_count
-    assert after_seeding_puts == initial_puts + 3
+        after_tracking_puts = job_server.put_count
+    assert after_tracking_puts == initial_puts + 4
 
     with running_engine(settings) as resumed:
         assert resumed.post("/v1/jobs", json=request, headers=headers).status_code == 202
         terminal = wait_terminal(resumed, job_id)
-    assert terminal["error"]["stage"] == "tracking"
+    assert terminal["error"]["stage"] == "body_grouping"
     with job_server.lock:
-        assert job_server.put_count == after_seeding_puts
+        assert job_server.put_count == after_tracking_puts
         job_events = [event for event in job_server.events if event["jobId"] == job_id]
     assert [event["type"] for event in job_events[-2:]] == ["stage_started", "failed"]
 

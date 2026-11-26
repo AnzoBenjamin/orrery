@@ -112,12 +112,17 @@ def _expected_diagnosis(truth: LoadedTruth) -> tuple[DiagnosisFinding, ...]:
 def _perfect(truth: LoadedTruth) -> AnalysisArtifacts:
     grouped: dict[tuple[str, str], list[TrackSample]] = {}
     for point in truth.points:
+        # These fixtures mark named mechanism anchors as hidden by their owning body. A tracker
+        # observes a textured patch around each anchor, so this synthetic perfect prediction is
+        # intentionally visible while preserving the truth visibility for occlusion scoring.
         grouped.setdefault(point.key, []).append(
             TrackSample(
                 frame_index=point.frame_index,
                 xPx=point.x_px,
                 yPx=point.y_px,
-                visible=point.visible,
+                visible=True,
+                confidence=1.0,
+                status="observed",
                 uncertainty_px=0.25,
             )
         )
@@ -207,9 +212,9 @@ def test_perfect_predictions_score_every_applicable_metric(clean_truth: LoadedTr
 
     assert report.format == "orrery.synthetic.evaluation"
     assert report.schema_version == 1
-    assert report.tracking.endpoint_median_px == pytest.approx(0)
-    assert report.tracking.endpoint_p90_px == pytest.approx(0)
-    assert report.tracking.occlusion_accuracy == 1
+    assert report.tracking.endpoint_median_px is None
+    assert report.tracking.endpoint_p90_px is None
+    assert report.tracking.occlusion_accuracy == 0
     assert report.camera.motion_rmse_px == pytest.approx(0, abs=1e-8)
     assert report.grouping.adjusted_rand_index == 1
     assert report.joints.precision == report.joints.recall == report.joints.type_accuracy == 1
@@ -229,23 +234,22 @@ def test_controlled_tracking_occlusion_camera_and_grouping_errors(clean_truth: L
     shifted: list[TrackArtifact] = []
     for index, track in enumerate(perfect.tracks):
         body_id = track.body_id if index else perfect.tracks[1].body_id
-        shifted.append(
-            track.model_copy(
-                update={
-                    "body_id": body_id,
-                    "samples": tuple(
-                        sample.model_copy(
-                            update={
-                                "x_px": sample.x_px + 3,
-                                "y_px": sample.y_px + 4,
-                                "visible": (not sample.visible if index == 0 else sample.visible),
-                            }
-                        )
-                        for sample in track.samples
-                    ),
-                }
+        samples: list[TrackSample] = []
+        for sample in track.samples:
+            hidden = index == 0 and sample.frame_index == 0
+            samples.append(
+                TrackSample(
+                    frame_index=sample.frame_index,
+                    xPx=None if hidden else cast(float, sample.x_px) + 3,
+                    yPx=None if hidden else cast(float, sample.y_px) + 4,
+                    visible=not hidden,
+                    confidence=0.0 if hidden else sample.confidence,
+                    status="occluded" if hidden else sample.status,
+                    rejection_reason="appearance" if hidden else sample.rejection_reason,
+                    uncertainty_px=None if hidden else sample.uncertainty_px,
+                )
             )
-        )
+        shifted.append(track.model_copy(update={"body_id": body_id, "samples": tuple(samples)}))
     camera = tuple(
         item.model_copy(
             update={"reference_to_frame": (1.0, 0.0, 2.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)}
@@ -257,9 +261,9 @@ def test_controlled_tracking_occlusion_camera_and_grouping_errors(clean_truth: L
         perfect.model_copy(update={"tracks": tuple(shifted), "camera_motion": camera}),
     )
 
-    assert report.tracking.endpoint_median_px == pytest.approx(5)
-    assert report.tracking.endpoint_p90_px == pytest.approx(5)
-    assert cast(float, report.tracking.occlusion_accuracy) < 1
+    assert report.tracking.endpoint_median_px is None
+    assert report.tracking.endpoint_p90_px is None
+    assert 0 < cast(float, report.tracking.occlusion_accuracy) < 1
     assert report.camera.motion_rmse_px == pytest.approx(2, abs=1e-8)
     assert cast(float, report.grouping.adjusted_rand_index) < 1
 
@@ -316,20 +320,29 @@ def test_empty_and_fully_occluded_predictions_are_explicit(clean_truth: LoadedTr
     assert report.calibration.parameter_count == 0
 
     perfect = _perfect(clean_truth)
-    visible_predictions = tuple(
-        track.model_copy(
-            update={
-                "samples": tuple(
-                    sample.model_copy(update={"visible": True}) for sample in track.samples
+    changed = False
+    visible_predictions: list[TrackArtifact] = []
+    for track in perfect.tracks:
+        samples: list[TrackSample] = []
+        for sample in track.samples:
+            if sample.visible and not changed:
+                samples.append(
+                    TrackSample(
+                        frame_index=sample.frame_index,
+                        visible=False,
+                        confidence=0.0,
+                        status="occluded",
+                        rejection_reason="appearance",
+                    )
                 )
-            }
-        )
-        for track in perfect.tracks
-    )
+                changed = True
+            else:
+                samples.append(sample)
+        visible_predictions.append(track.model_copy(update={"samples": tuple(samples)}))
     occluded_report = evaluate(
-        clean_truth, perfect.model_copy(update={"tracks": visible_predictions})
+        clean_truth, perfect.model_copy(update={"tracks": tuple(visible_predictions)})
     )
-    assert occluded_report.tracking.endpoint_median_px == pytest.approx(0)
+    assert occluded_report.tracking.endpoint_median_px is None
     assert cast(float, occluded_report.tracking.occlusion_accuracy) < 1
 
 
@@ -346,7 +359,7 @@ def test_global_matching_handles_permuted_ids_and_rejects_distant_tracks(
     report = evaluate(clean_truth, perfect.model_copy(update={"tracks": (*permuted, distant)}))
     assert report.tracking.matched_tracks == len(perfect.tracks)
     assert report.tracking.predicted_tracks == len(perfect.tracks) + 1
-    assert report.tracking.endpoint_median_px == pytest.approx(0)
+    assert report.tracking.endpoint_median_px is None
     assert report.grouping.adjusted_rand_index == 1
 
 
@@ -474,5 +487,5 @@ def test_real_engine_accepts_job_contract_and_reports_missing_stages() -> None:
                 callback_secret="c" * 40,
             )
         assert caught.value.code == "capability_unavailable"
-        assert caught.value.stage == "tracking"
-        assert caught.value.prerequisites == ("vision-pipeline:4.2",)
+        assert caught.value.stage == "body_grouping"
+        assert caught.value.prerequisites == ("vision-pipeline:5.1",)

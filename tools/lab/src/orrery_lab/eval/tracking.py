@@ -38,7 +38,8 @@ def tracking_metrics(
                 continue
             visibility_total += 1
             visibility_correct += sample.visible == point.visible
-            errors.append(math.hypot(sample.x_px - point.x_px, sample.y_px - point.y_px))
+            if sample.x_px is not None and sample.y_px is not None and point.visible:
+                errors.append(math.hypot(sample.x_px - point.x_px, sample.y_px - point.y_px))
     keys = {point.key for point in truth.points}
     return TrackingMetrics(
         endpointMedianPx=float(np.median(errors)) if errors else None,
@@ -53,8 +54,16 @@ def tracking_metrics(
 def grouping_metrics(
     artifacts: AnalysisArtifacts, matches: tuple[TrackMatch, ...]
 ) -> GroupingMetrics:
-    predicted = [artifacts.tracks[match.predicted_index].body_id for match in matches]
-    actual = [match.truth_key[0] for match in matches]
+    predicted = [
+        body_id
+        for match in matches
+        if (body_id := artifacts.tracks[match.predicted_index].body_id) is not None
+    ]
+    actual = [
+        match.truth_key[0]
+        for match in matches
+        if artifacts.tracks[match.predicted_index].body_id is not None
+    ]
     return GroupingMetrics(
         adjustedRandIndex=_adjusted_rand(actual, predicted) if matches else None,
         comparedTracks=len(matches),

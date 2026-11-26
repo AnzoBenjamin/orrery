@@ -93,7 +93,7 @@ def match_tracks(
             distances: list[float] = []
             for sample in track.samples:
                 point = true_by_key_frame.get((key, sample.frame_index))
-                if point is None:
+                if point is None or sample.x_px is None or sample.y_px is None:
                     continue
                 distances.append(math.hypot(sample.x_px - point.x_px, sample.y_px - point.y_px))
             if distances:
@@ -108,7 +108,15 @@ def match_tracks(
 def body_alignment(
     tracks: tuple[TrackArtifact, ...], matches: tuple[TrackMatch, ...]
 ) -> dict[str, str]:
-    predicted = tuple(sorted({tracks[match.predicted_index].body_id for match in matches}))
+    predicted = tuple(
+        sorted(
+            {
+                body_id
+                for match in matches
+                if (body_id := tracks[match.predicted_index].body_id) is not None
+            }
+        )
+    )
     truth = tuple(sorted({match.truth_key[0] for match in matches}))
     if not predicted or not truth:
         return {}
@@ -116,9 +124,9 @@ def body_alignment(
     pred_index = {value: index for index, value in enumerate(predicted)}
     truth_index = {value: index for index, value in enumerate(truth)}
     for match in matches:
-        counts[
-            pred_index[tracks[match.predicted_index].body_id], truth_index[match.truth_key[0]]
-        ] += 1
+        body_id = tracks[match.predicted_index].body_id
+        if body_id is not None:
+            counts[pred_index[body_id], truth_index[match.truth_key[0]]] += 1
     max_count = float(np.max(counts))
     pairs = assignment(max_count - counts)
     return {predicted[row]: truth[column] for row, column in pairs if counts[row, column] > 0}

@@ -1059,12 +1059,38 @@
                 "minLength": 1,
                 "maxLength": 200
               },
+              "footageId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "seedId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "regionId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "shi_tomasi",
+                  "circular_hole",
+                  "user_joint",
+                  "user_part_prompt",
+                  "reseeded_shi_tomasi"
+                ]
+              },
               "bodyId": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 200
               },
               "samples": {
+                "minItems": 1,
                 "type": "array",
                 "items": {
                   "type": "object",
@@ -1083,6 +1109,29 @@
                     "visible": {
                       "type": "boolean"
                     },
+                    "confidence": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "observed",
+                        "occluded",
+                        "lost",
+                        "not_seeded"
+                      ]
+                    },
+                    "rejectionReason": {
+                      "type": "string",
+                      "enum": [
+                        "lk_failure",
+                        "forward_backward",
+                        "appearance",
+                        "out_of_bounds"
+                      ]
+                    },
                     "uncertaintyPx": {
                       "type": "number",
                       "exclusiveMinimum": 0
@@ -1090,9 +1139,9 @@
                   },
                   "required": [
                     "frameIndex",
-                    "xPx",
-                    "yPx",
-                    "visible"
+                    "visible",
+                    "confidence",
+                    "status"
                   ],
                   "additionalProperties": false
                 }
@@ -1100,7 +1149,9 @@
             },
             "required": [
               "trackId",
-              "bodyId",
+              "footageId",
+              "seedId",
+              "source",
               "samples"
             ],
             "additionalProperties": false
@@ -1593,6 +1644,240 @@
               "points",
               "coverage",
               "reseedingPolicy"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "trackingAnalysis": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "format": {
+                "type": "string",
+                "const": "orrery.engine.tracking"
+              },
+              "schemaVersion": {
+                "type": "number",
+                "const": 1
+              },
+              "footageId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "backend": {
+                "type": "string",
+                "const": "klt"
+              },
+              "coordinateSpace": {
+                "type": "string",
+                "const": "analysis_pixels"
+              },
+              "analysisWidth": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "analysisHeight": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "frameCount": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "tracksArrow": {
+                "type": "object",
+                "properties": {
+                  "filename": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "mediaType": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "encoding": {
+                    "type": "string",
+                    "const": "base64"
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "data": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "filename",
+                  "mediaType",
+                  "encoding",
+                  "byteSize",
+                  "sha256",
+                  "data"
+                ],
+                "additionalProperties": false
+              },
+              "metrics": {
+                "type": "object",
+                "properties": {
+                  "inputSeedCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "outputTrackCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "reseededTrackCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "observedSampleCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "observedFraction": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "forwardBackwardRejections": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "appearanceRejections": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "lkRejections": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "boundaryRejections": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "inputSeedCount",
+                  "outputTrackCount",
+                  "reseededTrackCount",
+                  "observedSampleCount",
+                  "observedFraction",
+                  "forwardBackwardRejections",
+                  "appearanceRejections",
+                  "lkRejections",
+                  "boundaryRejections"
+                ],
+                "additionalProperties": false
+              },
+              "reseeding": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "frameIndex": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "coverage": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "regionId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "baselineSeedCount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "liveSeedCount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "addedSeedCount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "coverageBefore": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                          },
+                          "coverageAfter": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                          }
+                        },
+                        "required": [
+                          "regionId",
+                          "baselineSeedCount",
+                          "liveSeedCount",
+                          "addedSeedCount",
+                          "coverageBefore",
+                          "coverageAfter"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "addedSeedIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    }
+                  },
+                  "required": [
+                    "frameIndex",
+                    "coverage",
+                    "addedSeedIds"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "format",
+              "schemaVersion",
+              "footageId",
+              "backend",
+              "coordinateSpace",
+              "analysisWidth",
+              "analysisHeight",
+              "frameCount",
+              "tracksArrow",
+              "metrics",
+              "reseeding"
             ],
             "additionalProperties": false
           }

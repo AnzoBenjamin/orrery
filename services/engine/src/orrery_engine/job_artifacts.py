@@ -7,6 +7,7 @@ from typing import Protocol
 from orrery_engine.generated.contract import AnalysisArtifacts
 from orrery_engine.job_camera_motion import CameraMotionStageOutput
 from orrery_engine.job_seeding import SeedingStageOutput
+from orrery_engine.job_tracking import TrackingStageOutput
 
 
 class RuntimeRecord(Protocol):
@@ -20,6 +21,7 @@ def build_analysis_artifact(
     ingest: list[dict[str, object]],
     camera: CameraMotionStageOutput | None = None,
     seeding: SeedingStageOutput | None = None,
+    tracking: TrackingStageOutput | None = None,
     pending_runtime: tuple[str, float] | None = None,
 ) -> AnalysisArtifacts:
     """Validate the aggregate artifact without inventing outputs for later stages."""
@@ -31,10 +33,11 @@ def build_analysis_artifact(
             "format": "orrery.engine.analysis-artifacts",
             "schemaVersion": 1,
             "engineVersion": engine_version,
-            "tracks": [],
+            "tracks": list(tracking.tracks) if tracking else [],
             "cameraMotion": list(camera.motions) if camera else [],
             "cameraMotionAnalysis": list(camera.manifests) if camera else None,
             "seedingAnalysis": list(seeding.manifests) if seeding else None,
+            "trackingAnalysis": list(tracking.manifests) if tracking else None,
             "bodies": [],
             "joints": [],
             "parameters": [],

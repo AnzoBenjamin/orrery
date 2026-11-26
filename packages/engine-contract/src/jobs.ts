@@ -259,18 +259,47 @@ export const engineEvent = z
 const trackSample = z
   .object({
     frameIndex: z.number().int().nonnegative(),
-    xPx: z.number(),
-    yPx: z.number(),
+    xPx: z.number().optional(),
+    yPx: z.number().optional(),
     visible: z.boolean(),
+    confidence: z.number().min(0).max(1),
+    status: z.enum(["observed", "occluded", "lost", "not_seeded"]),
+    rejectionReason: z
+      .enum(["lk_failure", "forward_backward", "appearance", "out_of_bounds"])
+      .optional(),
     uncertaintyPx: z.number().positive().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((sample, context) => {
+    const hasX = sample.xPx !== undefined;
+    const hasY = sample.yPx !== undefined;
+    if (
+      hasX !== hasY ||
+      sample.visible !== (sample.status === "observed") ||
+      hasX !== sample.visible
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "only observed track samples may contain a complete position",
+      });
+    }
+  });
 
 const trackArtifact = z
   .object({
     trackId: identifier,
-    bodyId: identifier,
-    samples: z.array(trackSample),
+    footageId: identifier,
+    seedId: identifier,
+    regionId: identifier.optional(),
+    source: z.enum([
+      "shi_tomasi",
+      "circular_hole",
+      "user_joint",
+      "user_part_prompt",
+      "reseeded_shi_tomasi",
+    ]),
+    bodyId: identifier.optional(),
+    samples: z.array(trackSample).min(1),
   })
   .strict();
 
@@ -487,6 +516,55 @@ const seedingFootageArtifact = z
   })
   .strict();
 
+const trackingMetrics = z
+  .object({
+    inputSeedCount: z.number().int().nonnegative(),
+    outputTrackCount: z.number().int().nonnegative(),
+    reseededTrackCount: z.number().int().nonnegative(),
+    observedSampleCount: z.number().int().nonnegative(),
+    observedFraction: z.number().min(0).max(1),
+    forwardBackwardRejections: z.number().int().nonnegative(),
+    appearanceRejections: z.number().int().nonnegative(),
+    lkRejections: z.number().int().nonnegative(),
+    boundaryRejections: z.number().int().nonnegative(),
+  })
+  .strict();
+
+const trackingReseedCoverage = z
+  .object({
+    regionId: identifier,
+    baselineSeedCount: z.number().int().nonnegative(),
+    liveSeedCount: z.number().int().nonnegative(),
+    addedSeedCount: z.number().int().nonnegative(),
+    coverageBefore: z.number().min(0).max(1),
+    coverageAfter: z.number().min(0).max(1),
+  })
+  .strict();
+
+const trackingReseedEvent = z
+  .object({
+    frameIndex: z.number().int().nonnegative(),
+    coverage: z.array(trackingReseedCoverage),
+    addedSeedIds: z.array(identifier),
+  })
+  .strict();
+
+const trackingFootageArtifact = z
+  .object({
+    format: z.literal("orrery.engine.tracking"),
+    schemaVersion: z.literal(1),
+    footageId: identifier,
+    backend: z.literal("klt"),
+    coordinateSpace: z.literal("analysis_pixels"),
+    analysisWidth: z.number().int().positive(),
+    analysisHeight: z.number().int().positive(),
+    frameCount: z.number().int().positive(),
+    tracksArrow: embeddedMediaArtifact,
+    metrics: trackingMetrics,
+    reseeding: z.array(trackingReseedEvent),
+  })
+  .strict();
+
 export const analysisArtifacts = z
   .object({
     format: z.literal("orrery.engine.analysis-artifacts"),
@@ -496,6 +574,7 @@ export const analysisArtifacts = z
     cameraMotion: z.array(cameraMotionArtifact),
     cameraMotionAnalysis: z.array(cameraMotionFootageArtifact).optional(),
     seedingAnalysis: z.array(seedingFootageArtifact).optional(),
+    trackingAnalysis: z.array(trackingFootageArtifact).optional(),
     bodies: z.array(bodyArtifact),
     joints: z.array(jointArtifact),
     mobility: z.number().int().optional(),

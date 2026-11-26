@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { probeRequest, probeResponse } from "../src/index.ts";
+import {
+  jobSubmissionResponse,
+  probeRequest,
+  probeResponse,
+  reconstructJobRequest,
+} from "../src/index.ts";
 
 // The same golden files are parsed by the engine's generated Pydantic models
 // (services/engine/tests/test_contract.py), so both sides provably agree on the wire format.
@@ -20,6 +25,13 @@ describe("engine contract", () => {
       outcome: "accepted",
     });
     expect(probeResponse.parse(golden("probe-rejected.json"))).toMatchObject({ code: "not_video" });
+    expect(reconstructJobRequest.parse(golden("reconstruct-job-request.json"))).toMatchObject({
+      kind: "reconstruct",
+    });
+    expect(jobSubmissionResponse.parse(golden("reconstruct-job-rejected.json"))).toMatchObject({
+      accepted: false,
+      error: { code: "capability_unavailable" },
+    });
   });
 
   it("rejects unknown fields and out-of-range values", () => {

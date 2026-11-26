@@ -1,8 +1,10 @@
+import json
 import socket
 import threading
 import time
 from collections.abc import Iterator
 from pathlib import Path
+from typing import cast
 
 import httpx
 import pytest
@@ -14,6 +16,17 @@ from orrery_engine.telemetry import add_trace_ids
 from pydantic import ValidationError
 
 TOKEN = "t" * 40
+GOLDEN = Path(__file__).resolve().parents[3] / "fixtures/golden/engine-contract"
+
+
+def reconstruction_request(file_server: str) -> dict[str, object]:
+    request = json.loads((GOLDEN / "reconstruct-job-request.json").read_text())
+    footage = request["inputs"]["footage"][0]
+    footage["sourceUrl"] = f"{file_server}/h264.mp4"
+    grant = request["artifactGrant"]["analysisArtifacts"]
+    grant["uploadUrl"] = f"{file_server}/analysis.json?upload=1"
+    grant["downloadUrl"] = f"{file_server}/analysis.json?download=1"
+    return request
 
 
 def free_port() -> int:
@@ -88,6 +101,104 @@ def test_downloads_only_from_allowed_origins(client: httpx.Client) -> None:
 
 def test_missing_sources_are_retryable_errors(client: httpx.Client, file_server: str) -> None:
     assert probe(client, f"{file_server}/missing.mp4").status_code == 502
+
+
+def test_reconstruction_job_is_contract_validated_and_truthfully_blocked(
+    client: httpx.Client, file_server: str
+) -> None:
+    response = client.post(
+        "/v1/jobs",
+        json=reconstruction_request(file_server),
+        headers={
+            "Authorization": f"Bearer {TOKEN}",
+            "Orrery-Callback-Secret": "s" * 40,
+        },
+    )
+    assert response.status_code == 409
+    assert response.json() == {
+        "contractVersion": "1",
+        "jobId": "0195e7c3-24a0-7a72-8c4e-f57a34537c29",
+        "accepted": False,
+        "status": "rejected",
+        "error": {
+            "code": "capability_unavailable",
+            "message": (
+                "Reconstruction cannot run because the production stage runner and ingest "
+                "artifacts are not implemented."
+            ),
+            "retryable": False,
+            "stage": "ingest",
+            "prerequisites": ["vision-pipeline:1.1", "vision-pipeline:2.1"],
+        },
+    }
+
+
+def test_reconstruction_job_rejects_incompatible_versions_and_invalid_payloads(
+    client: httpx.Client, file_server: str
+) -> None:
+    request = reconstruction_request(file_server)
+    request["contractVersion"] = "2"
+    incompatible = client.post(
+        "/v1/jobs",
+        json=request,
+        headers={
+            "Authorization": f"Bearer {TOKEN}",
+            "Orrery-Callback-Secret": "s" * 40,
+        },
+    )
+    assert incompatible.status_code == 409
+    assert incompatible.json()["error"]["code"] == "incompatible_contract"
+
+    invalid = client.post(
+        "/v1/jobs",
+        json={"truth": "must never be accepted"},
+        headers={"Authorization": f"Bearer {TOKEN}"},
+    )
+    assert invalid.status_code == 422
+    assert invalid.json() == {
+        "contractVersion": "1",
+        "error": {
+            "code": "invalid_input",
+            "message": "The reconstruction job does not match contract version 1.",
+            "retryable": False,
+        },
+    }
+
+
+def test_reconstruction_job_requires_callback_secret_and_allowed_artifact_origins(
+    client: httpx.Client, file_server: str
+) -> None:
+    request = reconstruction_request(file_server)
+    missing_secret = client.post(
+        "/v1/jobs",
+        json=request,
+        headers={"Authorization": f"Bearer {TOKEN}"},
+    )
+    assert missing_secret.status_code == 422
+    assert missing_secret.json()["error"]["code"] == "invalid_input"
+
+    artifact_grant = cast(dict[str, object], request["artifactGrant"])
+    analysis_artifacts = cast(dict[str, object], artifact_grant["analysisArtifacts"])
+    analysis_artifacts["uploadUrl"] = "http://other.test/a"
+    disallowed = client.post(
+        "/v1/jobs",
+        json=request,
+        headers={
+            "Authorization": f"Bearer {TOKEN}",
+            "Orrery-Callback-Secret": "s" * 40,
+        },
+    )
+    assert disallowed.status_code == 422
+    assert "allowlist" in disallowed.json()["error"]["message"]
+
+
+def test_unknown_reconstruction_job_has_typed_error(client: httpx.Client) -> None:
+    response = client.get(
+        "/v1/jobs/0195e7c3-24a0-7a72-8c4e-f57a34537c29",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+    )
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "job_not_found"
 
 
 def test_settings_errors_name_variables_but_never_values() -> None:

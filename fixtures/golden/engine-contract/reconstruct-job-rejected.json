@@ -1,0 +1,13 @@
+{
+  "contractVersion": "1",
+  "jobId": "0195e7c3-24a0-7a72-8c4e-f57a34537c29",
+  "accepted": false,
+  "status": "rejected",
+  "error": {
+    "code": "capability_unavailable",
+    "message": "Reconstruction is not available because the production stage runner is not implemented.",
+    "retryable": false,
+    "stage": "ingest",
+    "prerequisites": ["vision-pipeline:1.1", "vision-pipeline:2.1"]
+  }
+}

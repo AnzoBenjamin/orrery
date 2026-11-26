@@ -18,14 +18,15 @@ import uvicorn
 from orrery_kinematics import Solver
 from orrery_lab.eval import (
     AnalysisArtifacts,
+    ArtifactGrant,
     BodyArtifact,
     BodyPoseArtifact,
     CameraMotionArtifact,
     DiagnosisFinding,
     EngineJobClient,
-    JobApiUnavailableError,
     JointArtifact,
     ParameterEstimate,
+    ReconstructionUnavailableError,
     ResurrectionCandidate,
     StageRuntime,
     TrackArtifact,
@@ -443,12 +444,27 @@ def _real_engine_and_clip_server() -> Generator[tuple[str, str]]:
         files_thread.join()
 
 
-def test_real_engine_probe_executes_and_job_api_blocker_is_not_faked() -> None:
+def test_real_engine_accepts_job_contract_and_reports_missing_stages() -> None:
     with _real_engine_and_clip_server() as (engine_url, clip_url):
         client = EngineJobClient(engine_url, TOKEN)
         probe = client.probe_clip(clip_url)
         assert probe.width == 96
         assert probe.height == 64
         assert len(probe.sha256) == 64
-        with pytest.raises(JobApiUnavailableError, match=r"vision-pipeline task 1\.1"):
-            client.run_clip(clip_url)
+        origin = clip_url.rsplit("/", 1)[0]
+        with pytest.raises(ReconstructionUnavailableError) as caught:
+            client.run_clip(
+                clip_url,
+                artifact_grant=ArtifactGrant(
+                    upload_url=f"{origin}/analysis.json?upload=1",
+                    download_url=f"{origin}/analysis.json?download=1",
+                ),
+                callback_url=f"{origin}/callbacks",
+                callback_secret="c" * 40,
+            )
+        assert caught.value.code == "capability_unavailable"
+        assert caught.value.stage == "ingest"
+        assert caught.value.prerequisites == (
+            "vision-pipeline:1.1",
+            "vision-pipeline:2.1",
+        )

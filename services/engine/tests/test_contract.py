@@ -2,7 +2,13 @@ import json
 from pathlib import Path
 
 import pytest
-from orrery_engine.generated.contract import ProbeRequest, ProbeResponse
+from orrery_engine.generated.contract import (
+    JobRejected,
+    JobSubmissionResponse,
+    ProbeRequest,
+    ProbeResponse,
+    ReconstructJobRequest,
+)
 from pydantic import ValidationError
 
 GOLDEN = Path(__file__).resolve().parents[3] / "fixtures" / "golden" / "engine-contract"
@@ -19,6 +25,13 @@ def test_generated_models_accept_the_golden_messages() -> None:
     assert accepted.outcome == "accepted"
     rejected = ProbeResponse.model_validate(golden("probe-rejected.json")).root
     assert rejected.outcome == "rejected"
+    job = ReconstructJobRequest.model_validate(golden("reconstruct-job-request.json"))
+    assert job.kind == "reconstruct"
+    job_rejected = JobSubmissionResponse.model_validate(
+        golden("reconstruct-job-rejected.json")
+    ).root
+    assert isinstance(job_rejected, JobRejected)
+    assert job_rejected.error.code == "capability_unavailable"
 
 
 def test_serialization_round_trips_to_the_wire_format() -> None:

@@ -3,6 +3,7 @@
 - [ ] 1. Engine service and stage runner
   - [ ] 1.1 Create the FastAPI app with contract models, service-token auth, job intake, stage graph, artifact upload via grants, checkpoint and resume, cancellation, and signed event callbacks.
     - _Requirements: 3.1, 3.2, 3.3, 3.4_
+    - In progress: versioned cross-language contracts now cover reconstruction submission, grants, acceptance/status/completion/failure, events, artifacts, and typed errors. FastAPI exposes authenticated `POST /v1/jobs` and `GET /v1/jobs/{job_id}` with strict contract/version/origin validation, while the lab client can submit, poll, retrieve, checksum, and validate artifacts. The engine truthfully returns `capability_unavailable` until the real stage runner, ingest artifacts, callbacks, checkpoint/resume, and cancellation are implemented; no reconstruction outputs are fabricated.
   - [ ] 1.2 Add analysis tables (including window, queue position, ETA, allowance), migration, typed queries, server functions, and worker dispatch. Integration tests.
     - _Requirements: 3.1–3.4, 4.4_
   - [ ] 1.3 Build the CPU-only engine image without PyTorch (ONNX Runtime for models). Implement the `engine.analysis` queue with configurable concurrency, queue position and ETA events, container CPU and memory limits, per-stage runtime and peak memory metrics, and slot release while awaiting input.

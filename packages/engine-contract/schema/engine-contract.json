@@ -139,6 +139,1093 @@
         }
       ],
       "title": "ProbeResponse"
+    },
+    "ReconstructJobRequest": {
+      "type": "object",
+      "properties": {
+        "contractVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16
+        },
+        "jobId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "kind": {
+          "type": "string",
+          "const": "reconstruct"
+        },
+        "inputs": {
+          "type": "object",
+          "properties": {
+            "footage": {
+              "minItems": 1,
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "footageId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "sourceUrl": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8192
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                },
+                "required": [
+                  "footageId",
+                  "sourceUrl"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "footage"
+          ],
+          "additionalProperties": false
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "broken": {
+              "type": "boolean"
+            },
+            "trackerBackend": {
+              "type": "string",
+              "const": "klt"
+            }
+          },
+          "required": [
+            "broken",
+            "trackerBackend"
+          ],
+          "additionalProperties": false
+        },
+        "artifactGrant": {
+          "type": "object",
+          "properties": {
+            "analysisArtifacts": {
+              "$ref": "#/$defs/ArtifactUploadGrant"
+            }
+          },
+          "required": [
+            "analysisArtifacts"
+          ],
+          "additionalProperties": false
+        },
+        "callback": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "secretRef": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "required": [
+            "url",
+            "secretRef"
+          ],
+          "additionalProperties": false
+        },
+        "traceparent": {
+          "type": "string",
+          "pattern": "^(?!ff)[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
+        }
+      },
+      "required": [
+        "contractVersion",
+        "jobId",
+        "kind",
+        "inputs",
+        "params",
+        "artifactGrant",
+        "callback",
+        "traceparent"
+      ],
+      "additionalProperties": false,
+      "title": "ReconstructJobRequest"
+    },
+    "ArtifactUploadGrant": {
+      "type": "object",
+      "properties": {
+        "uploadUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "downloadUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        }
+      },
+      "required": [
+        "uploadUrl",
+        "downloadUrl"
+      ],
+      "additionalProperties": false,
+      "title": "ArtifactUploadGrant"
+    },
+    "JobError": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "incompatible_contract",
+            "capability_unavailable",
+            "invalid_input",
+            "source_unavailable",
+            "artifact_upload_failed",
+            "callback_failed",
+            "job_not_found",
+            "canceled",
+            "internal_error"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "stage": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "prerequisites": {
+          "maxItems": 32,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "additionalProperties": false,
+      "title": "JobError"
+    },
+    "ContractErrorResponse": {
+      "type": "object",
+      "properties": {
+        "contractVersion": {
+          "type": "string",
+          "const": "1"
+        },
+        "error": {
+          "$ref": "#/$defs/JobError"
+        }
+      },
+      "required": [
+        "contractVersion",
+        "error"
+      ],
+      "additionalProperties": false,
+      "title": "ContractErrorResponse"
+    },
+    "JobArtifact": {
+      "type": "object",
+      "properties": {
+        "slot": {
+          "type": "string",
+          "const": "analysis_artifacts"
+        },
+        "mediaType": {
+          "type": "string",
+          "const": "application/vnd.orrery.analysis-artifacts+json"
+        },
+        "byteSize": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "downloadUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        }
+      },
+      "required": [
+        "slot",
+        "mediaType",
+        "byteSize",
+        "sha256",
+        "downloadUrl"
+      ],
+      "additionalProperties": false,
+      "title": "JobArtifact"
+    },
+    "JobAccepted": {
+      "type": "object",
+      "properties": {
+        "contractVersion": {
+          "type": "string",
+          "const": "1"
+        },
+        "jobId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "accepted": {
+          "type": "boolean",
+          "const": true
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "running"
+          ]
+        },
+        "statusUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        }
+      },
+      "required": [
+        "contractVersion",
+        "jobId",
+        "accepted",
+        "status",
+        "statusUrl"
+      ],
+      "additionalProperties": false,
+      "title": "JobAccepted"
+    },
+    "JobRejected": {
+      "type": "object",
+      "properties": {
+        "contractVersion": {
+          "type": "string",
+          "const": "1"
+        },
+        "jobId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "accepted": {
+          "type": "boolean",
+          "const": false
+        },
+        "status": {
+          "type": "string",
+          "const": "rejected"
+        },
+        "error": {
+          "$ref": "#/$defs/JobError"
+        }
+      },
+      "required": [
+        "contractVersion",
+        "jobId",
+        "accepted",
+        "status",
+        "error"
+      ],
+      "additionalProperties": false,
+      "title": "JobRejected"
+    },
+    "JobSubmissionResponse": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/JobAccepted"
+        },
+        {
+          "$ref": "#/$defs/JobRejected"
+        }
+      ],
+      "title": "JobSubmissionResponse"
+    },
+    "JobStatus": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "type": "string",
+              "const": "1"
+            },
+            "jobId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "queued",
+                "running",
+                "awaiting_input"
+              ]
+            },
+            "currentStage": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "progress": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "artifacts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/JobArtifact"
+              }
+            }
+          },
+          "required": [
+            "contractVersion",
+            "jobId",
+            "status",
+            "progress",
+            "artifacts"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "type": "string",
+              "const": "1"
+            },
+            "jobId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "status": {
+              "type": "string",
+              "const": "completed"
+            },
+            "artifacts": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/JobArtifact"
+              }
+            }
+          },
+          "required": [
+            "contractVersion",
+            "jobId",
+            "status",
+            "artifacts"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "type": "string",
+              "const": "1"
+            },
+            "jobId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "failed",
+                "canceled"
+              ]
+            },
+            "artifacts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/JobArtifact"
+              }
+            },
+            "error": {
+              "$ref": "#/$defs/JobError"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "jobId",
+            "status",
+            "artifacts",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "title": "JobStatus"
+    },
+    "EngineEvent": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "type": "string",
+              "const": "1"
+            },
+            "jobId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            "type": {
+              "type": "string",
+              "const": "stage_started"
+            },
+            "payload": {
+              "type": "object",
+              "properties": {
+                "stage": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "stage"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "contractVersion",
+            "jobId",
+            "seq",
+            "at",
+            "type",
+            "payload"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "type": "string",
+              "const": "1"
+            },
+            "jobId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            "type": {
+              "type": "string",
+              "const": "progress"
+            },
+            "payload": {
+              "type": "object",
+              "properties": {
+                "stage": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "fraction": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "etaSeconds": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "stage",
+                "fraction",
+                "description"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "contractVersion",
+            "jobId",
+            "seq",
+            "at",
+            "type",
+            "payload"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "type": "string",
+              "const": "1"
+            },
+            "jobId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            "type": {
+              "type": "string",
+              "const": "stage_completed"
+            },
+            "payload": {
+              "type": "object",
+              "properties": {
+                "stage": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "runtimeMs": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "peakRssBytes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "stage",
+                "runtimeMs",
+                "peakRssBytes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "contractVersion",
+            "jobId",
+            "seq",
+            "at",
+            "type",
+            "payload"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "type": "string",
+              "const": "1"
+            },
+            "jobId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            "type": {
+              "type": "string",
+              "const": "artifact_written"
+            },
+            "payload": {
+              "$ref": "#/$defs/JobArtifact"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "jobId",
+            "seq",
+            "at",
+            "type",
+            "payload"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "type": "string",
+              "const": "1"
+            },
+            "jobId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            "type": {
+              "type": "string",
+              "const": "completed"
+            },
+            "payload": {
+              "type": "object",
+              "properties": {
+                "artifacts": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/JobArtifact"
+                  }
+                }
+              },
+              "required": [
+                "artifacts"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "contractVersion",
+            "jobId",
+            "seq",
+            "at",
+            "type",
+            "payload"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "type": "string",
+              "const": "1"
+            },
+            "jobId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            "type": {
+              "type": "string",
+              "const": "failed"
+            },
+            "payload": {
+              "$ref": "#/$defs/JobError"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "jobId",
+            "seq",
+            "at",
+            "type",
+            "payload"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "title": "EngineEvent"
+    },
+    "AnalysisArtifacts": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string",
+          "const": "orrery.engine.analysis-artifacts"
+        },
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "engineVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "tracks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "trackId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "bodyId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "samples": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "frameIndex": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "xPx": {
+                      "type": "number"
+                    },
+                    "yPx": {
+                      "type": "number"
+                    },
+                    "visible": {
+                      "type": "boolean"
+                    },
+                    "uncertaintyPx": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": [
+                    "frameIndex",
+                    "xPx",
+                    "yPx",
+                    "visible"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "trackId",
+              "bodyId",
+              "samples"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "cameraMotion": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "frameIndex": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "referenceToFrame": {
+                "minItems": 9,
+                "maxItems": 9,
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              }
+            },
+            "required": [
+              "frameIndex",
+              "referenceToFrame"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "bodies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "bodyId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "linkLengthWorld": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "poses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "frameIndex": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "xWorld": {
+                      "type": "number"
+                    },
+                    "yWorld": {
+                      "type": "number"
+                    },
+                    "angleRadians": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "frameIndex",
+                    "xWorld",
+                    "yWorld",
+                    "angleRadians"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "bodyId",
+              "poses"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "joints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "jointId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "bodyA": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "bodyB": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "kind": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "xPx": {
+                "type": "number"
+              },
+              "yPx": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "jointId",
+              "bodyA",
+              "bodyB",
+              "kind",
+              "xPx",
+              "yPx"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "mobility": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "parameterId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "estimate": {
+                "type": "number"
+              },
+              "standardDeviation": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "parameterId",
+              "estimate",
+              "standardDeviation"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "diagnosis": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "loose_body",
+                  "frozen_body",
+                  "empty_hole",
+                  "missing_joint",
+                  "missing_body"
+                ]
+              },
+              "ref": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "kind",
+              "ref"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "resurrection": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "repairKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "rank": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "tieGroup": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "repairKey",
+              "rank"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "stageRuntimes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "stage": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "runtimeMs": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "stage",
+              "runtimeMs"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "format",
+        "schemaVersion",
+        "engineVersion",
+        "tracks",
+        "cameraMotion",
+        "bodies",
+        "joints",
+        "parameters",
+        "diagnosis",
+        "resurrection",
+        "stageRuntimes"
+      ],
+      "additionalProperties": false,
+      "title": "AnalysisArtifacts"
     }
   }
 }

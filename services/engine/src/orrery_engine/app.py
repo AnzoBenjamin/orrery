@@ -7,12 +7,23 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlsplit
+from uuid import UUID
 
 import httpx
 import structlog
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, status
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ValidationError
 
-from orrery_engine.generated.contract import ProbeAccepted, ProbeRejected, ProbeRequest
+from orrery_engine.generated.contract import (
+    ContractErrorResponse,
+    JobError,
+    JobRejected,
+    ProbeAccepted,
+    ProbeRejected,
+    ProbeRequest,
+    ReconstructJobRequest,
+)
 from orrery_engine.probe import (
     ProbeResult,
     Rejection,
@@ -52,6 +63,62 @@ def create_app(settings: Settings) -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.post("/v1/jobs", dependencies=[Depends(authorize)])
+    def submit_job(
+        payload: Annotated[object, Body()],
+        callback_secret: Annotated[str | None, Header(alias="Orrery-Callback-Secret")] = None,
+    ) -> JSONResponse:
+        try:
+            request = ReconstructJobRequest.model_validate(payload)
+        except ValidationError:
+            return _contract_error(
+                "invalid_input",
+                "The reconstruction job does not match contract version 1.",
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+            )
+        if request.contract_version != "1":
+            return _job_rejected(
+                request.job_id,
+                "incompatible_contract",
+                f"Contract version {request.contract_version} is not supported; use version 1.",
+            )
+        if callback_secret is None or len(callback_secret) < 32:  # noqa: PLR2004
+            return _contract_error(
+                "invalid_input",
+                "Orrery-Callback-Secret must contain at least 32 characters.",
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+            )
+        artifact_grant = request.artifact_grant.analysis_artifacts
+        protected_urls = [
+            *(item.source_url for item in request.inputs.footage),
+            artifact_grant.upload_url,
+            artifact_grant.download_url,
+        ]
+        if any(not allowed_source(url) for url in protected_urls):
+            return _job_rejected(
+                request.job_id,
+                "invalid_input",
+                "A footage or artifact URL has an origin outside the engine allowlist.",
+                http_status=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            )
+        return _job_rejected(
+            request.job_id,
+            "capability_unavailable",
+            "Reconstruction cannot run because the production stage runner and ingest artifacts "
+            "are not implemented.",
+            stage="ingest",
+            prerequisites=("vision-pipeline:1.1", "vision-pipeline:2.1"),
+        )
+
+    @app.get("/v1/jobs/{job_id}", dependencies=[Depends(authorize)])
+    def job_status(job_id: UUID) -> JSONResponse:
+        return _job_rejected(
+            job_id,
+            "job_not_found",
+            "No reconstruction job with this ID exists.",
+            http_status=status.HTTP_404_NOT_FOUND,
+        )
+
     @app.post("/v1/probe", dependencies=[Depends(authorize)], response_model_by_alias=True)
     def probe(request: ProbeRequest) -> ProbeAccepted | ProbeRejected:
         if not allowed_source(request.source_url):
@@ -82,6 +149,61 @@ def create_app(settings: Settings) -> FastAPI:
         return _accepted(result)
 
     return app
+
+
+def _contract_error(code: str, message: str, http_status: int) -> JSONResponse:
+    response = ContractErrorResponse(
+        contract_version="1",
+        error=_job_error(code, message),
+    )
+    return _json_response(response, http_status)
+
+
+def _job_rejected(
+    job_id: UUID,
+    code: str,
+    message: str,
+    *,
+    http_status: int = status.HTTP_409_CONFLICT,
+    stage: str | None = None,
+    prerequisites: tuple[str, ...] | None = None,
+) -> JSONResponse:
+    response = JobRejected(
+        contract_version="1",
+        job_id=job_id,
+        accepted=False,
+        status="rejected",
+        error=_job_error(
+            code,
+            message,
+            stage=stage,
+            prerequisites=prerequisites,
+        ),
+    )
+    return _json_response(response, http_status)
+
+
+def _job_error(
+    code: str,
+    message: str,
+    *,
+    stage: str | None = None,
+    prerequisites: tuple[str, ...] | None = None,
+) -> JobError:
+    return JobError.model_validate(
+        {
+            "code": code,
+            "message": message,
+            "retryable": False,
+            "stage": stage,
+            "prerequisites": prerequisites,
+        }
+    )
+
+
+def _json_response(model: BaseModel, http_status: int) -> JSONResponse:
+    content = model.model_dump(by_alias=True, mode="json", exclude_none=True)
+    return JSONResponse(content, http_status)
 
 
 def _accepted(result: ProbeResult) -> ProbeAccepted:

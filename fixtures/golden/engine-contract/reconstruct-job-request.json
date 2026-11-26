@@ -1,0 +1,28 @@
+{
+  "contractVersion": "1",
+  "jobId": "0195e7c3-24a0-7a72-8c4e-f57a34537c29",
+  "kind": "reconstruct",
+  "inputs": {
+    "footage": [
+      {
+        "footageId": "fixture-clean-four-bar",
+        "sourceUrl": "http://storage.test/input.mp4"
+      }
+    ]
+  },
+  "params": {
+    "broken": false,
+    "trackerBackend": "klt"
+  },
+  "artifactGrant": {
+    "analysisArtifacts": {
+      "uploadUrl": "http://storage.test/artifacts/analysis.json?put=1",
+      "downloadUrl": "http://storage.test/artifacts/analysis.json?get=1"
+    }
+  },
+  "callback": {
+    "url": "http://web.test/api/engine/events",
+    "secretRef": "job-secret-0195e7c3"
+  },
+  "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+}

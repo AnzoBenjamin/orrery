@@ -1,6 +1,13 @@
 """Production synthetic-lab evaluation against versioned engine artifacts."""
 
-from orrery_lab.eval.api import EngineJobClient, JobApiUnavailableError, ProbeResult
+from orrery_lab.eval.api import (
+    ArtifactGrant,
+    ArtifactIntegrityError,
+    EngineJobClient,
+    EngineJobError,
+    ProbeResult,
+    ReconstructionUnavailableError,
+)
 from orrery_lab.eval.evaluator import evaluate, evaluate_paths
 from orrery_lab.eval.truth import LoadedTruth, load_truth
 from orrery_lab.eval.types import (
@@ -20,17 +27,20 @@ from orrery_lab.eval.types import (
 
 __all__ = [
     "AnalysisArtifacts",
+    "ArtifactGrant",
+    "ArtifactIntegrityError",
     "BodyArtifact",
     "BodyPoseArtifact",
     "CameraMotionArtifact",
     "DiagnosisFinding",
     "EngineJobClient",
+    "EngineJobError",
     "EvaluationReport",
-    "JobApiUnavailableError",
     "JointArtifact",
     "LoadedTruth",
     "ParameterEstimate",
     "ProbeResult",
+    "ReconstructionUnavailableError",
     "ResurrectionCandidate",
     "StageRuntime",
     "TrackArtifact",

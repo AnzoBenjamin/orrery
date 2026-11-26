@@ -5,6 +5,20 @@
  */
 
 export {
+  type AnalysisArtifacts,
+  analysisArtifacts,
+  type ContractErrorResponse,
+  contractErrorResponse,
+  type EngineEvent,
+  engineEvent,
+  type JobStatus,
+  type JobSubmissionResponse,
+  jobStatus,
+  jobSubmissionResponse,
+  type ReconstructJobRequest,
+  reconstructJobRequest,
+} from "./jobs.ts";
+export {
   type ProbeRequest,
   type ProbeResponse,
   probeAccepted,

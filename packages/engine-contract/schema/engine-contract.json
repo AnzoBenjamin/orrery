@@ -291,6 +291,7 @@
           "enum": [
             "incompatible_contract",
             "capability_unavailable",
+            "requires_spatial",
             "invalid_input",
             "source_unavailable",
             "artifact_upload_failed",
@@ -889,6 +890,68 @@
             },
             "type": {
               "type": "string",
+              "const": "routing"
+            },
+            "payload": {
+              "type": "object",
+              "properties": {
+                "stage": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "destination": {
+                  "type": "string",
+                  "const": "spatial_reconstruction"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                }
+              },
+              "required": [
+                "stage",
+                "destination",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "contractVersion",
+            "jobId",
+            "seq",
+            "at",
+            "type",
+            "payload"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "type": "string",
+              "const": "1"
+            },
+            "jobId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            "type": {
+              "type": "string",
               "const": "failed"
             },
             "payload": {
@@ -991,6 +1054,11 @@
                 "minimum": 0,
                 "maximum": 9007199254740991
               },
+              "footageId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
               "referenceToFrame": {
                 "minItems": 9,
                 "maxItems": 9,
@@ -1003,6 +1071,181 @@
             "required": [
               "frameIndex",
               "referenceToFrame"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "cameraMotionAnalysis": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "footageId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "referenceFrameIndex": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "referenceSource": {
+                "type": "string",
+                "enum": [
+                  "static_scene",
+                  "ground_tracks"
+                ]
+              },
+              "groundRefinementAvailable": {
+                "type": "boolean",
+                "const": true
+              },
+              "requiresSpatial": {
+                "type": "boolean"
+              },
+              "routingReason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "staticMask": {
+                "type": "object",
+                "properties": {
+                  "filename": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "mediaType": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "encoding": {
+                    "type": "string",
+                    "const": "base64"
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "data": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "filename",
+                  "mediaType",
+                  "encoding",
+                  "byteSize",
+                  "sha256",
+                  "data"
+                ],
+                "additionalProperties": false
+              },
+              "stabilizedPreview": {
+                "type": "object",
+                "properties": {
+                  "filename": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "mediaType": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "encoding": {
+                    "type": "string",
+                    "const": "base64"
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "data": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "filename",
+                  "mediaType",
+                  "encoding",
+                  "byteSize",
+                  "sha256",
+                  "data"
+                ],
+                "additionalProperties": false
+              },
+              "quality": {
+                "type": "object",
+                "properties": {
+                  "stabilizedRmsPx": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "medianResidualPx": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "p95ResidualPx": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "meanInlierRatio": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "validFrameFraction": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "staticPixelFraction": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "parallaxEvidenceFrames": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "stabilizedRmsPx",
+                  "medianResidualPx",
+                  "p95ResidualPx",
+                  "meanInlierRatio",
+                  "validFrameFraction",
+                  "staticPixelFraction",
+                  "parallaxEvidenceFrames"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "footageId",
+              "referenceFrameIndex",
+              "referenceSource",
+              "groundRefinementAvailable",
+              "requiresSpatial",
+              "staticMask",
+              "stabilizedPreview",
+              "quality"
             ],
             "additionalProperties": false
           }

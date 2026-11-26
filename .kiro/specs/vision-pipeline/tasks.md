@@ -19,8 +19,9 @@
     - _Requirements: 2.1, 2.2, 2.3_
 
 - [ ] 3. Camera motion
-  - [ ] 3.1 Implement the Farneback static mask, MAGSAC++ homographies, the parallax test with spatial routing, and the stabilized preview. Property test 1.
+  - [x] 3.1 Implement the Farneback static mask, MAGSAC++ homographies, the parallax test with spatial routing, and the stabilized preview. Property test 1.
     - _Requirements: 5.1, 5.3, 5.4_
+    - The real engine stage computes adjacent-window Farneback static masks, matches static features with ORB and LK fallback, and fits deterministic OpenCV USAC_MAGSAC reference-to-frame homographies. It records residual/inlier/static/valid-frame quality metrics, detects coherent second-plane parallax, emits typed spatial-routing events and guidance, supports later ground-track MAGSAC refinement, and uploads real H.264 stabilized preview plus PNG static-mask artifacts through job grants. Property 1 keeps stabilized planar ground points below 1 px RMS; tests cover handheld fixture footage, parallax routing, deterministic estimation, contracts, callbacks, checkpoints, and decoded previews.
 
 - [ ] 4. Seeding and tracking
   - [ ] 4.1 Implement moving-region seeding with even coverage, full-resolution hole detection, user points, and re-seeding.

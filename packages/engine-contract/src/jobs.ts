@@ -63,6 +63,7 @@ export const jobError = z
     code: z.enum([
       "incompatible_contract",
       "capability_unavailable",
+      "requires_spatial",
       "invalid_input",
       "source_unavailable",
       "artifact_upload_failed",
@@ -218,6 +219,19 @@ export const engineEvent = z
     z
       .object({
         ...eventBase,
+        type: z.literal("routing"),
+        payload: z
+          .object({
+            stage: identifier,
+            destination: z.literal("spatial_reconstruction"),
+            reason: z.string().min(1).max(1000),
+          })
+          .strict(),
+      })
+      .strict(),
+    z
+      .object({
+        ...eventBase,
         type: z.literal("failed"),
         payload: jobError,
       })
@@ -246,6 +260,7 @@ const trackArtifact = z
 const cameraMotionArtifact = z
   .object({
     frameIndex: z.number().int().nonnegative(),
+    footageId: identifier.optional(),
     referenceToFrame: z.array(z.number()).length(9),
   })
   .strict();
@@ -319,6 +334,32 @@ const embeddedMediaArtifact = z
   })
   .strict();
 
+const cameraMotionQuality = z
+  .object({
+    stabilizedRmsPx: z.number().nonnegative(),
+    medianResidualPx: z.number().nonnegative(),
+    p95ResidualPx: z.number().nonnegative(),
+    meanInlierRatio: z.number().min(0).max(1),
+    validFrameFraction: z.number().min(0).max(1),
+    staticPixelFraction: z.number().min(0).max(1),
+    parallaxEvidenceFrames: z.number().int().nonnegative(),
+  })
+  .strict();
+
+const cameraMotionFootageArtifact = z
+  .object({
+    footageId: identifier,
+    referenceFrameIndex: z.number().int().nonnegative(),
+    referenceSource: z.enum(["static_scene", "ground_tracks"]),
+    groundRefinementAvailable: z.literal(true),
+    requiresSpatial: z.boolean(),
+    routingReason: z.string().min(1).max(1000).optional(),
+    staticMask: embeddedMediaArtifact,
+    stabilizedPreview: embeddedMediaArtifact,
+    quality: cameraMotionQuality,
+  })
+  .strict();
+
 const normalizedFrame = z
   .object({
     frameIndex: z.number().int().nonnegative(),
@@ -374,6 +415,7 @@ export const analysisArtifacts = z
     engineVersion: identifier,
     tracks: z.array(trackArtifact),
     cameraMotion: z.array(cameraMotionArtifact),
+    cameraMotionAnalysis: z.array(cameraMotionFootageArtifact).optional(),
     bodies: z.array(bodyArtifact),
     joints: z.array(jointArtifact),
     mobility: z.number().int().optional(),

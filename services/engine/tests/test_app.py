@@ -15,6 +15,7 @@ import av
 import httpx
 import pytest
 import uvicorn
+from av.container import InputContainer
 from opentelemetry.sdk.trace import TracerProvider
 from orrery_engine.app import create_app
 from orrery_engine.generated.contract import AnalysisArtifacts, EngineEvent
@@ -143,7 +144,7 @@ def test_missing_sources_are_retryable_errors(client: httpx.Client, file_server:
     assert probe(client, f"{file_server}/missing.mp4").status_code == 502
 
 
-def test_reconstruction_job_runs_real_ingest_and_reports_the_next_capability_limit(
+def test_reconstruction_job_runs_real_ingest_and_camera_motion_then_reports_seeding_limit(
     client: httpx.Client, file_server: str, job_server: JobServer
 ) -> None:
     with job_server.lock:
@@ -169,10 +170,10 @@ def test_reconstruction_job_runs_real_ingest_and_reports_the_next_capability_lim
     assert terminal["status"] == "failed"
     assert terminal["error"] == {
         "code": "capability_unavailable",
-        "message": "Ingest completed, but camera-motion reconstruction is not implemented yet.",
+        "message": "Camera motion completed, but track seeding is not implemented yet.",
         "retryable": False,
-        "stage": "camera_motion",
-        "prerequisites": ["vision-pipeline:3.1"],
+        "stage": "seeding",
+        "prerequisites": ["vision-pipeline:4.1"],
     }
     assert len(cast(list[object], terminal["artifacts"])) == 1
 
@@ -180,7 +181,16 @@ def test_reconstruction_job_runs_real_ingest_and_reports_the_next_capability_lim
     assert artifact_bytes is not None
     artifact = AnalysisArtifacts.model_validate_json(artifact_bytes)
     assert artifact.tracks == []
-    assert artifact.camera_motion == []
+    assert len(artifact.camera_motion) == 60
+    assert artifact.camera_motion_analysis is not None
+    camera_stage = artifact.camera_motion_analysis[0]
+    assert camera_stage.footage_id == "fixture-clean-four-bar"
+    assert camera_stage.quality.valid_frame_fraction > 0.9
+    assert camera_stage.stabilized_preview.byte_size > 0
+    with av.open(io.BytesIO(base64.b64decode(camera_stage.stabilized_preview.data))) as preview:
+        assert preview.streams.video[0].codec_context.name == "h264"
+        assert preview.streams.video[0].frames == 60
+    assert [stage.stage for stage in artifact.stage_runtimes] == ["ingest", "camera_motion"]
     assert artifact.ingest is not None
     footage = artifact.ingest[0]
     assert (footage.width, footage.height) == (320, 240)
@@ -207,8 +217,84 @@ def test_reconstruction_job_runs_real_ingest_and_reports_the_next_capability_lim
         "stage_completed",
         "artifact_written",
         "stage_started",
+        "progress",
+        "progress",
+        "progress",
+        "stage_completed",
+        "artifact_written",
+        "stage_started",
         "failed",
     ]
+
+
+def test_real_handheld_fixture_runs_ingest_then_camera_motion(
+    client: httpx.Client, file_server: str, job_server: JobServer
+) -> None:
+    request = reconstruction_request(
+        file_server, job_server.origin, filename="phone-slider-crank.mp4"
+    )
+    request["jobId"] = str(uuid4())
+    response = client.post(
+        "/v1/jobs",
+        json=request,
+        headers={
+            "Authorization": f"Bearer {TOKEN}",
+            "Orrery-Callback-Secret": "s" * 40,
+        },
+    )
+    terminal = wait_terminal(client, str(request["jobId"]))
+    assert response.status_code == 202
+    assert terminal["error"]["stage"] == "seeding"
+    artifact_bytes = job_server.artifact
+    assert artifact_bytes is not None
+    artifact = AnalysisArtifacts.model_validate_json(artifact_bytes)
+    assert len(artifact.camera_motion) == 8
+    assert artifact.camera_motion_analysis is not None
+    stage = artifact.camera_motion_analysis[0]
+    assert stage.quality.stabilized_rms_px < 1.0
+    assert stage.quality.valid_frame_fraction == 1.0
+    assert not stage.requires_spatial
+    preview_container = cast(
+        InputContainer,
+        av.open(io.BytesIO(base64.b64decode(stage.stabilized_preview.data))),
+    )
+    with preview_container:
+        assert len(list(preview_container.decode(video=0))) == 8
+
+
+def test_parallax_uploads_evidence_then_emits_spatial_routing_event(
+    client: httpx.Client, file_server: str, job_server: JobServer
+) -> None:
+    request = reconstruction_request(file_server, job_server.origin, filename="parallax.mp4")
+    request["jobId"] = str(uuid4())
+    job_id = str(request["jobId"])
+    response = client.post(
+        "/v1/jobs",
+        json=request,
+        headers={
+            "Authorization": f"Bearer {TOKEN}",
+            "Orrery-Callback-Secret": "s" * 40,
+        },
+    )
+    terminal = wait_terminal(client, job_id)
+    assert response.status_code == 202
+    assert terminal["error"]["code"] == "requires_spatial"
+    assert terminal["error"]["stage"] == "camera_motion"
+    assert terminal["error"]["prerequisites"] == ["spatial-reconstruction"]
+    assert "steadier, more frontal" in terminal["error"]["message"]
+    artifact_bytes = job_server.artifact
+    assert artifact_bytes is not None
+    artifact = AnalysisArtifacts.model_validate_json(artifact_bytes)
+    assert artifact.camera_motion_analysis is not None
+    stage = artifact.camera_motion_analysis[0]
+    assert stage.requires_spatial
+    assert stage.routing_reason is not None
+    assert stage.quality.parallax_evidence_frames >= 2
+    with job_server.lock:
+        events = [event for event in job_server.events if event["jobId"] == job_id]
+    assert [event["type"] for event in events[-2:]] == ["routing", "failed"]
+    routing = cast(dict[str, object], events[-2]["payload"])
+    assert routing["destination"] == "spatial_reconstruction"
 
 
 def test_reconstruction_ingest_applies_rotation_and_normalizes_vfr(
@@ -227,6 +313,7 @@ def test_reconstruction_ingest_applies_rotation_and_normalizes_vfr(
     terminal = wait_terminal(client, str(rotated["jobId"]))
     assert response.status_code == 202
     assert terminal["error"]["code"] == "capability_unavailable"
+    assert terminal["error"]["stage"] == "seeding"
     rotated_bytes = job_server.artifact
     assert rotated_bytes is not None
     rotated_artifact = AnalysisArtifacts.model_validate_json(rotated_bytes)
@@ -288,7 +375,7 @@ def test_reconstruction_job_can_be_canceled_within_ten_seconds(
     assert terminal["error"]["code"] == "canceled"
 
 
-def test_reconstruction_resumes_from_the_ingest_checkpoint_after_restart(
+def test_reconstruction_resumes_from_the_camera_motion_checkpoint_after_restart(
     file_server: str, job_server: JobServer, tmp_path: Path
 ) -> None:
     request = reconstruction_request(file_server, job_server.origin)
@@ -309,15 +396,15 @@ def test_reconstruction_resumes_from_the_ingest_checkpoint_after_restart(
         assert first.post("/v1/jobs", json=request, headers=headers).status_code == 202
         assert wait_terminal(first, job_id)["error"]["code"] == "capability_unavailable"
     with job_server.lock:
-        after_ingest_puts = job_server.put_count
-    assert after_ingest_puts == initial_puts + 1
+        after_camera_puts = job_server.put_count
+    assert after_camera_puts == initial_puts + 2
 
     with running_engine(settings) as resumed:
         assert resumed.post("/v1/jobs", json=request, headers=headers).status_code == 202
         terminal = wait_terminal(resumed, job_id)
-    assert terminal["error"]["stage"] == "camera_motion"
+    assert terminal["error"]["stage"] == "seeding"
     with job_server.lock:
-        assert job_server.put_count == after_ingest_puts
+        assert job_server.put_count == after_camera_puts
         job_events = [event for event in job_server.events if event["jobId"] == job_id]
     assert [event["type"] for event in job_events[-2:]] == ["stage_started", "failed"]
 

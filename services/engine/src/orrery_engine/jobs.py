@@ -3,12 +3,9 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import hmac
-import json
-import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -16,6 +13,7 @@ from uuid import UUID
 
 import httpx
 
+from orrery_engine.camera_motion import CameraMotionError
 from orrery_engine.generated.contract import (
     AnalysisArtifacts,
     EngineEvent,
@@ -26,7 +24,18 @@ from orrery_engine.generated.contract import (
     JobStatus3,
     ReconstructJobRequest,
 )
-from orrery_engine.ingest import IngestConfig, IngestError, ingest_footage
+from orrery_engine.job_camera_motion import (
+    CameraMotionStageOutput,
+    load_camera_motion_stage,
+    run_camera_motion_stage,
+)
+from orrery_engine.job_checkpoint import load_checkpoints, write_checkpoint
+from orrery_engine.job_ingest import (
+    IngestChecksumError,
+    load_ingest_manifests,
+    run_ingest_stage,
+)
+from orrery_engine.job_models import JobCanceledError, JobFailureError, JobRecord
 from orrery_engine.job_support import (
     job_error as _error,
 )
@@ -36,45 +45,11 @@ from orrery_engine.job_support import (
 from orrery_engine.job_support import (
     request_fingerprint as _request_fingerprint,
 )
-from orrery_engine.job_support import (
-    sha256_file as _sha256_file,
-)
-from orrery_engine.probe import SourceUnavailableError, TooLargeError, download
+from orrery_engine.probe import SourceUnavailableError, TooLargeError
 from orrery_engine.settings import Settings
 
 MEDIA_TYPE = "application/vnd.orrery.analysis-artifacts+json"
 STAGE_GRAPH = {"ingest": (), "camera_motion": ("ingest",)}
-
-
-class JobCanceledError(RuntimeError):
-    pass
-
-
-class JobFailureError(RuntimeError):
-    def __init__(self, error: JobError) -> None:
-        super().__init__(error.message)
-        self.error = error
-
-
-@dataclass
-class JobRecord:
-    request: ReconstructJobRequest
-    callback_secret: str | None
-    status_url: str
-    status: Literal["queued", "running", "failed", "canceled"] = "queued"
-    current_stage: str | None = None
-    progress: float = 0.0
-    artifacts: list[JobArtifact] = field(default_factory=list[JobArtifact])
-    error: JobError | None = None
-    completed_stages: set[str] = field(default_factory=set[str])
-    stage_runtimes: dict[str, float] = field(default_factory=dict[str, float])
-    seq: int = 0
-    cancel: threading.Event = field(default_factory=threading.Event)
-    lock: threading.RLock = field(default_factory=threading.RLock)
-
-    @property
-    def job_id(self) -> UUID:
-        return self.request.job_id
 
 
 class JobManager:
@@ -177,20 +152,34 @@ class JobManager:
             if "ingest" not in record.completed_stages:
                 self._run_ingest(record)
             self._check_canceled(record)
-            self._emit(record, "stage_started", {"stage": "camera_motion"})
+            if "camera_motion" not in record.completed_stages:
+                camera = self._run_camera_motion(record)
+            else:
+                camera = load_camera_motion_stage(self._job_dir(record.job_id))
+            self._route_spatial_if_needed(record, camera)
+            self._emit(record, "stage_started", {"stage": "seeding"})
             raise JobFailureError(
                 _error(
                     "capability_unavailable",
-                    "Ingest completed, but camera-motion reconstruction is not implemented yet.",
-                    stage="camera_motion",
-                    prerequisites=("vision-pipeline:3.1",),
+                    "Camera motion completed, but track seeding is not implemented yet.",
+                    stage="seeding",
+                    prerequisites=("vision-pipeline:4.1",),
                 )
             )
         except JobCanceledError:
             self._finish_failure(record, _error("canceled", "The reconstruction job was canceled."))
         except JobFailureError as failure:
             self._finish_failure(record, failure.error)
-        except (IngestError, SourceUnavailableError, TooLargeError) as failure:
+        except (IngestChecksumError, CameraMotionError) as failure:
+            self._finish_failure(
+                record,
+                _error(
+                    "invalid_input",
+                    str(failure),
+                    stage=record.current_stage,
+                ),
+            )
+        except (SourceUnavailableError, TooLargeError) as failure:
             self._finish_failure(
                 record,
                 _error(
@@ -212,95 +201,128 @@ class JobManager:
             )
 
     def _run_ingest(self, record: JobRecord) -> None:
-        started = time.monotonic()
         with record.lock:
             record.current_stage = "ingest"
             record.progress = 0.0
             self._checkpoint(record)
         self._emit(record, "stage_started", {"stage": "ingest"})
         self._progress(record, 0.02, "Downloading source footage.")
-        ingest_items: list[dict[str, object]] = []
-        job_dir = self._job_dir(record.job_id)
-        for index, footage in enumerate(record.request.inputs.footage):
-            self._check_canceled(record)
-            footage_dir = job_dir / "ingest" / f"{index:02d}"
-            footage_dir.mkdir(parents=True, exist_ok=True)
-            source = footage_dir / "source"
-            if source.exists():
-                digest = _sha256_file(source)
-            else:
-                partial = source.with_suffix(".part")
-                partial.unlink(missing_ok=True)
-                digest, _ = download(
-                    footage.source_url,
-                    partial,
-                    self._settings.max_source_bytes,
-                    self._http,
-                    check_canceled=lambda: self._check_canceled(record),
-                )
-                os.replace(partial, source)
-            if footage.sha256 is not None and digest != footage.sha256:
-                raise JobFailureError(
-                    _error(
-                        "source_unavailable",
-                        "Downloaded footage did not match its expected SHA-256.",
-                        retryable=True,
-                        stage="ingest",
-                    )
-                )
-            self._progress(
-                record,
-                0.1 + 0.75 * index / len(record.request.inputs.footage),
-                f"Decoding and normalizing footage {index + 1} of "
-                f"{len(record.request.inputs.footage)}.",
-            )
-            result = ingest_footage(
-                source,
-                footage_dir,
-                footage_id=footage.footage_id,
-                source_sha256=digest,
-                config=IngestConfig(
-                    self._settings.analysis_long_side,
-                    self._settings.proxy_long_side,
-                    self._settings.thumbnail_count,
-                ),
-                check_canceled=lambda: self._check_canceled(record),
-            )
-            ingest_items.append(result.manifest)
-        runtime_ms = (time.monotonic() - started) * 1000
-        artifact = AnalysisArtifacts.model_validate(
+        output = run_ingest_stage(
+            record.request,
+            self._job_dir(record.job_id),
+            self._settings,
+            self._http,
+            check_canceled=lambda: self._check_canceled(record),
+            progress=lambda fraction, description: self._progress(record, fraction, description),
+        )
+        artifact = self._analysis_artifact(
+            record,
+            ingest=list(output.manifests),
+            pending_runtime=("ingest", output.runtime_ms),
+        )
+        descriptor = self._upload_artifact(record, artifact)
+        self._complete_stage(record, "ingest", output.runtime_ms, descriptor)
+
+    def _run_camera_motion(self, record: JobRecord) -> CameraMotionStageOutput:
+        with record.lock:
+            record.current_stage = "camera_motion"
+            record.progress = 0.0
+            self._checkpoint(record)
+        self._emit(record, "stage_started", {"stage": "camera_motion"})
+        output = run_camera_motion_stage(
+            record.request,
+            self._job_dir(record.job_id),
+            self._settings,
+            check_canceled=lambda: self._check_canceled(record),
+            progress=lambda fraction, description: self._progress(record, fraction, description),
+        )
+        artifact = self._analysis_artifact(
+            record,
+            ingest=list(load_ingest_manifests(self._job_dir(record.job_id))),
+            camera=output,
+            pending_runtime=("camera_motion", output.runtime_ms),
+        )
+        descriptor = self._upload_artifact(record, artifact)
+        self._complete_stage(record, "camera_motion", output.runtime_ms, descriptor)
+        return output
+
+    def _analysis_artifact(
+        self,
+        record: JobRecord,
+        *,
+        ingest: list[dict[str, object]],
+        camera: CameraMotionStageOutput | None = None,
+        pending_runtime: tuple[str, float] | None = None,
+    ) -> AnalysisArtifacts:
+        runtimes = dict(record.stage_runtimes)
+        if pending_runtime is not None:
+            runtimes[pending_runtime[0]] = pending_runtime[1]
+        return AnalysisArtifacts.model_validate(
             {
                 "format": "orrery.engine.analysis-artifacts",
                 "schemaVersion": 1,
                 "engineVersion": self._settings.engine_version,
                 "tracks": [],
-                "cameraMotion": [],
+                "cameraMotion": list(camera.motions) if camera else [],
+                "cameraMotionAnalysis": list(camera.manifests) if camera else None,
                 "bodies": [],
                 "joints": [],
                 "parameters": [],
                 "diagnosis": [],
                 "resurrection": [],
-                "stageRuntimes": [{"stage": "ingest", "runtimeMs": runtime_ms}],
-                "ingest": ingest_items,
+                "stageRuntimes": [
+                    {"stage": stage, "runtimeMs": runtime} for stage, runtime in runtimes.items()
+                ],
+                "ingest": ingest,
             }
         )
-        descriptor = self._upload_artifact(record, artifact)
+
+    def _complete_stage(
+        self,
+        record: JobRecord,
+        stage: str,
+        runtime_ms: float,
+        descriptor: JobArtifact,
+    ) -> None:
         with record.lock:
             record.artifacts = [descriptor]
-            record.completed_stages.add("ingest")
-            record.stage_runtimes["ingest"] = runtime_ms
+            record.completed_stages.add(stage)
+            record.stage_runtimes[stage] = runtime_ms
             record.progress = 1.0
             self._checkpoint(record)
         self._emit(
             record,
             "stage_completed",
             {
-                "stage": "ingest",
+                "stage": stage,
                 "runtimeMs": runtime_ms,
                 "peakRssBytes": _peak_rss_bytes(),
             },
         )
         self._emit(record, "artifact_written", descriptor.model_dump(by_alias=True, mode="json"))
+
+    def _route_spatial_if_needed(self, record: JobRecord, output: CameraMotionStageOutput) -> None:
+        if not output.requires_spatial:
+            return
+        reason = " ".join(output.routing_reasons)
+        self._emit(
+            record,
+            "routing",
+            {
+                "stage": "camera_motion",
+                "destination": "spatial_reconstruction",
+                "reason": reason,
+            },
+        )
+        raise JobFailureError(
+            _error(
+                "requires_spatial",
+                f"This clip has significant parallax. {reason} Record a steadier, more frontal "
+                "clip or use spatial reconstruction when it becomes available.",
+                stage="camera_motion",
+                prerequisites=("spatial-reconstruction",),
+            )
+        )
 
     def _upload_artifact(self, record: JobRecord, artifact: AnalysisArtifacts) -> JobArtifact:
         content = artifact.model_dump_json(by_alias=True, exclude_none=True).encode()
@@ -316,9 +338,9 @@ class JobManager:
             raise JobFailureError(
                 _error(
                     "artifact_upload_failed",
-                    "The ingest artifact upload grant failed.",
+                    "The analysis artifact upload grant failed.",
                     retryable=True,
-                    stage="ingest",
+                    stage=record.current_stage,
                 )
             ) from failure
         return JobArtifact(
@@ -332,11 +354,12 @@ class JobManager:
     def _progress(self, record: JobRecord, fraction: float, description: str) -> None:
         with record.lock:
             record.progress = fraction
+            stage = record.current_stage or "ingest"
             self._checkpoint(record)
         self._emit(
             record,
             "progress",
-            {"stage": "ingest", "fraction": fraction, "description": description},
+            {"stage": stage, "fraction": fraction, "description": description},
         )
 
     def _emit(
@@ -399,20 +422,19 @@ class JobManager:
                 time.sleep(0.05 * (attempt + 1))
 
     def _finish_failure(self, record: JobRecord, error: JobError) -> None:
+        if error.code != "callback_failed":
+            with contextlib.suppress(JobCanceledError, JobFailureError):
+                self._emit(
+                    record,
+                    "failed",
+                    error.model_dump(by_alias=True, mode="json", exclude_none=True),
+                    allow_canceled=True,
+                )
         with record.lock:
             record.status = "canceled" if error.code == "canceled" else "failed"
             record.error = error
             record.progress = min(record.progress, 1.0)
             self._checkpoint(record)
-        if error.code == "callback_failed":
-            return
-        with contextlib.suppress(JobCanceledError, JobFailureError):
-            self._emit(
-                record,
-                "failed",
-                error.model_dump(by_alias=True, mode="json", exclude_none=True),
-                allow_canceled=True,
-            )
 
     @staticmethod
     def _check_canceled(record: JobRecord) -> None:
@@ -420,54 +442,20 @@ class JobManager:
             raise JobCanceledError
 
     def _checkpoint(self, record: JobRecord) -> None:
-        path = self._job_dir(record.job_id) / "checkpoint.json"
-        payload = {
-            "request": record.request.model_dump(by_alias=True, mode="json"),
-            "statusUrl": record.status_url,
-            "status": record.status,
-            "currentStage": record.current_stage,
-            "progress": record.progress,
-            "artifacts": [item.model_dump(by_alias=True, mode="json") for item in record.artifacts],
-            "error": (
-                record.error.model_dump(by_alias=True, mode="json", exclude_none=True)
-                if record.error
-                else None
-            ),
-            "completedStages": sorted(record.completed_stages),
-            "stageRuntimes": record.stage_runtimes,
-            "seq": record.seq,
-        }
-        temporary = path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")))
-        os.replace(temporary, path)
+        write_checkpoint(record, self._job_dir(record.job_id))
 
     def _load_checkpoints(self) -> None:
-        for path in self._jobs_dir.glob("*/checkpoint.json"):
-            try:
-                raw = json.loads(path.read_text())
-                request = ReconstructJobRequest.model_validate(raw["request"])
-                record = JobRecord(request, None, str(raw["statusUrl"]))
-                record.status = (
-                    "canceled" if raw["status"] in {"queued", "running"} else raw["status"]
-                )
-                record.current_stage = raw.get("currentStage")
-                record.progress = float(raw.get("progress", 0.0))
-                record.artifacts = [
-                    JobArtifact.model_validate(item) for item in raw.get("artifacts", [])
-                ]
-                record.error = JobError.model_validate(raw["error"]) if raw.get("error") else None
-                if record.status == "canceled" and record.error is None:
-                    record.error = _error(
-                        "canceled", "The engine restarted before the job completed."
-                    )
-                record.completed_stages = set(raw.get("completedStages", []))
-                record.stage_runtimes = {
-                    str(key): float(value) for key, value in raw.get("stageRuntimes", {}).items()
-                }
-                record.seq = int(raw.get("seq", 0))
-                self._records[request.job_id] = record
-            except (OSError, ValueError, TypeError, KeyError):
-                continue
+        for item in load_checkpoints(self._jobs_dir):
+            record = JobRecord(item.request, None, item.status_url)
+            record.status = item.status
+            record.current_stage = item.current_stage
+            record.progress = item.progress
+            record.artifacts = item.artifacts
+            record.error = item.error
+            record.completed_stages = item.completed_stages
+            record.stage_runtimes = item.stage_runtimes
+            record.seq = item.seq
+            self._records[record.job_id] = record
 
     def _job_dir(self, job_id: UUID) -> Path:
         path = self._jobs_dir / str(job_id)

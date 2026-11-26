@@ -10,7 +10,11 @@ from functools import partial
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import cast
 
+import cv2
+import numpy as np
+import numpy.typing as npt
 import pytest
 
 CALLBACK_SECRET = "s" * 40
@@ -58,6 +62,32 @@ def clips(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     disguised.write_text("Bobbin winder seized; hand wheel turns. " * 200)
     gif = root / "loop.gif"
     ffmpeg("-f", "lavfi", "-i", "testsrc=size=64x48:rate=10", "-t", "1", str(gif))
+    fixture_root = Path(__file__).parents[3] / "e2e/fixtures/synthetic-lab/suite"
+    phone = root / "phone-slider-crank.mp4"
+    phone.write_bytes((fixture_root / "phone-slider-crank/clip.mp4").read_bytes())
+    parallax = root / "parallax.mp4"
+    height, width = 180, 240
+    rng = np.random.default_rng(5)
+    texture = cast(
+        npt.NDArray[np.uint8],
+        cv2.GaussianBlur(rng.integers(0, 256, (height, width, 3), dtype=np.uint8), (3, 3), 0),
+    )
+    frames: list[npt.NDArray[np.uint8]] = []
+    for index in range(6):
+        offset = index * 2
+        background = np.roll(texture, offset, axis=1)
+        foreground = np.roll(texture, -offset, axis=1)
+        frame = background.copy()
+        frame[:, width // 2 :] = foreground[:, width // 2 :]
+        frames.append(frame)
+    raw = root / "parallax.bgr"
+    raw.write_bytes(np.stack(frames).tobytes())
+    ffmpeg(
+        "-f", "rawvideo", "-pixel_format", "bgr24", "-video_size", f"{width}x{height}",
+        "-framerate", "6", "-i", str(raw), "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        str(parallax),
+    )  # fmt: skip
+    raw.unlink()
     return {
         "h264": h264,
         "rotated": rotated,
@@ -66,6 +96,8 @@ def clips(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
         "audio": audio,
         "disguised": disguised,
         "gif": gif,
+        "phone": phone,
+        "parallax": parallax,
     }
 
 

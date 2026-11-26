@@ -24,7 +24,8 @@ from orrery_engine.generated.contract import (
     ProbeRequest,
     ReconstructJobRequest,
 )
-from orrery_engine.jobs import JobFailureError, JobManager
+from orrery_engine.job_models import JobFailureError
+from orrery_engine.jobs import JobManager
 from orrery_engine.probe import (
     ProbeResult,
     Rejection,

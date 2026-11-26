@@ -117,6 +117,7 @@ class JobError(BaseModel):
     code: Literal[
         "incompatible_contract",
         "capability_unavailable",
+        "requires_spatial",
         "invalid_input",
         "source_unavailable",
         "artifact_upload_failed",
@@ -326,7 +327,30 @@ class EngineEvent5(BaseModel):
     payload: Payload3
 
 
+class Payload4(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    stage: Annotated[str, Field(max_length=200, min_length=1)]
+    destination: Literal["spatial_reconstruction"]
+    reason: Annotated[str, Field(max_length=1000, min_length=1)]
+
+
 class EngineEvent6(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    contract_version: Annotated[Literal["1"], Field(alias="contractVersion")]
+    job_id: Annotated[UUID, Field(alias="jobId")]
+    seq: Annotated[int, Field(ge=0, le=9007199254740991)]
+    at: AwareDatetime
+    type: Literal["routing"]
+    payload: Payload4
+
+
+class EngineEvent7(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
@@ -341,11 +365,23 @@ class EngineEvent6(BaseModel):
 
 class EngineEvent(
     RootModel[
-        EngineEvent1 | EngineEvent2 | EngineEvent3 | EngineEvent4 | EngineEvent5 | EngineEvent6
+        EngineEvent1
+        | EngineEvent2
+        | EngineEvent3
+        | EngineEvent4
+        | EngineEvent5
+        | EngineEvent6
+        | EngineEvent7
     ]
 ):
     root: Annotated[
-        EngineEvent1 | EngineEvent2 | EngineEvent3 | EngineEvent4 | EngineEvent5 | EngineEvent6,
+        EngineEvent1
+        | EngineEvent2
+        | EngineEvent3
+        | EngineEvent4
+        | EngineEvent5
+        | EngineEvent6
+        | EngineEvent7,
         Field(title="EngineEvent"),
     ]
 
@@ -378,9 +414,74 @@ class CameraMotionItem(BaseModel):
         populate_by_name=True,
     )
     frame_index: Annotated[int, Field(alias="frameIndex", ge=0, le=9007199254740991)]
+    footage_id: Annotated[str | None, Field(alias="footageId", max_length=200, min_length=1)] = None
     reference_to_frame: Annotated[
         list[float], Field(alias="referenceToFrame", max_length=9, min_length=9)
     ]
+
+
+class StaticMask(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    filename: Annotated[str, Field(max_length=200, min_length=1)]
+    media_type: Annotated[str, Field(alias="mediaType", max_length=200, min_length=1)]
+    encoding: Literal["base64"]
+    byte_size: Annotated[int, Field(alias="byteSize", ge=0, le=9007199254740991)]
+    sha256: Annotated[str, Field(pattern="^[0-9a-f]{64}$")]
+    data: str
+
+
+class StabilizedPreview(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    filename: Annotated[str, Field(max_length=200, min_length=1)]
+    media_type: Annotated[str, Field(alias="mediaType", max_length=200, min_length=1)]
+    encoding: Literal["base64"]
+    byte_size: Annotated[int, Field(alias="byteSize", ge=0, le=9007199254740991)]
+    sha256: Annotated[str, Field(pattern="^[0-9a-f]{64}$")]
+    data: str
+
+
+class Quality(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    stabilized_rms_px: Annotated[float, Field(alias="stabilizedRmsPx", ge=0.0)]
+    median_residual_px: Annotated[float, Field(alias="medianResidualPx", ge=0.0)]
+    p95_residual_px: Annotated[float, Field(alias="p95ResidualPx", ge=0.0)]
+    mean_inlier_ratio: Annotated[float, Field(alias="meanInlierRatio", ge=0.0, le=1.0)]
+    valid_frame_fraction: Annotated[float, Field(alias="validFrameFraction", ge=0.0, le=1.0)]
+    static_pixel_fraction: Annotated[float, Field(alias="staticPixelFraction", ge=0.0, le=1.0)]
+    parallax_evidence_frames: Annotated[
+        int, Field(alias="parallaxEvidenceFrames", ge=0, le=9007199254740991)
+    ]
+
+
+class CameraMotionAnalysi(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+    )
+    footage_id: Annotated[str, Field(alias="footageId", max_length=200, min_length=1)]
+    reference_frame_index: Annotated[
+        int, Field(alias="referenceFrameIndex", ge=0, le=9007199254740991)
+    ]
+    reference_source: Annotated[
+        Literal["static_scene", "ground_tracks"], Field(alias="referenceSource")
+    ]
+    ground_refinement_available: Annotated[Literal[True], Field(alias="groundRefinementAvailable")]
+    requires_spatial: Annotated[bool, Field(alias="requiresSpatial")]
+    routing_reason: Annotated[
+        str | None, Field(alias="routingReason", max_length=1000, min_length=1)
+    ] = None
+    static_mask: Annotated[StaticMask, Field(alias="staticMask")]
+    stabilized_preview: Annotated[StabilizedPreview, Field(alias="stabilizedPreview")]
+    quality: Quality
 
 
 class Pose(BaseModel):
@@ -568,6 +669,9 @@ class AnalysisArtifacts(BaseModel):
     engine_version: Annotated[str, Field(alias="engineVersion", max_length=200, min_length=1)]
     tracks: list[Track]
     camera_motion: Annotated[list[CameraMotionItem], Field(alias="cameraMotion")]
+    camera_motion_analysis: Annotated[
+        list[CameraMotionAnalysi] | None, Field(alias="cameraMotionAnalysis")
+    ] = None
     bodies: list[Body]
     joints: list[Joint]
     mobility: Annotated[int | None, Field(ge=-9007199254740991, le=9007199254740991)] = None

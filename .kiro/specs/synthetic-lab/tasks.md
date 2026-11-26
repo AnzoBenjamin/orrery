@@ -56,9 +56,10 @@
     - _Requirements: 7.1–7.4_
     - `suite/` strictly validates versioned TOML manifests, canonicalizes them, hashes the canonical manifest with the lab version, derives clip-local NumPy `SeedSequence` seeds independent of run order, orchestrates real sampling/rendering/encoding/truth export, and records decoded RGB24 frame hashes. Atomic suite indexes inventory and verify every output. A local content-addressed cache and real Garage-compatible S3 cache use the manifest hash, checksums, and completion markers to prevent partial reuse. `smoke.toml`, `core.toml`, and `full.toml` define real clean/phone/hostile/archival and 2D/3D workloads with declared CPU budgets. CLI commands expose suite hashing and generation. Hypothesis property 2 proves repeated generation has byte-identical truth and identical decoded-frame hashes; tests cover corruption, reuse, manifests, seeds, and optional real Garage round trips.
 
-- [ ] 6. Fixtures for other specs
-  - [ ] 6.1 Generate and commit short end-to-end fixture clips with ground truth to `e2e/fixtures` (clean four-bar, broken flapping wing, repaired flapping wing, phone-profile slider-crank).
+- [x] 6. Fixtures for other specs
+  - [x] 6.1 Generate and commit short end-to-end fixture clips with ground truth to `e2e/fixtures` (clean four-bar, broken flapping wing, repaired flapping wing, phone-profile slider-crank).
     - _Requirements: 6.3_
+    - `e2e/fixtures/synthetic-lab/` contains four real 96×64, eight-frame pipeline outputs with MP4, canonical truth, Arrow tables, and masks: a clean four-bar, a flapping wing with `rod-left` removed and simulated loose motion, the intact repair from the exact same sampled specimen, and a phone-profile slider-crank with camera/sensor degradation and VFR. A versioned index records every file hash, decoded-frame hash, sample seed, source-mechanism hash, and the repair-of relation. `tools/lab/fixtures/e2e.toml` and `tools/lab/scripts/generate_e2e_fixtures.py --check` regenerate and byte-verify the committed 210 KB fixture set through the real suite pipeline.
 
 - [ ] 7. Evaluation and gate
   - [ ] 7.1 Implement the harness that runs clips through the engine job API and computes all stage metrics.

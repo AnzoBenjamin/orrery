@@ -69,6 +69,9 @@ class ClipSpec(_FrozenModel):
     family: str
     profile: str
     breakage: BreakageSelection = "none"
+    sample_seed: int | None = Field(default=None, ge=0, le=(1 << 63) - 1)
+    breakage_index: int | None = Field(default=None, ge=0)
+    source_clip: str | None = None
 
     @model_validator(mode="after")
     def validate_clip(self) -> Self:
@@ -76,6 +79,10 @@ class ClipSpec(_FrozenModel):
             raise ValueError("clip id must be a lowercase kebab-case identifier")
         if self.family not in FAMILIES:
             raise ValueError(f"unknown mechanism family {self.family!r}")
+        if self.breakage == "none" and self.breakage_index is not None:
+            raise ValueError("an intact clip cannot select a breakage index")
+        if self.source_clip is not None and not _NAME.fullmatch(self.source_clip):
+            raise ValueError("source clip must be a lowercase kebab-case identifier")
         return self
 
 
@@ -117,6 +124,7 @@ class SuiteManifest(_FrozenModel):
             profile = self.profile(clip.profile)
             if clip.family in {"spatial-rssr", "two-plane-cardan"} and profile.render_mode != "3d":
                 raise ValueError(f"spatial clip {clip.id!r} requires a 3d capture profile")
+        _validate_source_relations(self.clips)
         return self
 
     def profile(self, name: str) -> CaptureProfile:
@@ -132,6 +140,24 @@ class ClipPlan:
     spec: ClipSpec
     profile: CaptureProfile
     seed: int
+
+
+def _validate_source_relations(clips: tuple[ClipSpec, ...]) -> None:
+    prior_clips: dict[str, ClipSpec] = {}
+    for clip in clips:
+        if clip.source_clip is not None:
+            source = prior_clips.get(clip.source_clip)
+            if source is None:
+                raise ValueError(f"clip {clip.id!r} names an unknown or later source clip")
+            if clip.breakage != "none" or source.breakage == "none":
+                raise ValueError("a repaired source relation must point from intact to broken")
+            if clip.family != source.family:
+                raise ValueError("repaired and broken source clips must use the same family")
+            if clip.sample_seed is None or clip.sample_seed != source.sample_seed:
+                raise ValueError(
+                    "repaired and broken source clips must share an explicit sample seed"
+                )
+        prior_clips[clip.id] = clip
 
 
 def load_manifest(path: Path) -> SuiteManifest:
@@ -191,7 +217,9 @@ def plan_clips(manifest: SuiteManifest) -> tuple[ClipPlan, ...]:
             index,
             spec,
             manifest.profile(spec.profile),
-            derive_clip_seed(manifest.seed, index),
+            spec.sample_seed
+            if spec.sample_seed is not None
+            else derive_clip_seed(manifest.seed, index),
         )
         for index, spec in enumerate(manifest.clips)
     )

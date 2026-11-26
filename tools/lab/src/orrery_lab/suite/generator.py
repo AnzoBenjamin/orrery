@@ -36,6 +36,7 @@ class GeneratedClip:
     profile: str
     seed: int
     breakage: str
+    source_clip: str | None
     directory: Path
     truth_sha256: str
     decoded_frames: DecodedFrameHash
@@ -90,6 +91,7 @@ def generate_suite(
                     "seed": plan.seed,
                     "requestedBreakage": plan.spec.breakage,
                     "selectedBreakage": built.selected_breakage,
+                    "sourceClip": plan.spec.source_clip,
                     "path": plan.spec.id,
                     "truthSha256": _sha256(exported.truth_json),
                     "decodedFrames": content_hash.record(),
@@ -180,6 +182,7 @@ def _read_clip(directory: Path, value: object) -> GeneratedClip:
         _string(record, "profile"),
         _integer(record, "seed"),
         _string(record, "selectedBreakage"),
+        _optional_string(record, "sourceClip"),
         directory / relative,
         truth_sha,
         content_hash,
@@ -238,6 +241,13 @@ def _string(record: dict[str, object], field: str) -> str:
     value = record.get(field)
     if not isinstance(value, str):
         raise ValueError(f"generated suite field {field!r} must be a string")
+    return value
+
+
+def _optional_string(record: dict[str, object], field: str) -> str | None:
+    value = record.get(field)
+    if value is not None and not isinstance(value, str):
+        raise ValueError(f"generated suite field {field!r} must be a string or null")
     return value
 
 

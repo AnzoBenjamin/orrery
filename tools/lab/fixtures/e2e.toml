@@ -1,0 +1,57 @@
+schema_version = 1
+name = "e2e-fixtures"
+seed = 20260325
+runtime_budget_seconds = 120
+
+[[profiles]]
+name = "clean-fixture"
+tier = "clean"
+render_mode = "2d"
+width = 96
+height = 64
+frame_rate = 6
+frame_count = 8
+codec = "h264"
+clutter_count = 0
+shadows = true
+
+[[profiles]]
+name = "phone-fixture"
+tier = "phone"
+render_mode = "2d"
+width = 96
+height = 64
+frame_rate = 6
+frame_count = 8
+codec = "h264"
+variable_frame_rate = true
+drop_probability = 0.0
+clutter_count = 2
+shadows = true
+
+[[clips]]
+id = "clean-four-bar"
+family = "four-bar-crank-rocker"
+profile = "clean-fixture"
+sample_seed = 6100
+
+[[clips]]
+id = "broken-flapping-wing"
+family = "flapping-wing"
+profile = "clean-fixture"
+breakage = "binary_link"
+breakage_index = 0
+sample_seed = 6101
+
+[[clips]]
+id = "repaired-flapping-wing"
+family = "flapping-wing"
+profile = "clean-fixture"
+sample_seed = 6101
+source_clip = "broken-flapping-wing"
+
+[[clips]]
+id = "phone-slider-crank"
+family = "slider-crank"
+profile = "phone-fixture"
+sample_seed = 6102

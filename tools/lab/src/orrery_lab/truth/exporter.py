@@ -260,10 +260,14 @@ def _manifest(
         "schemaVersion": FORMAT_VERSION,
         "labVersion": truth.lab_version,
         "clipId": truth.clip_id,
+        "sampleId": truth.sample.id,
         "family": truth.sample.family,
         "seed": truth.sample.seed,
         "acceptedAttempt": truth.sample.attempt,
         "params": _json_value(truth.sample.params),
+        "sourceMechanismSha256": hashlib.sha256(
+            _canonical_json(truth.sample.built.document)
+        ).hexdigest(),
         "captureProfile": truth.capture_profile,
         "renderMode": mode,
         "sourceFrameCount": len(truth.frames),

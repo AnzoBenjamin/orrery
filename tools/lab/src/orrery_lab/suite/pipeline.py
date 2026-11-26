@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import cast
 
 import numpy as np
@@ -13,8 +13,15 @@ from orrery_kinematics import Solver
 from orrery_lab import LAB_VERSION
 from orrery_lab.appearance import Appearance
 from orrery_lab.breakage import Broken, apply_breakage
-from orrery_lab.degrade import EncodingConfig, encode_video
-from orrery_lab.dynamics import BodyPose
+from orrery_lab.degrade import (
+    CameraDegradeConfig,
+    EncodingConfig,
+    SensorDegradeConfig,
+    degrade_camera,
+    degrade_sensor,
+    encode_video,
+)
+from orrery_lab.dynamics import BodyPose, DynamicsConfig, Trajectory, simulate
 from orrery_lab.families import family
 from orrery_lab.graph import Json
 from orrery_lab.render2d import RenderConfig, RenderedFrame, render_frame
@@ -22,7 +29,7 @@ from orrery_lab.render3d import RenderConfig as Render3DConfig
 from orrery_lab.render3d import RenderedPasses
 from orrery_lab.render3d import render as render_3d
 from orrery_lab.sampling import Sample, generate
-from orrery_lab.suite.manifest import CaptureProfile, ClipPlan, part_kind
+from orrery_lab.suite.manifest import CaptureProfile, CaptureTier, ClipPlan, part_kind
 from orrery_lab.truth import ClipTruth, TruthFrame
 from orrery_lab.truth.types import BodyPoseTruth
 
@@ -43,20 +50,31 @@ def build_clip(plan: ClipPlan) -> BuiltClip:
     document = broken.document if broken is not None else sample.built.document
     appearance = broken.appearance if broken is not None else sample.appearance
     render_seed = int(rng.integers(0, np.iinfo(np.uint64).max, dtype=np.uint64))
+    degradation_seed = int(rng.integers(0, np.iinfo(np.uint64).max, dtype=np.uint64))
     encoding_seed = int(rng.integers(0, np.iinfo(np.uint64).max, dtype=np.uint64))
     timestamps = tuple(index / plan.profile.frame_rate for index in range(plan.profile.frame_count))
+    dynamics = None
+    degradations: dict[str, object] = {}
 
     if plan.profile.render_mode == "2d":
-        poses, driver_values = _planar_motion(sample, document, plan.profile.frame_count, broken)
-        rendered = _render_planar(
+        poses, driver_values, dynamics = _planar_motion(sample, document, timestamps, broken)
+        rendered, camera_degradation = _render_planar(
             document,
             appearance,
             plan.profile,
             poses=poses,
             timestamps=timestamps,
-            seed=render_seed,
+            render_seed=render_seed,
+            degradation_seed=degradation_seed,
         )
+        if camera_degradation is not None:
+            degradations["camera"] = camera_degradation
         rgb = np.stack([frame.pixels[:, :, :3] for frame in rendered])
+        rgb, sensor_degradation = _degrade_capture(
+            rgb, timestamps, plan.profile.tier, degradation_seed
+        )
+        if sensor_degradation is not None:
+            degradations["sensor"] = sensor_degradation
     else:
         poses, driver_values = _static_motion(document, plan.profile.frame_count)
         rendered = _render_spatial(document, appearance, plan.profile, render_seed)
@@ -91,6 +109,8 @@ def build_clip(plan: ClipPlan) -> BuiltClip:
             frames,
             encoding,
             breakage=broken,
+            dynamics=dynamics,
+            degradations=degradations,
             include_depth=plan.profile.render_mode == "3d",
         ),
         selected,
@@ -112,7 +132,14 @@ def _break(sample: Sample, plan: ClipPlan, rng: np.random.Generator) -> Broken |
             f"clip {plan.spec.id!r} requests breakage {selection!r}, "
             f"but family {sample.family!r} has no such breakable part"
         )
-    chosen = choices[int(rng.integers(0, len(choices)))]
+    index = plan.spec.breakage_index
+    if index is None:
+        index = int(rng.integers(0, len(choices)))
+    if index >= len(choices):
+        raise ValueError(
+            f"clip {plan.spec.id!r} breakage index {index} exceeds {len(choices)} matching choices"
+        )
+    chosen = choices[index]
     return apply_breakage(sample, chosen, f"{plan.spec.id}-breakage")
 
 
@@ -133,25 +160,61 @@ def _driver_trajectory(sample: Sample, count: int) -> tuple[float, ...]:
 def _planar_motion(
     sample: Sample,
     document: Json,
-    count: int,
+    timestamps: tuple[float, ...],
     broken: Broken | None,
-) -> tuple[tuple[dict[str, BodyPose], ...], tuple[dict[str, float], ...]]:
-    if broken is not None or not document["drivers"]:
-        return _static_motion(document, count)
+) -> tuple[
+    tuple[dict[str, BodyPose], ...],
+    tuple[dict[str, float], ...],
+    Trajectory | None,
+]:
+    if broken is not None:
+        return _dynamic_motion(document, broken, timestamps)
+    if not document["drivers"]:
+        static_poses, static_drivers = _static_motion(document, len(timestamps))
+        return static_poses, static_drivers, None
     solver = Solver(json.dumps(document, sort_keys=True))
     drive = np.zeros(solver.driver_count, dtype=np.float64)
     state = solver.assemble(drive)
     poses: list[dict[str, BodyPose]] = []
     drivers: list[dict[str, float]] = []
     driver_ids = tuple(str(item["id"]) for item in document["drivers"])
-    for value in _driver_trajectory(sample, count):
+    for value in _driver_trajectory(sample, len(timestamps)):
         drive[0] = value
         state = solver.assemble(drive, seed=state)
         poses.append(_poses_from_state(document, state))
         drivers.append(
             {driver_id: float(drive[index]) for index, driver_id in enumerate(driver_ids)}
         )
-    return tuple(poses), tuple(drivers)
+    return tuple(poses), tuple(drivers), None
+
+
+def _dynamic_motion(
+    document: Json,
+    broken: Broken,
+    timestamps: tuple[float, ...],
+) -> tuple[tuple[dict[str, BodyPose], ...], tuple[dict[str, float], ...], Trajectory]:
+    period = timestamps[1] - timestamps[0]
+    substeps = 80
+    config = DynamicsConfig(step=period / substeps)
+    simulated = simulate(broken, timestamps[-1], config=config)
+    indices = tuple(round(timestamp / config.step) for timestamp in timestamps)
+    dynamic_frames = tuple(
+        replace(simulated.frames[index], time=timestamp)
+        for index, timestamp in zip(indices, timestamps, strict=True)
+    )
+    dynamics = Trajectory(
+        simulated.active_body_ids,
+        dynamic_frames,
+        tuple(simulated.energies[index] for index in indices),
+    )
+    base = {str(body["id"]): BodyPose(0.0, 0.0, 0.0) for body in document["bodies"]}
+    poses: list[dict[str, BodyPose]] = []
+    for frame in dynamic_frames:
+        current = dict(base)
+        current.update(frame.poses)
+        poses.append(current)
+    drivers = {str(driver["id"]): 0.0 for driver in document["drivers"]}
+    return tuple(poses), tuple(dict(drivers) for _ in timestamps), dynamics
 
 
 def _static_motion(
@@ -189,8 +252,9 @@ def _render_planar(
     *,
     poses: tuple[dict[str, BodyPose], ...],
     timestamps: tuple[float, ...],
-    seed: int,
-) -> tuple[RenderedFrame, ...]:
+    render_seed: int,
+    degradation_seed: int,
+) -> tuple[tuple[RenderedFrame, ...], object | None]:
     if not isinstance(appearance, Appearance):
         raise TypeError("planar rendering requires an Appearance")
     config = RenderConfig(
@@ -199,25 +263,87 @@ def _render_planar(
         clutter_count=profile.clutter_count,
         shadows=profile.shadows,
     )
-    frames: list[RenderedFrame] = []
-    camera = None
-    for index, (timestamp, frame_poses) in enumerate(zip(timestamps, poses, strict=True)):
-        frame_rng = np.random.default_rng(seed)
-        if index:
-            for _ in range(_CAMERA_RANDOM_DRAWS):
-                frame_rng.random()
-        frame = render_frame(
-            document,
-            appearance,
-            frame_rng,
-            camera=camera,
-            poses=frame_poses,
-            time=timestamp,
-            config=config,
+    base_rng = np.random.default_rng(render_seed)
+    base = render_frame(
+        document,
+        appearance,
+        base_rng,
+        poses=poses[0],
+        time=timestamps[0],
+        config=config,
+    )
+    camera_metadata = None
+    cameras = tuple(base.camera for _ in timestamps)
+    if profile.tier in {"phone", "hostile"}:
+        camera_config = (
+            CameraDegradeConfig()
+            if profile.tier == "phone"
+            else CameraDegradeConfig(
+                center_amplitude_world=0.009,
+                tilt_amplitude_radians=math.radians(1.6),
+                roll_amplitude_radians=math.radians(2.0),
+                focus_breathing_fraction=0.03,
+            )
         )
-        camera = frame.camera
-        frames.append(frame)
-    return tuple(frames)
+        changed = degrade_camera(
+            base.camera,
+            timestamps,
+            np.random.default_rng((degradation_seed, 0)),
+            config=camera_config,
+        )
+        cameras = changed.cameras
+        camera_metadata = changed.metadata
+    frames: list[RenderedFrame] = []
+    for timestamp, frame_poses, camera in zip(timestamps, poses, cameras, strict=True):
+        frame_rng = np.random.default_rng(render_seed)
+        for _ in range(_CAMERA_RANDOM_DRAWS):
+            frame_rng.random()
+        frames.append(
+            render_frame(
+                document,
+                appearance,
+                frame_rng,
+                camera=camera,
+                poses=frame_poses,
+                time=timestamp,
+                config=config,
+            )
+        )
+    return tuple(frames), camera_metadata
+
+
+def _degrade_capture(
+    rgb: np.ndarray,
+    timestamps: tuple[float, ...],
+    tier: CaptureTier,
+    seed: int,
+) -> tuple[np.ndarray, object | None]:
+    if tier not in {"phone", "hostile"}:
+        return rgb, None
+    linear = np.power(rgb.astype(np.float32) / 255.0, 2.2).astype(np.float32)
+    config = (
+        SensorDegradeConfig(full_well_electrons=3000.0, read_noise_std=0.004)
+        if tier == "phone"
+        else SensorDegradeConfig(
+            drift_amplitude_stops=0.4,
+            full_well_electrons=1200.0,
+            read_noise_std=0.009,
+        )
+    )
+    result = degrade_sensor(
+        linear,
+        timestamps,
+        np.random.default_rng((seed, 1)),
+        config=config,
+    )
+    encoded = np.clip(np.power(result.pixels, 1.0 / 2.2) * 255.0 + 0.5, 0.0, 255.0).astype(np.uint8)
+    metadata = {
+        "inputTransfer": "srgb-approximate-gamma-2.2",
+        "workingSpace": "linear-rgb",
+        "outputTransfer": "srgb-approximate-gamma-2.2",
+        "sensor": result.metadata,
+    }
+    return encoded, metadata
 
 
 def _render_spatial(
